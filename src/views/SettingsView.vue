@@ -12,6 +12,7 @@ import FormError from '@/components/auth/FormError.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import TelegramSettings from '@/components/account/TelegramSettings.vue'
+import EmailNotificationsSettings from '@/components/account/EmailNotificationsSettings.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
@@ -288,7 +289,10 @@ async function signOutOthers() {
         </form>
       </section>
 
-      <TelegramSettings v-else-if="tab === 'notifications'" />
+      <div v-else-if="tab === 'notifications'" class="space-y-4">
+        <EmailNotificationsSettings />
+        <TelegramSettings />
+      </div>
 
       <template v-else-if="tab === 'sessions'">
         <div v-if="!sessionsLoaded" class="space-y-4" aria-busy="true">
