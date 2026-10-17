@@ -100,6 +100,7 @@ const en = {
   joinTeam: {
     title: 'Join {company}',
     subtitle: "{owner} invited you. You'll work with the company's freelancers and set tasks for them.",
+    subtitleContractor: "{owner} invited you as a contractor. You'll set tasks for the company's freelancers and follow the ones you're part of.",
     signedInAs: "You're signed in as {current}. Joining creates a new account for {email} and signs you in to it.",
     teamOf: "{name}'s team",
     submit: 'Join the team',
@@ -212,6 +213,7 @@ const uk: typeof en = {
   joinTeam: {
     title: 'Приєднатися до {company}',
     subtitle: '{owner} запрошує вас. Ви працюватимете з фрилансерами компанії й ставитимете їм задачі.',
+    subtitleContractor: '{owner} запрошує вас як підрядника. Ви ставитимете задачі фрилансерам компанії й стежитимете за тими, де ви учасник.',
     signedInAs: 'Ви увійшли як {current}. Приєднання створить новий акаунт для {email} і виконає вхід у нього.',
     teamOf: 'Команда {name}',
     submit: 'Приєднатися до команди',

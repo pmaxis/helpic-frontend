@@ -1,3 +1,11 @@
+/**
+ * What someone on a client's team is: a member sees all the company's work, a
+ * contractor only the tasks they set or were added to.
+ */
+export type TeamRole = 'member' | 'contractor'
+
+export const TEAM_ROLES: TeamRole[] = ['member', 'contractor']
+
 export interface TeamPerson {
   id: string
   name: string
@@ -5,6 +13,7 @@ export interface TeamPerson {
 }
 
 export interface TeamMember extends TeamPerson {
+  role: TeamRole
   joined_at: string
 }
 
@@ -13,6 +22,7 @@ export interface TeamInvite {
   id: string
   email: string
   name: string
+  role: TeamRole
   token: string
   expired: boolean
   expires_at: string
@@ -24,7 +34,8 @@ export interface TeamInvite {
  * freelancer invited) runs it; a member sees its name and owner only.
  */
 export interface Team {
-  role: 'owner' | 'member'
+  /** The viewer's. */
+  role: 'owner' | TeamRole
   name: string
   owner: TeamPerson
   /** The owner's view only. */
@@ -37,6 +48,8 @@ export interface TeamInviteLookup {
   email: string
   name: string
   company: string
+  /** What they join as. */
+  role: TeamRole
   owner: TeamPerson
   expires_at: string
 }

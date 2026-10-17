@@ -2,8 +2,8 @@ import type { NotificationKind } from '@/types/notifications'
 
 export interface NotificationKindInfo {
   kind: NotificationKind
-  /** Who gets it: the freelancer, or the client company's owner; everyone when unset. */
-  for?: 'freelancer' | 'owner'
+  /** Who gets it: the freelancer, the client company's owner, anyone on the client's side; everyone when unset. */
+  for?: 'freelancer' | 'owner' | 'client'
 }
 
 /** Groups of kinds: keys under "notificationKinds.groups" in the messages. */
@@ -18,6 +18,7 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'task_status' },
       { kind: 'task_updated' },
       { kind: 'task_deleted' },
+      { kind: 'participant_added', for: 'client' },
     ],
   },
   {

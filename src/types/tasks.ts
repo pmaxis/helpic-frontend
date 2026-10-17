@@ -29,7 +29,7 @@ export interface Task {
   created_by: string
   /** Who set the task: either side, or a member of the client's company. */
   creator: Party
-  /** Who took part: the freelancer first, then everyone who set, commented on, attached to or changed it. */
+  /** Who took part: the freelancer first, then everyone who set, was added to, commented on, attached to or changed it. */
   participants: Party[]
   title: string
   description: string
@@ -71,4 +71,11 @@ export interface TaskInput {
   price?: string
   /** Set on create; later through setPriority. */
   priority?: TaskPriority
+}
+
+/** Someone on a task's client side who can be on it: the client, or a member or contractor of their company. */
+export interface TaskPerson extends Party {
+  role: 'owner' | 'member' | 'contractor'
+  /** Already a participant. */
+  on_task: boolean
 }

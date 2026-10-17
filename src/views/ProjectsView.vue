@@ -99,7 +99,8 @@ function onSaved(project: Project) {
           />
         </div>
         <ViewToggle v-model="view" :options="VIEWS" />
-        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
+        <!-- a contractor works in the company's projects but doesn't start them -->
+        <BaseButton v-if="!auth.isContractor" size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -108,7 +109,7 @@ function onSaved(project: Project) {
         :title="$t('projects.noneYet')"
         :description="auth.isClient ? $t('projects.noneYetClient') : $t('projects.noneYetFreelancer')"
       >
-        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
+        <BaseButton v-if="!auth.isContractor" size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
       </EmptyState>
     </div>
 

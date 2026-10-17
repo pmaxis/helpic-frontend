@@ -74,7 +74,7 @@ function onSubmit() {
     <AuthCard
       v-else-if="invite"
       :title="$t('joinTeam.title', { company: company() })"
-      :subtitle="$t('joinTeam.subtitle', { owner: invite.owner.name || invite.owner.email })"
+      :subtitle="$t(invite.role === 'contractor' ? 'joinTeam.subtitleContractor' : 'joinTeam.subtitle', { owner: invite.owner.name || invite.owner.email })"
     >
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <p

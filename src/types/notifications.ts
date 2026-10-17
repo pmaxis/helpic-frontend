@@ -3,6 +3,7 @@ export type NotificationKind =
   | 'task_status'
   | 'task_updated'
   | 'task_deleted'
+  | 'participant_added'
   | 'project_created'
   | 'client_joined'
   | 'member_joined'
