@@ -30,6 +30,24 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/ForgotPasswordView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    // Open to everyone: the link is the proof, whoever is signed in here.
+    path: '/reset-password/:token',
+    name: 'reset-password',
+    component: () => import('@/views/ResetPasswordView.vue'),
+  },
+  {
+    // Open to everyone: the new email may be opened on another device.
+    path: '/confirm-email/:token',
+    name: 'confirm-email',
+    component: () => import('@/views/ConfirmEmailView.vue'),
+  },
+  {
     // Open to everyone: a signed-in user may accept for another account.
     path: '/invite/:token',
     name: 'invite',

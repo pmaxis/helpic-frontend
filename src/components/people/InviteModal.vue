@@ -35,8 +35,8 @@ async function copy() {
   <Modal title="Invite a client" @close="emit('close')">
     <div v-if="link" class="space-y-3">
       <p class="text-sm text-neutral-600">
-        Send this link to <span class="font-medium text-neutral-900">{{ form.values.email.trim() }}</span>. It works once and
-        expires in 14 days.
+        We emailed the invitation to <span class="font-medium text-neutral-900">{{ form.values.email.trim() }}</span>. You can
+        also send them this link yourself. It works once and expires in 14 days.
       </p>
       <input
         :value="link"
@@ -47,7 +47,7 @@ async function copy() {
     </div>
     <form v-else id="invite-form" class="space-y-4" novalidate @submit.prevent="submit">
       <p class="text-sm text-neutral-500">
-        You'll get a link to send to your client. They set a password and can then give you tasks.
+        We'll email your client a link. They set a password and can then give you tasks.
       </p>
       <FormError :message="form.formError" />
       <BaseInput v-bind="form.field('name')" label="Client name" placeholder="Acme Inc. or Jane Doe" />

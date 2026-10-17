@@ -81,10 +81,12 @@ const emailForm = useForm(z.object({ email: email(), current_password: currentPa
   current_password: '',
 })
 
+/** Where the last confirmation link went: the email changes once it's opened. */
+const pendingEmail = ref('')
+
 function saveEmail() {
   void emailForm.submit(async (data) => {
-    await auth.changeEmail(data)
-    toast.success('Email updated')
+    pendingEmail.value = await auth.changeEmail(data)
     emailForm.reset({ email: auth.user?.email ?? '' })
   })
 }
@@ -233,7 +235,21 @@ async function signOutOthers() {
       </template>
 
       <section v-else-if="tab === 'email'" class="rounded-xl border border-neutral-200 p-5">
-        <p class="text-sm text-neutral-500">You sign in with this email.</p>
+        <p class="text-sm text-neutral-500">You sign in with this email. A new one needs confirming from its own inbox.</p>
+        <div
+          v-if="pendingEmail"
+          class="mt-4 flex items-start gap-3 rounded-lg bg-sky-50 px-3.5 py-3 text-sm text-sky-900 ring-1 ring-sky-600/15 ring-inset"
+          role="status"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 h-4 w-4 shrink-0 text-sky-600" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="m3 7 9 6 9-6" />
+          </svg>
+          <p>
+            We sent a link to <span class="font-medium">{{ pendingEmail }}</span>. Open it to start signing in with that email; until then
+            it stays {{ auth.user?.email }}. The link works for 24 hours.
+          </p>
+        </div>
         <form class="mt-4 space-y-4" novalidate @submit.prevent="saveEmail">
           <FormError :message="emailForm.formError" />
           <BaseInput v-bind="emailForm.field('email')" label="Email" type="email" autocomplete="email" />
