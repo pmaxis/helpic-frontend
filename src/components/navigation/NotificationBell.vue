@@ -6,7 +6,7 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationsStore } from '@/stores/notifications'
-import { timeAgo } from '@/utils/format'
+import { formatDate, timeAgo } from '@/utils/format'
 import type { AppNotification } from '@/types/notifications'
 
 const store = useNotificationsStore()
@@ -67,9 +67,13 @@ onBeforeUnmount(close)
 
 /** One line saying what happened. */
 function message(n: AppNotification): { who: string; text: string } {
-  const who = n.actor.name || n.actor.email
+  const who = n.actor ? n.actor.name || n.actor.email : ''
   const subject = `“${n.subject}”`
   switch (n.kind) {
+    case 'task_due_soon':
+      return { who, text: `${subject} is due tomorrow` }
+    case 'task_overdue':
+      return { who, text: `${subject} is overdue: it was due ${formatDate(n.detail)}` }
     case 'task_created':
       return { who, text: `added a task ${subject}` }
     case 'task_status':
@@ -97,7 +101,13 @@ function message(n: AppNotification): { who: string; text: string } {
   }
 }
 
+/** A reminder's badge: a clock before the due date, a warning after. */
+function isReminder(n: AppNotification): boolean {
+  return n.kind === 'task_due_soon' || n.kind === 'task_overdue'
+}
+
 function initials(n: AppNotification): string {
+  if (!n.actor) return ''
   const name = n.actor.name || n.actor.email
   const words = name.split(/\s+/).filter(Boolean)
   return (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
@@ -166,12 +176,34 @@ async function openNotification(n: AppNotification) {
             :class="n.read ? '' : 'bg-sky-50/40'"
             @click="openNotification(n)"
           >
-            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
+            <span
+              v-if="isReminder(n)"
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+              :class="n.kind === 'task_overdue' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <template v-if="n.kind === 'task_overdue'">
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                  <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                </template>
+                <template v-else>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </template>
+              </svg>
+            </span>
+            <span
+              v-else
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600"
+              aria-hidden="true"
+            >
               {{ initials(n) }}
             </span>
             <span class="min-w-0 flex-1">
               <span class="block text-sm leading-snug text-neutral-700">
-                <span class="font-medium text-neutral-900">{{ message(n).who }}</span> {{ message(n).text }}
+                <span v-if="message(n).who" class="font-medium text-neutral-900">{{ message(n).who }}</span>{{ message(n).who ? ' ' : '' }}{{ message(n).text }}
               </span>
               <span v-if="n.kind === 'comment_added' && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
               <span class="mt-0.5 block text-xs text-neutral-400">{{ timeAgo(n.created_at) }}</span>

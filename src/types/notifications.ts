@@ -10,18 +10,21 @@ export type NotificationKind =
   | 'report_paid'
   | 'attachment_added'
   | 'comment_added'
+  | 'task_due_soon'
+  | 'task_overdue'
 
 /** Something the other side of shared work did. */
 export interface AppNotification {
   id: string
   kind: NotificationKind
-  actor: { id: string; name: string; email: string }
+  /** Who did it; null for a reminder, which nobody did. */
+  actor: { id: string; name: string; email: string } | null
   task_id: string | null
   project_id: string | null
   report_id: string | null
   /** The task's or project's title at the time. */
   subject: string
-  /** Extra context, e.g. the new status. */
+  /** Extra context, e.g. the new status, or a reminder's due date (YYYY-MM-DD). */
   detail: string
   read: boolean
   created_at: string

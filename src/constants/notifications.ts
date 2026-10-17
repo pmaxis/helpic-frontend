@@ -19,6 +19,13 @@ export const NOTIFICATION_GROUPS: { label: string; kinds: NotificationKindInfo[]
     ],
   },
   {
+    label: 'Deadlines',
+    kinds: [
+      { kind: 'task_due_soon', label: 'A task is due tomorrow', for: 'freelancer' },
+      { kind: 'task_overdue', label: 'A task is overdue' },
+    ],
+  },
+  {
     label: 'Discussion',
     kinds: [
       { kind: 'comment_added', label: 'Someone comments' },
