@@ -11,6 +11,7 @@ import { ApiRequestError } from '@/services/api'
 import { attachmentURL, deleteAttachment, downloadAttachment, formatSize, listAttachments, uploadAttachment } from '@/services/attachments'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import type { Attachment } from '@/types/attachments'
 
 const props = defineProps<{ taskId: string }>()
@@ -59,7 +60,7 @@ async function load(taskId: string) {
     maxSize.value = data.maxSize
     files.value.forEach((a) => void loadPreview(a))
   } catch {
-    toast.error('Could not load the files')
+    toast.error(t('attachments.loadFailed'))
   } finally {
     loaded.value = true
   }
@@ -79,7 +80,7 @@ const input = ref<HTMLInputElement | null>(null)
 function add(list: FileList | File[]) {
   for (const file of Array.from(list)) {
     if (file.size > maxSize.value) {
-      toast.error(`“${file.name}” is over ${formatSize(maxSize.value)}`)
+      toast.error(t('attachments.tooLarge', { name: file.name, size: formatSize(maxSize.value) }))
       continue
     }
     void send(file)
@@ -99,7 +100,11 @@ async function send(file: File) {
       void loadPreview(a)
     }
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? `“${file.name}”: ${error.message}` : `Could not upload “${file.name}”`)
+    toast.error(
+      error instanceof ApiRequestError
+        ? t('attachments.failedWith', { name: file.name, message: error.message })
+        : t('attachments.uploadFailed', { name: file.name }),
+    )
   } finally {
     uploads.value = uploads.value.filter((u) => u.key !== item.key)
   }
@@ -151,7 +156,7 @@ async function open(a: Attachment) {
     if (preview) window.open(preview, '_blank', 'noopener')
     else await downloadAttachment(a)
   } catch {
-    toast.error(`Could not download “${a.file_name}”`)
+    toast.error(t('attachments.downloadFailed', { name: a.file_name }))
   }
 }
 
@@ -168,7 +173,7 @@ async function remove() {
     const url = previews.value[a.id]
     if (url) URL.revokeObjectURL(url)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not delete the file')
+    toast.error(error instanceof ApiRequestError ? error.message : t('attachments.deleteFailed'))
   } finally {
     removeBusy.value = false
     removing.value = null
@@ -182,7 +187,7 @@ function extension(name: string): string {
 }
 
 function uploader(a: Attachment): string {
-  return a.uploaded_by.id === auth.user?.id ? 'You' : a.uploaded_by.name || a.uploaded_by.email
+  return a.uploaded_by.id === auth.user?.id ? t('common.you_capital') : a.uploaded_by.name || a.uploaded_by.email
 }
 </script>
 
@@ -197,7 +202,7 @@ function uploader(a: Attachment): string {
   >
     <div class="flex items-center justify-between gap-2">
       <h2 id="task-attachments" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
-        Attachments<span v-if="files.length" class="ml-1.5 font-normal text-neutral-400">{{ files.length }}</span>
+        {{ $t('attachments.title') }}<span v-if="files.length" class="ml-1.5 font-normal text-neutral-400">{{ files.length }}</span>
       </h2>
       <button
         type="button"
@@ -207,7 +212,7 @@ function uploader(a: Attachment): string {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
           <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
         </svg>
-        Add files
+        {{ $t('attachments.add') }}
       </button>
       <input ref="input" type="file" multiple class="hidden" @change="onPick" />
     </div>
@@ -217,8 +222,8 @@ function uploader(a: Attachment): string {
         <button
           type="button"
           class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-neutral-100 text-[10px] font-semibold tracking-wide text-neutral-500"
-          :title="a.is_image ? 'Open' : 'Download'"
-          :aria-label="`${a.is_image ? 'Open' : 'Download'} ${a.file_name}`"
+          :title="a.is_image ? $t('attachments.open') : $t('attachments.download')"
+          :aria-label="`${a.is_image ? $t('attachments.open') : $t('attachments.download')} ${a.file_name}`"
           @click="open(a)"
         >
           <img v-if="previews[a.id]" :src="previews[a.id]" alt="" class="h-full w-full object-cover" />
@@ -238,9 +243,9 @@ function uploader(a: Attachment): string {
         <button
           type="button"
           class="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
-          :aria-label="`Download ${a.file_name}`"
-          title="Download"
-          @click="downloadAttachment(a).catch(() => toast.error(`Could not download “${a.file_name}”`))"
+          :aria-label="$t('attachments.downloadNamed', { name: a.file_name })"
+          :title="$t('attachments.download')"
+          @click="downloadAttachment(a).catch(() => toast.error(t('attachments.downloadFailed', { name: a.file_name })))"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -252,8 +257,8 @@ function uploader(a: Attachment): string {
           v-if="a.can_delete"
           type="button"
           class="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
-          :aria-label="`Delete ${a.file_name}`"
-          title="Delete"
+          :aria-label="$t('attachments.deleteNamed', { name: a.file_name })"
+          :title="$t('attachments.delete')"
           @click="removing = a"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
@@ -269,7 +274,7 @@ function uploader(a: Attachment): string {
         </span>
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm text-neutral-700">{{ u.name }}</p>
-          <div class="mt-1.5 h-1 overflow-hidden rounded-full bg-neutral-100" role="progressbar" :aria-valuenow="Math.round(u.progress * 100)" aria-valuemin="0" aria-valuemax="100" :aria-label="`Uploading ${u.name}`">
+          <div class="mt-1.5 h-1 overflow-hidden rounded-full bg-neutral-100" role="progressbar" :aria-valuenow="Math.round(u.progress * 100)" aria-valuemin="0" aria-valuemax="100" :aria-label="$t('attachments.uploading', { name: u.name })">
             <div class="h-full rounded-full bg-neutral-900 transition-[width]" :style="{ width: `${Math.round(u.progress * 100)}%` }" />
           </div>
         </div>
@@ -282,8 +287,8 @@ function uploader(a: Attachment): string {
       class="mt-3 w-full rounded-xl border border-dashed border-neutral-300 px-4 py-5 text-center text-sm text-neutral-400 transition-colors hover:border-neutral-400 hover:text-neutral-600"
       @click="input?.click()"
     >
-      Drop files here or click to add — mockups, specs, results.
-      <span class="mt-0.5 block text-xs">Up to {{ formatSize(maxSize) }} each</span>
+      {{ $t('attachments.drop') }}
+      <span class="mt-0.5 block text-xs">{{ $t('attachments.limit', { size: formatSize(maxSize) }) }}</span>
     </button>
 
     <!-- shown while files are dragged over the section -->
@@ -292,13 +297,13 @@ function uploader(a: Attachment): string {
       class="pointer-events-none absolute -inset-2 flex items-center justify-center rounded-xl border-2 border-dashed border-neutral-900 bg-white/90 text-sm font-medium text-neutral-900"
       aria-hidden="true"
     >
-      Drop to attach
+      {{ $t('attachments.dropToAttach') }}
     </div>
 
     <ConfirmDialog
       :open="!!removing"
-      title="Delete this file?"
-      :description="removing ? `“${removing.file_name}” will be removed from the task for both of you.` : ''"
+      :title="$t('attachments.confirmDelete')"
+      :description="removing ? $t('attachments.confirmDeleteText', { name: removing.file_name }) : ''"
       :loading="removeBusy"
       @update:open="(v: boolean) => { if (!v) removing = null }"
       @confirm="remove"

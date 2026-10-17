@@ -7,6 +7,7 @@ import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationsStore } from '@/stores/notifications'
 import { formatDate, timeAgo } from '@/utils/format'
+import { columnName } from '@/constants/tasks'
 import type { AppNotification } from '@/types/notifications'
 
 const store = useNotificationsStore()
@@ -65,39 +66,32 @@ function close() {
 }
 onBeforeUnmount(close)
 
-/** One line saying what happened. */
-function message(n: AppNotification): { who: string; text: string } {
-  const who = n.actor ? n.actor.name || n.actor.email : ''
-  const subject = `“${n.subject}”`
-  switch (n.kind) {
-    case 'task_due_soon':
-      return { who, text: `${subject} is due tomorrow` }
-    case 'task_overdue':
-      return { who, text: `${subject} is overdue: it was due ${formatDate(n.detail)}` }
-    case 'task_created':
-      return { who, text: `added a task ${subject}` }
-    case 'task_status':
-      return { who, text: `moved ${subject} to ${n.detail}` }
-    case 'task_updated':
-      return { who, text: `edited ${subject}` }
-    case 'task_deleted':
-      return { who, text: `deleted ${subject}` }
-    case 'project_created':
-      return { who, text: `started a project ${subject}` }
-    case 'client_joined':
-      return { who, text: 'accepted your invitation' }
-    case 'member_joined':
-      return { who, text: 'joined your team' }
-    case 'report_sent':
-      return { who, text: `sent you a report ${subject}` }
-    case 'report_paid':
-      return { who, text: `marked ${subject} as paid` }
-    case 'comment_added':
-      return { who, text: `commented on ${subject}` }
-    case 'attachment_added':
-      return { who, text: `attached “${n.detail}” to ${subject}` }
-    default:
-      return { who, text: n.subject ? `changed ${subject}` : 'did something' }
+/** The kinds the bell has words for; anything else is "changed". */
+const PHRASED = new Set([
+  'task_due_soon',
+  'task_overdue',
+  'task_created',
+  'task_status',
+  'task_updated',
+  'task_deleted',
+  'project_created',
+  'client_joined',
+  'member_joined',
+  'report_sent',
+  'report_paid',
+  'comment_added',
+  'attachment_added',
+])
+
+/** The message saying what happened, and what fills it: {who} goes in bold. */
+function phrase(n: AppNotification): { key: string; who: string; subject: string; detail: string; date: string } {
+  return {
+    key: `bell.phrases.${PHRASED.has(n.kind) ? n.kind : 'other'}`,
+    who: n.actor ? n.actor.name || n.actor.email : '',
+    subject: `“${n.subject}”`,
+    // A status change's detail is the column's name.
+    detail: n.kind === 'task_status' ? columnName(n.detail) : n.detail,
+    date: n.kind === 'task_overdue' ? formatDate(n.detail) : '',
   }
 }
 
@@ -130,8 +124,8 @@ async function openNotification(n: AppNotification) {
     type="button"
     class="relative shrink-0 rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus:outline-none"
     :class="open ? 'bg-neutral-100 text-neutral-900' : ''"
-    :title="store.unread ? `${store.unread} new notification${store.unread === 1 ? '' : 's'}` : 'Notifications'"
-    :aria-label="store.unread ? `Notifications, ${store.unread} unread` : 'Notifications'"
+    :title="store.unread ? $t('bell.newCount', { n: store.unread }, store.unread) : $t('bell.title')"
+    :aria-label="store.unread ? $t('bell.unreadAria', { n: store.unread }) : $t('bell.title')"
     :aria-expanded="open"
     @click="toggle"
   >
@@ -149,24 +143,24 @@ async function openNotification(n: AppNotification) {
       :style="panelStyle"
       class="animate-pop-up z-[60] flex max-h-[min(32rem,80vh)] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl shadow-neutral-900/10"
       role="dialog"
-      aria-label="Notifications"
+      :aria-label="$t('bell.title')"
     >
       <header class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-neutral-900">Notifications</h2>
+        <h2 class="text-sm font-semibold text-neutral-900">{{ $t('bell.title') }}</h2>
         <button
           v-if="store.unread"
           type="button"
           class="text-xs font-medium text-neutral-500 hover:text-neutral-900"
           @click="store.markAllRead().catch(() => {})"
         >
-          Mark all as read
+          {{ $t('bell.markAllRead') }}
         </button>
       </header>
 
-      <p v-if="loading" class="px-4 py-10 text-center text-sm text-neutral-400">Loading…</p>
+      <p v-if="loading" class="px-4 py-10 text-center text-sm text-neutral-400">{{ $t('common.loading') }}</p>
       <div v-else-if="!store.items.length" class="px-4 py-10 text-center">
-        <p class="text-sm font-medium text-neutral-700">You're all caught up</p>
-        <p class="mt-1 text-xs text-neutral-400">When your clients or freelancers change shared work, you'll see it here.</p>
+        <p class="text-sm font-medium text-neutral-700">{{ $t('bell.caughtUp') }}</p>
+        <p class="mt-1 text-xs text-neutral-400">{{ $t('bell.caughtUpText') }}</p>
       </div>
       <ul v-else class="min-h-0 divide-y divide-neutral-100 overflow-y-auto">
         <li v-for="n in store.items" :key="n.id">
@@ -202,13 +196,16 @@ async function openNotification(n: AppNotification) {
               {{ initials(n) }}
             </span>
             <span class="min-w-0 flex-1">
-              <span class="block text-sm leading-snug text-neutral-700">
-                <span v-if="message(n).who" class="font-medium text-neutral-900">{{ message(n).who }}</span>{{ message(n).who ? ' ' : '' }}{{ message(n).text }}
-              </span>
+              <i18n-t :keypath="phrase(n).key" tag="span" class="block text-sm leading-snug text-neutral-700" scope="global">
+                <template #who><span class="font-medium text-neutral-900">{{ phrase(n).who }}</span></template>
+                <template #subject>{{ phrase(n).subject }}</template>
+                <template #detail>{{ phrase(n).detail }}</template>
+                <template #date>{{ phrase(n).date }}</template>
+              </i18n-t>
               <span v-if="n.kind === 'comment_added' && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
               <span class="mt-0.5 block text-xs text-neutral-400">{{ timeAgo(n.created_at) }}</span>
             </span>
-            <span v-if="!n.read" class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-sky-500" aria-label="Unread" />
+            <span v-if="!n.read" class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-sky-500" :aria-label="$t('bell.unread')" />
           </button>
         </li>
       </ul>

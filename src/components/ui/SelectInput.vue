@@ -341,10 +341,10 @@ watch(query, () => {
                 v-model="query"
                 type="text"
                 role="searchbox"
-                aria-label="Filter options"
+                :aria-label="$t('ui.filterOptions')"
                 :aria-controls="listboxId"
                 :aria-activedescendant="activeId"
-                placeholder="Search…"
+                :placeholder="$t('ui.search')"
                 class="w-full rounded-md bg-neutral-50 py-1.5 pr-2 pl-8 text-sm text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:ring-1 focus:ring-neutral-200 focus:outline-none"
                 @keydown="onKeydown"
               />
@@ -383,7 +383,7 @@ watch(query, () => {
               </svg>
             </li>
             <li v-if="filtered.length === 0" class="px-2.5 py-6 text-center text-sm text-neutral-400" role="presentation">
-              Nothing matches “{{ query }}”
+              {{ $t('ui.nothingMatches', { query }) }}
             </li>
           </ul>
         </div>

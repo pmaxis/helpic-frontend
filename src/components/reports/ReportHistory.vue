@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
 /** A report's history, one line per change. Its client sees only the sending and the payment. */
 import { ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
@@ -30,47 +31,46 @@ watch(
 )
 
 function who(e: ReportEvent): string {
-  return e.actor.id === auth.user?.id ? 'You' : e.actor.name || e.actor.email
+  return e.actor.id === auth.user?.id ? t('common.you_capital') : e.actor.name || e.actor.email
 }
 
-const KIND_NAMES: Record<string, string> = { basic: 'Basic', detailed: 'Detailed' }
-
-/** What happened, after the actor's name; `value` parts are set off. */
-function describe(e: ReportEvent): { text: string; value?: string }[] {
+/** What happened, as a message with {value} set off. */
+function describe(e: ReportEvent): { key: string; value: string } {
   const d = e.data
   switch (e.kind) {
     case 'created':
-      return [{ text: 'created the report' }]
+      return { key: 'reportHistory.created', value: '' }
     case 'title':
-      return [{ text: 'renamed it to ' }, { text: '', value: `“${d.to}”` }]
+      return { key: 'reportHistory.title_', value: `“${d.to}”` }
     case 'summary':
-      return [{ text: 'edited the summary' }]
+      return { key: 'reportHistory.summary', value: '' }
     case 'kind':
-      return [{ text: 'made it ' }, { text: '', value: KIND_NAMES[d.to ?? ''] ?? String(d.to) }]
+      return { key: 'reportHistory.kind', value: d.to === 'detailed' ? t('report.detailed') : d.to === 'basic' ? t('report.basic') : String(d.to) }
     case 'item_notes':
-      return [{ text: 'edited the notes on ' }, { text: '', value: `“${d.task}”` }]
+      return { key: 'reportHistory.itemNotes', value: `“${d.task}”` }
     case 'item_removed':
-      return [{ text: 'took ' }, { text: '', value: `“${d.task}”` }, { text: ' out of the report' }]
+      return { key: 'reportHistory.itemRemoved', value: `“${d.task}”` }
     case 'sent':
-      return [{ text: 'sent the report' }]
+      return { key: 'reportHistory.sent', value: '' }
     case 'paid':
       return d.tasks
-        ? [{ text: 'marked it paid — ' }, { text: '', value: `${d.tasks} ${d.tasks === 1 ? 'task' : 'tasks'}` }, { text: ' moved to Paid' }]
-        : [{ text: 'marked it paid' }]
+        ? { key: 'reportHistory.paidTasks', value: t('reportHistory.tasks', { n: d.tasks }, d.tasks) }
+        : { key: 'reportHistory.paid', value: '' }
     default:
-      return [{ text: 'changed the report' }]
+      return { key: 'reportHistory.other', value: '' }
   }
 }
 </script>
 
 <template>
   <section v-if="events.length" class="border-t border-neutral-200 px-5 py-4" aria-labelledby="report-history">
-    <h3 id="report-history" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">History</h3>
+    <h3 id="report-history" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('reportHistory.title') }}</h3>
     <ol class="mt-2 space-y-2">
       <li v-for="e in events" :key="e.id" class="text-xs leading-snug text-neutral-600">
-        <span class="font-medium text-neutral-900">{{ who(e) }}</span>
-        {{ ' ' }}
-        <template v-for="(part, i) in describe(e)" :key="i">{{ part.text }}<span v-if="part.value" class="font-medium text-neutral-800">{{ part.value }}</span></template>
+        <i18n-t :keypath="describe(e).key" scope="global">
+          <template #who><span class="font-medium text-neutral-900">{{ who(e) }}</span></template>
+          <template #value><span class="font-medium text-neutral-800">{{ describe(e).value }}</span></template>
+        </i18n-t>
         <time class="ml-1 whitespace-nowrap text-neutral-400" :datetime="e.created_at" :title="formatDate(e.created_at)">{{ timeAgo(e.created_at) }}</time>
       </li>
     </ol>

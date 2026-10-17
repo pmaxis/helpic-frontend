@@ -11,7 +11,8 @@ import { resetPassword } from '@/services/account'
 import { useAuthStore } from '@/stores/auth'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
-import { across, currentPassword, LIMITS, newPassword } from '@/utils/validation'
+import { currentPassword, LIMITS, newPassword, passwordsMatch } from '@/utils/validation'
+import { t } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,8 +20,8 @@ const auth = useAuthStore()
 const token = String(route.params.token)
 
 const schema = z
-  .object({ password: newPassword(), password_confirmation: currentPassword('Please confirm your password') })
-  .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match'))
+  .object({ password: newPassword(), password_confirmation: currentPassword(() => t('validation.confirmPassword')) })
+  .refine(...passwordsMatch())
 const form = useForm(schema, { password: '', password_confirmation: '' })
 
 function onSubmit() {
@@ -30,10 +31,10 @@ function onSubmit() {
     // signed in to another account.
     await auth.fetchCurrentUser()
     if (auth.isAuthenticated) {
-      toast.success('Password set')
+      toast.success(t('reset.done'))
       await router.replace('/dashboard')
     } else {
-      toast.success('Password set. Sign in with it.')
+      toast.success(t('reset.doneSignIn'))
       await router.replace({ name: 'login' })
     }
   })
@@ -42,18 +43,18 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard title="Set a new password" subtitle="You'll be signed out everywhere and can sign in with the new one.">
+    <AuthCard :title="$t('reset.title')" :subtitle="$t('reset.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
-        <PasswordInput v-bind="form.field('password')" label="New password" autocomplete="new-password" :hint="`At least ${LIMITS.password} characters.`" />
-        <PasswordInput v-bind="form.field('password_confirmation')" label="Confirm new password" autocomplete="new-password" />
+        <PasswordInput v-bind="form.field('password')" :label="$t('reset.password')" autocomplete="new-password" :hint="$t('validation.passwordHint', { n: LIMITS.password })" />
+        <PasswordInput v-bind="form.field('password_confirmation')" :label="$t('reset.confirm')" autocomplete="new-password" />
         <div class="pt-1">
-          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">Set password</BaseButton>
+          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">{{ $t('reset.submit') }}</BaseButton>
         </div>
       </form>
       <template #footer>
-        Link expired?
-        <RouterLink to="/forgot-password" class="font-medium text-neutral-900 underline-offset-4 hover:underline">Get a new one</RouterLink>
+        {{ $t('reset.expired') }}
+        <RouterLink to="/forgot-password" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('reset.getNew') }}</RouterLink>
       </template>
     </AuthCard>
   </AuthLayout>

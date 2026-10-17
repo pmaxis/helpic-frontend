@@ -10,22 +10,24 @@
  * screen readers and kept out of the tab order.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { statusLabel } from '@/constants/tasks'
 
-type Status = 'New' | 'In progress' | 'Done'
-const NEXT: Record<Status, Status> = { New: 'In progress', 'In progress': 'Done', Done: 'New' }
+type Status = 'new' | 'in_progress' | 'done'
+const NEXT: Record<Status, Status> = { new: 'in_progress', in_progress: 'done', done: 'new' }
 const TONE: Record<Status, string> = {
-  Done: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30',
-  'In progress': 'bg-amber-300/15 text-amber-200 ring-amber-300/30',
-  New: 'bg-sky-400/15 text-sky-300 ring-sky-400/30',
+  done: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30',
+  in_progress: 'bg-amber-300/15 text-amber-200 ring-amber-300/30',
+  new: 'bg-sky-400/15 text-sky-300 ring-sky-400/30',
 }
 
-const START: { title: string; status: Status }[] = [
-  { title: 'Hero block and pricing section', status: 'Done' },
-  { title: 'Contact form with validation', status: 'In progress' },
-  { title: 'Blog page layout', status: 'New' },
+/** The demo project's tasks: their titles are "showcase.tasks.<n>" in the messages. */
+const START: { n: number; status: Status }[] = [
+  { n: 0, status: 'done' },
+  { n: 1, status: 'in_progress' },
+  { n: 2, status: 'new' },
 ]
 const tasks = ref(START.map((t) => ({ ...t })))
-const done = computed(() => tasks.value.filter((t) => t.status === 'Done').length)
+const done = computed(() => tasks.value.filter((t) => t.status === 'done').length)
 const progress = computed(() => Math.round((done.value / tasks.value.length) * 100))
 
 /** Which task just changed, for a brief highlight. */
@@ -42,19 +44,20 @@ function advance(i: number) {
 /** The project moves on by itself: the first unfinished task takes a step; once all are done it starts over. */
 function tick() {
   if (paused.value) return
-  const i = tasks.value.findIndex((t) => t.status !== 'Done')
+  const i = tasks.value.findIndex((t) => t.status !== 'done')
   if (i >= 0) advance(i)
   else tasks.value = START.map((t) => ({ ...t }))
 }
 
 // --- what happens in Helpic ------------------------------------------------------
 
+/** What happens: `what` and `text`/`side` given as message keys are translated; the rest is shown as is. */
 const EVENTS = [
-  { who: 'AI', from: 'Acme Inc', what: 'New task', text: 'Add a FAQ section', side: 'due Fri' },
-  { who: 'OP', from: 'Olena', what: 'Comment on', text: 'Contact form with validation', side: '2m ago' },
-  { who: 'AI', from: 'Acme Inc', what: 'File on', text: 'brand-guidelines.pdf', side: '1.2 MB' },
-  { who: 'AI', from: 'Acme Inc', what: 'Report paid', text: 'Website — Oct 2026', side: '$1,250.00' },
-]
+  { who: 'AI', from: 'Acme Inc', what: 'newTask', text: 'faq', side: 'dueFri' },
+  { who: 'OP', from: 'Olena', what: 'commentOn', task: 1, side: 'ago' },
+  { who: 'AI', from: 'Acme Inc', what: 'fileOn', file: 'brand-guidelines.pdf', size: '1.2 MB' },
+  { who: 'AI', from: 'Acme Inc', what: 'reportPaid', text: 'reportTitle', amount: '$1,250.00' },
+] as const
 const eventIndex = ref(0)
 const event = computed(() => EVENTS[eventIndex.value])
 
@@ -134,8 +137,8 @@ onBeforeUnmount(() => {
               </svg>
             </span>
             <div>
-              <p class="text-sm font-semibold">Website redesign</p>
-              <p class="text-xs text-neutral-400">Acme Inc · {{ done }} of {{ tasks.length }} done</p>
+              <p class="text-sm font-semibold">{{ $t('showcase.project') }}</p>
+              <p class="text-xs text-neutral-400">Acme Inc · {{ $t('showcase.progress', { done, total: tasks.length }) }}</p>
             </div>
           </div>
           <span class="text-xs font-medium text-neutral-400 tabular-nums">{{ progress }}%</span>
@@ -146,22 +149,22 @@ onBeforeUnmount(() => {
         <ul class="mt-3 space-y-1">
           <li
             v-for="(t, i) in tasks"
-            :key="t.title"
+            :key="t.n"
             class="-mx-1.5 flex items-center justify-between gap-3 rounded-md px-1.5 py-1 text-xs transition-colors duration-500"
             :class="flashed === i ? 'bg-white/[0.07]' : ''"
           >
-            <span class="truncate transition-colors" :class="t.status === 'Done' ? 'text-neutral-500 line-through decoration-neutral-600' : 'text-neutral-300'">
-              {{ t.title }}
+            <span class="truncate transition-colors" :class="t.status === 'done' ? 'text-neutral-500 line-through decoration-neutral-600' : 'text-neutral-300'">
+              {{ $t(`showcase.tasks.${t.n}`) }}
             </span>
             <button
               type="button"
               tabindex="-1"
               class="shrink-0 cursor-pointer rounded-full px-2 py-0.5 font-medium ring-1 transition hover:brightness-125 active:scale-95 ring-inset"
               :class="TONE[t.status]"
-              title="Click to move it along"
+              :title="$t('showcase.moveAlong')"
               @click="advance(i)"
             >
-              {{ t.status }}
+              {{ statusLabel(t.status) }}
             </button>
           </li>
         </ul>
@@ -178,14 +181,22 @@ onBeforeUnmount(() => {
           <div :key="eventIndex" class="flex items-center gap-3 rounded-xl bg-white/[0.06] p-4 ring-1 ring-white/10 backdrop-blur">
             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold">{{ event.who }}</span>
             <div class="min-w-0 flex-1">
-              <p class="text-xs text-neutral-400">{{ event.what }} · <span class="text-neutral-200">{{ event.from }}</span></p>
-              <p class="truncate text-sm font-semibold">{{ event.text }}</p>
+              <p class="text-xs text-neutral-400">{{ $t(`showcase.events.${event.what}`) }} · <span class="text-neutral-200">{{ event.from }}</span></p>
+              <p class="truncate text-sm font-semibold">
+                <template v-if="'text' in event">{{ $t(`showcase.events.${event.text}`) }}</template>
+                <template v-else-if="'task' in event">{{ $t(`showcase.tasks.${event.task}`) }}</template>
+                <template v-else>{{ event.file }}</template>
+              </p>
             </div>
-            <span class="shrink-0 text-xs text-neutral-400" :class="event.what === 'Report paid' ? 'font-medium text-emerald-300' : ''">{{ event.side }}</span>
+            <span class="shrink-0 text-xs text-neutral-400" :class="event.what === 'reportPaid' ? 'font-medium text-emerald-300' : ''">
+              <template v-if="'side' in event">{{ $t(`showcase.events.${event.side}`) }}</template>
+              <template v-else-if="'size' in event">{{ event.size }}</template>
+              <template v-else>{{ event.amount }}</template>
+            </span>
           </div>
         </Transition>
       </div>
     </div>
-    <p class="text-center text-[11px] text-neutral-500">Try it — click a status.</p>
+    <p class="text-center text-[11px] text-neutral-500">{{ $t('showcase.tryIt') }}</p>
   </div>
 </template>

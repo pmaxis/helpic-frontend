@@ -20,7 +20,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
 import { ApiRequestError } from '@/services/api'
-import { STATUS_DOT, STATUS_LABELS } from '@/constants/tasks'
+import { columnName, STATUS_DOT, statusLabel } from '@/constants/tasks'
+import { t as tr } from '@/i18n'
 import { formatDate, isOverdue } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import type { BoardColumn } from '@/types/board'
@@ -142,7 +143,7 @@ async function onColumnDrop() {
   try {
     await board.moveColumn(col.id, to)
   } catch {
-    toast.error('Could not move the column')
+    toast.error(tr('board.moveColumnFailed'))
   }
 }
 
@@ -301,7 +302,7 @@ async function onDrop(e: DragEvent, col: BoardColumn) {
   try {
     await board.moveTask(task.id, col.id, at.index)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not move the task')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('board.moveTaskFailed'))
   }
 }
 
@@ -337,7 +338,7 @@ async function finishRename(col: BoardColumn) {
     await board.updateColumn(col.id, { name, category: col.category })
   } catch (error) {
     col.name = previous
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not rename the column')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('board.renameFailed'))
   }
 }
 
@@ -373,9 +374,9 @@ function openEdit(col: BoardColumn) {
 /** What deleting the column does: nothing to its tasks when it's empty, else they move. */
 const removeDescription = computed(() => {
   const col = removing.value
-  if (!col?.tasks?.length) return 'The column is empty, so nothing else changes.'
+  if (!col?.tasks?.length) return tr('board.emptyColumn')
   const n = col.tasks.length
-  return `Its ${n} ${n === 1 ? 'task moves' : 'tasks move'} to another ${STATUS_LABELS[col.category]} column on this board — tasks themselves aren't deleted. If there's no such column, move the tasks first.`
+  return tr('board.tasksMove', { n, status: statusLabel(col.category) }, n)
 })
 
 function openRemove(col: BoardColumn) {
@@ -388,7 +389,7 @@ async function shift(col: BoardColumn, step: -1 | 1) {
   try {
     await board.shiftColumn(col.id, step)
   } catch {
-    toast.error('Could not move the column')
+    toast.error(tr('board.moveColumnFailed'))
   }
 }
 
@@ -398,7 +399,7 @@ async function remove() {
   try {
     await board.deleteColumn(removing.value.id)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not delete the column')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('board.deleteFailed'))
   } finally {
     removeBusy.value = false
     removing.value = null
@@ -447,18 +448,18 @@ async function remove() {
               :class="board.canManage ? 'cursor-grab active:cursor-grabbing' : ''"
               :draggable="board.canManage && renamingId !== col.id"
               data-column-handle
-              :title="board.canManage && renamingId !== col.id ? `Drag to move ${col.name}` : undefined"
+              :title="board.canManage && renamingId !== col.id ? $t('board.dragToMove', { name: col.name }) : undefined"
               @dragstart="onColumnDragStart($event, col)"
               @dragend="onColumnDragEnd"
             >
-              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="STATUS_LABELS[col.category]" />
+              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="statusLabel(col.category)" />
               <input
                 v-if="renamingId === col.id"
                 ref="renameInput"
                 v-model="renameValue"
                 type="text"
                 maxlength="60"
-                :aria-label="`Rename ${col.name}`"
+                :aria-label="$t('board.rename', { name: col.name })"
                 class="-my-1 min-w-0 flex-1 rounded-md border border-neutral-900 bg-white px-1.5 py-0.5 text-sm font-semibold text-neutral-900 ring-2 ring-neutral-900/10 focus:outline-none"
                 @keydown.enter.prevent="finishRename(col)"
                 @keydown.esc.stop.prevent="cancelRename"
@@ -468,10 +469,10 @@ async function remove() {
                 v-else
                 class="-mx-1 min-w-0 flex-1 truncate rounded-md px-1 text-sm font-semibold text-neutral-900"
                 :class="board.canManage ? 'cursor-text transition-colors hover:bg-neutral-200/70' : ''"
-                :title="board.canManage ? 'Click to rename' : undefined"
+                :title="board.canManage ? $t('board.clickToRename') : undefined"
                 @click="startRename(col)"
               >
-                {{ col.name }}
+                {{ columnName(col.name) }}
               </h3>
               <span class="text-xs text-neutral-500">{{ col.tasks.length }}</span>
               <div v-if="board.canManage" class="relative" data-column-menu>
@@ -497,7 +498,7 @@ async function remove() {
                     class="w-full rounded-md px-2.5 py-1.5 text-left text-neutral-700 hover:bg-neutral-100"
                     @click="openEdit(col)"
                   >
-                    Edit
+                    {{ $t('board.edit') }}
                   </button>
                   <button
                     v-if="ci > 0"
@@ -505,7 +506,7 @@ async function remove() {
                     class="w-full rounded-md px-2.5 py-1.5 text-left text-neutral-700 hover:bg-neutral-100"
                     @click="shift(col, -1)"
                   >
-                    Move left
+                    {{ $t('board.moveLeft') }}
                   </button>
                   <button
                     v-if="ci < board.columns.length - 1"
@@ -513,14 +514,14 @@ async function remove() {
                     class="w-full rounded-md px-2.5 py-1.5 text-left text-neutral-700 hover:bg-neutral-100"
                     @click="shift(col, 1)"
                   >
-                    Move right
+                    {{ $t('board.moveRight') }}
                   </button>
                   <button
                     type="button"
                     class="w-full rounded-md px-2.5 py-1.5 text-left text-red-600 hover:bg-red-50"
                     @click="openRemove(col)"
                   >
-                    Delete
+                    {{ $t('board.delete') }}
                   </button>
                 </div>
               </div>
@@ -569,8 +570,8 @@ async function remove() {
                       type="button"
                       draggable="false"
                       class="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white text-neutral-400 opacity-0 transition hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-                      :aria-label="`Edit ${t.title}`"
-                      title="Edit task"
+                      :aria-label="$t('board.editTaskNamed', { title: t.title })"
+                      :title="$t('board.editTask')"
                       @click="editingTask = t"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
@@ -605,7 +606,7 @@ async function remove() {
                 >
                   <path d="M12 5v14M5 12h14" />
                 </svg>
-                Add task
+                {{ $t('board.addTask') }}
               </button>
             </div>
           </section>
@@ -635,7 +636,7 @@ async function remove() {
           >
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Add column
+          {{ $t('board.addColumn') }}
         </button>
       </div>
     </div>
@@ -666,7 +667,7 @@ async function remove() {
     <TaskFormModal v-if="editingTask" :task="editingTask" @close="editingTask = null" @saved="onTaskSaved" />
     <ConfirmDialog
       :open="!!removing"
-      title="Delete this column?"
+      :title="$t('board.confirmDelete')"
       :description="removeDescription"
       :loading="removeBusy"
       @update:open="

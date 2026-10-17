@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useForm } from '@/composables/useForm'
-import { across, currentPassword, email, LIMITS, newPassword, requiredText } from '@/utils/validation'
+import { currentPassword, email, LIMITS, newPassword, passwordsMatch, requiredText } from '@/utils/validation'
+import { t } from '@/i18n'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
 import FormError from '@/components/auth/FormError.vue'
@@ -16,12 +17,12 @@ const router = useRouter()
 
 const schema = z
   .object({
-    name: requiredText('Name', LIMITS.name),
+    name: requiredText('name', LIMITS.name),
     email: email(),
     password: newPassword(),
-    password_confirmation: currentPassword('Please confirm your password'),
+    password_confirmation: currentPassword(() => t('validation.confirmPassword')),
   })
-  .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match'))
+  .refine(...passwordsMatch())
 
 const form = useForm(schema, { name: '', email: '', password: '', password_confirmation: '' })
 
@@ -37,17 +38,17 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard title="Create your account" subtitle="For freelancers. Invite your clients and get their tasks in one place.">
+    <AuthCard :title="$t('register.title')" :subtitle="$t('register.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
 
-        <BaseInput v-bind="form.field('name')" label="Your name" autocomplete="name" placeholder="Jane Doe" size="lg" />
+        <BaseInput v-bind="form.field('name')" :label="$t('register.name')" autocomplete="name" :placeholder="$t('register.namePlaceholder')" size="lg" />
         <BaseInput
           v-bind="form.field('email')"
-          label="Email"
+          :label="$t('login.email')"
           type="email"
           autocomplete="email"
-          placeholder="you@example.com"
+          :placeholder="$t('login.emailPlaceholder')"
           size="lg"
         >
           <template #icon>
@@ -59,23 +60,23 @@ function onSubmit() {
         </BaseInput>
         <PasswordInput
           v-bind="form.field('password')"
-          label="Password"
+          :label="$t('login.password')"
           autocomplete="new-password"
-          :hint="`At least ${LIMITS.password} characters.`"
+          :hint="$t('validation.passwordHint', { n: LIMITS.password })"
         />
-        <PasswordInput v-bind="form.field('password_confirmation')" label="Confirm password" autocomplete="new-password" />
+        <PasswordInput v-bind="form.field('password_confirmation')" :label="$t('register.confirmPassword')" autocomplete="new-password" />
 
         <div class="pt-1">
           <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
-            Create account
+            {{ $t('register.submit') }}
           </BaseButton>
         </div>
       </form>
 
       <template #footer>
-        Already have an account?
+        {{ $t('register.haveAccount') }}
         <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">
-          Sign in
+          {{ $t('register.signIn') }}
         </RouterLink>
       </template>
     </AuthCard>

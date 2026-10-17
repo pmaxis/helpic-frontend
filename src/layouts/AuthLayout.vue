@@ -3,6 +3,7 @@ import { APP_NAME } from '@/config'
 import { ref } from 'vue'
 import AuthShowcase from '@/components/auth/AuthShowcase.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
+import LocaleSwitcher from '@/components/ui/LocaleSwitcher.vue'
 
 const year = new Date().getFullYear()
 
@@ -14,12 +15,8 @@ function onPointerMove(e: PointerEvent) {
   light.value = { x: `${e.clientX - r.left}px`, y: `${e.clientY - r.top}px` }
 }
 
-const FEATURES = [
-  { title: 'Invite your clients', text: 'Send a link — they join in a minute and see only your shared work.' },
-  { title: 'Tasks both ways', text: 'Clients set tasks for you, you add your own. Everyone sees the status.' },
-  { title: 'Projects', text: 'Keep each client project and its tasks together.' },
-  { title: 'Personal tasks', text: 'Your own to-dos and projects, visible only to you.' },
-]
+/** The selling points: keys under "authLayout.features" in the messages. */
+const FEATURES = ['invite', 'tasks', 'projects', 'personal'] as const
 
 </script>
 
@@ -27,22 +24,25 @@ const FEATURES = [
   <main class="grid min-h-full bg-white lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <!-- Form side -->
     <div class="flex min-h-full flex-col bg-neutral-50 px-5 py-6 sm:px-10">
-      <RouterLink to="/" class="self-start" :aria-label="APP_NAME">
-        <AppLogo />
-      </RouterLink>
+      <div class="flex items-center justify-between gap-4">
+        <RouterLink to="/" :aria-label="APP_NAME">
+          <AppLogo />
+        </RouterLink>
+        <LocaleSwitcher />
+      </div>
       <div class="flex flex-1 items-center justify-center py-10">
         <slot />
       </div>
       <footer class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-400">
-        <p>&copy; {{ year }} {{ APP_NAME }}. All rights reserved.</p>
-        <p>Freelancers and their clients, on the same page</p>
+        <p>{{ $t('authLayout.rights', { year, app: APP_NAME }) }}</p>
+        <p>{{ $t('authLayout.tagline') }}</p>
       </footer>
     </div>
 
     <!-- Product side -->
     <aside
       class="relative hidden overflow-hidden bg-neutral-950 text-white lg:flex lg:flex-col lg:justify-center lg:px-14 xl:px-20"
-      :aria-label="`About ${APP_NAME}`"
+      :aria-label="$t('authLayout.about', { app: APP_NAME })"
       @pointermove="onPointerMove"
     >
       <!-- soft grid backdrop -->
@@ -63,21 +63,21 @@ const FEATURES = [
       />
 
       <div class="relative max-w-lg">
-        <h2 class="text-3xl leading-tight font-semibold tracking-tight">Client work,<br />without the chaos.</h2>
+        <h2 class="text-3xl leading-tight font-semibold tracking-tight">{{ $t('authLayout.heroTitle') }}<br />{{ $t('authLayout.heroTitle2') }}</h2>
         <p class="mt-3 text-sm leading-relaxed text-neutral-400">
-          Invite your clients, take their tasks, run your projects — and always know what's done and what's next.
+          {{ $t('authLayout.heroText') }}
         </p>
 
         <!-- A live glimpse of the app -->
         <AuthShowcase />
 
         <ul class="mt-10 grid gap-5 sm:grid-cols-2">
-          <li v-for="f in FEATURES" :key="f.title">
+          <li v-for="f in FEATURES" :key="f">
             <p class="flex items-center gap-2 text-sm font-medium">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-emerald-400" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-              {{ f.title }}
+              {{ $t(`authLayout.features.${f}.title`) }}
             </p>
-            <p class="mt-1 pl-5.5 text-xs leading-relaxed text-neutral-400">{{ f.text }}</p>
+            <p class="mt-1 pl-5.5 text-xs leading-relaxed text-neutral-400">{{ $t(`authLayout.features.${f}.text`) }}</p>
           </li>
         </ul>
       </div>

@@ -7,6 +7,7 @@
  */
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 import FieldLabel from '@/components/ui/FieldLabel.vue'
+import { useI18n } from 'vue-i18n'
 
 type Option = { value: string; label: string }
 
@@ -27,6 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>()
 
+const { t } = useI18n()
 const id = useId()
 const errorId = `${id}-error`
 const open = ref(false)
@@ -38,7 +40,7 @@ const picked = computed(() => props.options.filter((o) => props.modelValue.inclu
 const display = computed(() => {
   if (!picked.value.length) return ''
   if (picked.value.length <= 2) return picked.value.map((o) => o.label).join(', ')
-  return `${picked.value.length} selected`
+  return t('ui.selected', { n: picked.value.length })
 })
 
 function toggle(value: string) {
@@ -135,7 +137,7 @@ onBeforeUnmount(stopListening)
         :style="panelStyle"
       >
         <ul class="max-h-60 overflow-y-auto p-1">
-          <li v-if="!options.length" class="px-2.5 py-2 text-neutral-400">Nothing to choose from</li>
+          <li v-if="!options.length" class="px-2.5 py-2 text-neutral-400">{{ t('ui.nothingToChoose') }}</li>
           <li v-for="o in options" :key="o.value">
             <button
               type="button"

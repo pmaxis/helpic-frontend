@@ -17,7 +17,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { usePeopleStore } from '@/stores/people'
 import { useProjectsStore } from '@/stores/projects'
-import { STATUS_FILTERS } from '@/constants/tasks'
+import { filterLabel as statusFilterLabel, STATUS_FILTERS } from '@/constants/tasks'
+import { t } from '@/i18n'
 import type { Task } from '@/types/tasks'
 import type { BoardColumn } from '@/types/board'
 
@@ -30,7 +31,7 @@ const route = useRoute()
 const router = useRouter()
 
 const filter = ref(typeof route.query.status === 'string' ? route.query.status : 'open')
-const filterLabel = computed(() => STATUS_FILTERS.find((f) => f.value === filter.value)?.label ?? '')
+const filterLabel = computed(() => statusFilterLabel(filter.value))
 const withId = ref(typeof route.query.with === 'string' ? route.query.with : '')
 const showForm = ref(false)
 /** The board column a task is being added from, if any. */
@@ -45,8 +46,8 @@ const loadError = ref('')
 /** The people on the other side: a freelancer's clients or a client's freelancers. */
 const counterparts = computed(() => (auth.isClient ? people.freelancers : people.clients))
 const counterpartOptions = computed(() => [
-  { value: '', label: auth.isClient ? 'All freelancers' : 'All tasks' },
-  ...(auth.isFreelancer ? [{ value: 'personal', label: 'Personal' }] : []),
+  { value: '', label: auth.isClient ? t('tasks.allFreelancers') : t('tasks.allTasks') },
+  ...(auth.isFreelancer ? [{ value: 'personal', label: t('common.personal') }] : []),
   ...counterparts.value.map((p) => ({ value: p.id, label: p.name || p.email })),
 ])
 /** A freelancer filters between personal tasks and any client; a client needs two freelancers. */
@@ -60,7 +61,7 @@ const showCounterpartFilter = computed(() => counterparts.value.length > (auth.i
  */
 const boardOptions = computed(() => [
   // A freelancer's every task on one board, the boards' columns merged by name.
-  ...(auth.isFreelancer ? [{ value: 'all', label: 'All boards' }, { value: 'personal', label: 'Personal' }] : []),
+  ...(auth.isFreelancer ? [{ value: 'all', label: t('tasks.allBoards') }, { value: 'personal', label: t('common.personal') }] : []),
   ...counterparts.value.map((p) => ({ value: p.id, label: p.name || p.email })),
 ])
 
@@ -88,7 +89,7 @@ const projectOptions = computed(() => {
     if (auth.isClient) return p.freelancer.id === w
     return w === 'personal' ? !p.client : p.client?.id === w
   })
-  return [...own.map((p) => ({ value: p.id, label: p.name })), { value: 'none', label: 'No project' }]
+  return [...own.map((p) => ({ value: p.id, label: p.name })), { value: 'none', label: t('common.noProject') }]
 })
 
 // A filter for another board's projects means nothing here.
@@ -106,7 +107,7 @@ async function load() {
       await tasks.fetchTasks({ statuses, with: withId.value })
     }
   } catch {
-    loadError.value = 'Could not load tasks.'
+    loadError.value = t('tasks.loadFailed')
   }
 }
 
@@ -139,12 +140,12 @@ function onSaved(task: Task) {
 
 <template>
   <DashboardLayout :fill="view === 'board'">
-    <PageHeader title="Tasks">
+    <PageHeader :title="$t('tasks.title')">
       <template #actions>
         <!-- the filters, then the view and the new task -->
         <template v-if="view === 'list'">
           <!-- framed like the view toggle, 32px like the buttons beside it -->
-          <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" aria-label="Status">
+          <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('tasks.statusAria')">
             <button
               v-for="f in STATUS_FILTERS"
               :key="f.value"
@@ -154,14 +155,14 @@ function onSaved(task: Task) {
               :aria-pressed="filter === f.value"
               @click="filter = f.value"
             >
-              {{ f.label }}
+              {{ statusFilterLabel(f.value) }}
             </button>
           </div>
           <SelectInput
             v-if="showCounterpartFilter"
             v-model="withId"
             :options="counterpartOptions"
-            :aria-label="auth.isClient ? 'Freelancer' : 'Client'"
+            :aria-label="auth.isClient ? $t('tasks.freelancer') : $t('tasks.client')"
             size="sm"
             class="w-48"
           />
@@ -170,9 +171,9 @@ function onSaved(task: Task) {
           <MultiSelectInput
             v-if="projectOptions.length > 1"
             v-model="boardProjects"
-            label="Projects"
+            :label="$t('tasks.projects')"
             hide-label
-            placeholder="All projects"
+            :placeholder="$t('tasks.allProjects')"
             :options="projectOptions"
             size="sm"
             class="w-48"
@@ -181,14 +182,14 @@ function onSaved(task: Task) {
             v-if="boardOptions.length > 1"
             :model-value="boardWith"
             :options="boardOptions"
-            aria-label="Board"
+            :aria-label="$t('tasks.boardAria')"
             size="sm"
             class="w-48"
             @update:model-value="pickBoard"
           />
         </template>
         <ViewToggle v-model="view" />
-        <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+        <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -197,8 +198,8 @@ function onSaved(task: Task) {
     <template v-else-if="view === 'board'">
       <div v-if="!boardWith && people.freelancersLoaded" class="mt-6">
         <EmptyState
-          title="No freelancers yet"
-          description="A board is shared with a freelancer you work with. Ask your freelancer to send you an invitation link."
+          :title="$t('tasks.noFreelancersTitle')"
+          :description="$t('tasks.noFreelancersBoard')"
         />
       </div>
       <KanbanBoard v-else-if="boardWith" class="mt-5" @new-task="startTask" />
@@ -207,35 +208,35 @@ function onSaved(task: Task) {
     <div v-else-if="!tasks.isLoading && !tasks.tasks.length" class="mt-6">
       <EmptyState
         v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length"
-        title="No freelancers yet"
-        description="Tasks go to freelancers you work with. Ask your freelancer to send you an invitation link."
+        :title="$t('tasks.noFreelancersTitle')"
+        :description="$t('tasks.noFreelancersTasks')"
       />
       <!-- a filter that hides tasks says so, rather than looking like there are none -->
       <EmptyState
         v-else-if="filter !== 'all'"
-        :title="`No ${filterLabel.toLowerCase()} tasks`"
-        :description="filter === 'open' ? 'Everything here is done or cancelled.' : 'Nothing matches this filter.'"
+        :title="$t('tasks.noFiltered', { filter: filterLabel.toLowerCase() })"
+        :description="filter === 'open' ? $t('tasks.allDoneOrCancelled') : $t('tasks.nothingMatches')"
       >
         <div class="flex items-center gap-4">
-          <BaseButton size="sm" variant="ghost" :block="false" @click="filter = 'all'">Show all tasks</BaseButton>
-          <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+          <BaseButton size="sm" variant="ghost" :block="false" @click="filter = 'all'">{{ $t('tasks.showAll') }}</BaseButton>
+          <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
         </div>
       </EmptyState>
-      <EmptyState v-else-if="auth.isClient" title="No tasks here" description="Set a task for your freelancer — it shows up for them right away.">
-        <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+      <EmptyState v-else-if="auth.isClient" :title="$t('tasks.emptyTitle')" :description="$t('tasks.emptyClient')">
+        <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </EmptyState>
       <EmptyState
         v-else-if="!people.clients.length"
-        title="No tasks yet"
-        description="Add a personal task, or invite a client so you can share tasks with them."
+        :title="$t('tasks.noneYetTitle')"
+        :description="$t('tasks.noneYetPersonal')"
       >
         <div class="flex items-center gap-4">
-          <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
-          <RouterLink to="/clients" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">Invite a client</RouterLink>
+          <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
+          <RouterLink to="/clients" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('tasks.inviteClient') }}</RouterLink>
         </div>
       </EmptyState>
-      <EmptyState v-else title="No tasks here" description="Tasks from your clients show up here. You can also add one yourself.">
-        <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+      <EmptyState v-else :title="$t('tasks.emptyTitle')" :description="$t('tasks.noneYetFreelancer')">
+        <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </EmptyState>
     </div>
 

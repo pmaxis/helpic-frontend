@@ -15,6 +15,7 @@ import { useProjectsStore } from '@/stores/projects'
 import { useReportsStore } from '@/stores/reports'
 import { useForm } from '@/composables/useForm'
 import { across, choice, daysBetween, LIMITS, optionalText } from '@/utils/validation'
+import { t } from '@/i18n'
 import type { Report, ReportKind } from '@/types/reports'
 
 const emit = defineEmits<{
@@ -36,15 +37,15 @@ const schema = z
     client_id: z.string(),
     /** None picked covers all the client's projects. */
     project_ids: z.array(z.string()),
-    from: choice('Choose the first day'),
-    to: choice('Choose the last day'),
-    title: optionalText('Title', LIMITS.reportTitle),
-    summary: optionalText('Summary', LIMITS.reportSummary),
+    from: choice(() => t('validation.chooseFirstDay')),
+    to: choice(() => t('validation.chooseLastDay')),
+    title: optionalText('title', LIMITS.reportTitle),
+    summary: optionalText('summary', LIMITS.reportSummary),
     kind: z.string(),
   })
-  .refine(...across('to', (v) => !v.from || !v.to || v.to >= v.from, 'The period ends before it starts'))
+  .refine(...across('to', (v) => !v.from || !v.to || v.to >= v.from, () => t('validation.periodEndsBeforeStart')))
   .refine(
-    ...across('to', (v) => !v.from || !v.to || daysBetween(String(v.from), String(v.to)) <= LIMITS.reportDays, 'Keep the period to a year at most'),
+    ...across('to', (v) => !v.from || !v.to || daysBetween(String(v.from), String(v.to)) <= LIMITS.reportDays, () => t('validation.periodTooLong')),
   )
 
 // This month so far, by default.
@@ -67,7 +68,7 @@ onMounted(() => {
 
 // No client: a report on personal work, made to be downloaded.
 const clientOptions = computed(() => [
-  { value: '', label: 'No client — personal work' },
+  { value: '', label: t('newReport.noClient') },
   ...people.clients.map((c) => ({ value: c.id, label: c.name || c.email })),
 ])
 const projectOptions = computed(() =>
@@ -95,21 +96,26 @@ function submit() {
 </script>
 
 <template>
-  <Modal title="New report" size="lg" @close="emit('close')">
+  <Modal :title="$t('newReport.title')" size="lg" @close="emit('close')">
     <form class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
       <p class="text-sm text-neutral-500">
-        <template v-if="form.values.client_id">The report lists the tasks you finished for the client in this period. You can review it before sending.</template>
-        <template v-else>A report on your personal work — the tasks you finished in this period. You can download it as PDF.</template>
+        <template v-if="form.values.client_id">{{ $t('newReport.forClient') }}</template>
+        <template v-else>{{ $t('newReport.personal') }}</template>
       </p>
       <div class="grid gap-4 sm:grid-cols-2">
-        <BaseSelect v-bind="form.field('client_id')" label="Client" :options="clientOptions" />
-        <MultiSelectInput v-bind="form.field('project_ids')" label="Projects" placeholder="All projects" :options="projectOptions" />
-        <DateInput v-bind="form.field('from')" label="From" />
-        <DateInput v-bind="form.field('to')" label="To" />
+        <BaseSelect v-bind="form.field('client_id')" :label="$t('newReport.client')" :options="clientOptions" />
+        <MultiSelectInput
+          v-bind="form.field('project_ids')"
+          :label="$t('newReport.projects')"
+          :placeholder="$t('newReport.allProjects')"
+          :options="projectOptions"
+        />
+        <DateInput v-bind="form.field('from')" :label="$t('newReport.from')" />
+        <DateInput v-bind="form.field('to')" :label="$t('newReport.to')" />
       </div>
       <fieldset>
-        <legend class="text-sm font-medium text-neutral-700">Type</legend>
+        <legend class="text-sm font-medium text-neutral-700">{{ $t('newReport.type') }}</legend>
         <ReportKindPicker
           :model-value="form.values.kind as ReportKind"
           inline
@@ -117,14 +123,14 @@ function submit() {
           @update:model-value="form.values.kind = $event"
         />
       </fieldset>
-      <BaseInput v-bind="form.field('title')" label="Title" placeholder="Named after the period if left empty" />
-      <BaseTextarea v-bind="form.field('summary')" label="Summary" placeholder="Highlights, what's next…" :rows="4" />
+      <BaseInput v-bind="form.field('title')" :label="$t('newReport.titleLabel')" :placeholder="$t('newReport.titlePlaceholder')" />
+      <BaseTextarea v-bind="form.field('summary')" :label="$t('newReport.summary')" :placeholder="$t('newReport.summaryPlaceholder')" :rows="4" />
     </form>
 
     <template #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">Cancel</BaseButton>
+      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
       <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
-        {{ form.values.client_id ? 'Create draft' : 'Create report' }}
+        {{ form.values.client_id ? $t('newReport.createDraft') : $t('newReport.create') }}
       </BaseButton>
     </template>
   </Modal>

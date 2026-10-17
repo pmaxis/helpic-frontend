@@ -2,7 +2,8 @@
 // A segmented switch between a page's views — List / Board by default.
 export interface ViewOption<V extends string = string> {
   value: V
-  label: string
+  /** Shown as is; without it, the view's usual name ("List", "Board"). */
+  label?: string
   icon: 'list' | 'board' | 'cards'
 }
 
@@ -14,8 +15,8 @@ withDefaults(
   {
     options: () =>
       [
-        { value: 'list', label: 'List', icon: 'list' },
-        { value: 'board', label: 'Board', icon: 'board' },
+        { value: 'list', icon: 'list' },
+        { value: 'board', icon: 'board' },
       ] as unknown as ViewOption<T>[],
   },
 )
@@ -24,7 +25,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
 
 <template>
   <!-- framed like a small button, so it lines up with the buttons next to it (32px) -->
-  <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" aria-label="View">
+  <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('ui.view')">
     <button
       v-for="o in options"
       :key="o.value"
@@ -48,7 +49,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
           <rect x="14" y="14" width="7" height="7" rx="1" />
         </template>
       </svg>
-      {{ o.label }}
+      {{ o.label ?? $t(`ui.views.${o.icon}`) }}
     </button>
   </div>
 </template>

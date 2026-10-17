@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiError } from '@/types/auth'
+import { currentLocale, t } from '@/i18n'
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8090/api/v1'
 
@@ -12,6 +13,12 @@ export const http: AxiosInstance = axios.create({
   baseURL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
+})
+
+// Server errors come back in the interface's language.
+http.interceptors.request.use((config) => {
+  config.headers.set('Accept-Language', currentLocale())
+  return config
 })
 
 type UnauthorizedHandler = () => void
@@ -85,7 +92,7 @@ http.interceptors.response.use(
       if (refreshed === 'ok') return http(config)
       // Too many refreshes: fail this request, but don't sign the user out.
       if (refreshed === 'busy') {
-        return Promise.reject(new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'Too many requests. Try again in a moment.' }))
+        return Promise.reject(new ApiRequestError(429, { code: 'RATE_LIMITED', message: t('errors.tooManyRequests') }))
       }
     }
 
@@ -95,7 +102,7 @@ http.interceptors.response.use(
 
     const apiError: ApiError = error.response?.data?.error ?? {
       code: 'NETWORK_ERROR',
-      message: 'Unable to reach the server. Please try again.',
+      message: t('errors.network'),
     }
 
     return Promise.reject(new ApiRequestError(status, apiError))

@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
 import { useForm } from '@/composables/useForm'
 import { choice, LIMITS, optionalText, requiredText } from '@/utils/validation'
+import { t } from '@/i18n'
 import type { Project, ProjectInput } from '@/types/projects'
 import type { Link } from '@/types/people'
 
@@ -33,9 +34,9 @@ const personField = auth.isClient ? 'freelancer_id' : 'client_id'
 
 /** A client starts a project with a freelancer; a freelancer's empty choice is a personal project. */
 const schema = z.object({
-  person_id: !isEdit.value && auth.isClient ? choice('Choose a freelancer') : z.string(),
-  name: requiredText('Name', LIMITS.projectName),
-  description: optionalText('Description', LIMITS.projectDescription),
+  person_id: !isEdit.value && auth.isClient ? choice(() => t('validation.chooseFreelancer')) : z.string(),
+  name: requiredText('thingName', LIMITS.projectName),
+  description: optionalText('description', LIMITS.projectDescription),
 })
 const form = useForm(
   schema,
@@ -50,7 +51,7 @@ const form = useForm(
 /** A client can only start a project with a freelancer they work with. */
 const nobody = computed(() => !isEdit.value && auth.isClient && !props.people?.length)
 const personOptions = computed(() => [
-  ...(auth.isFreelancer ? [{ value: '', label: 'Personal — no client' }] : []),
+  ...(auth.isFreelancer ? [{ value: '', label: t('projectForm.personalOption') }] : []),
   ...(props.people ?? []).map((p) => ({ value: p.id, label: p.name || p.email })),
 ])
 
@@ -66,34 +67,39 @@ function submit() {
 </script>
 
 <template>
-  <Modal :title="isEdit ? 'Edit project' : 'New project'" @close="emit('close')">
+  <Modal :title="isEdit ? $t('projectForm.edit') : $t('projectForm.new')" @close="emit('close')">
     <div v-if="nobody" class="space-y-2 text-sm text-neutral-600">
-      <p>Projects are shared with a freelancer you work with, and you don't have one yet.</p>
-      <p>Ask your freelancer to send you an invitation link.</p>
+      <p>{{ $t('projectForm.nobody') }}</p>
+      <p>{{ $t('projectForm.askInvite') }}</p>
     </div>
     <form v-else class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
       <BaseSelect
         v-if="!isEdit && personOptions.length > 1"
         v-bind="form.field('person_id')"
-        :label="auth.isClient ? 'Freelancer' : 'Client'"
-        :placeholder="auth.isClient ? 'Choose a freelancer' : undefined"
+        :label="auth.isClient ? $t('projectForm.freelancer') : $t('projectForm.client')"
+        :placeholder="auth.isClient ? $t('validation.chooseFreelancer') : undefined"
         :options="personOptions"
       />
       <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">
-        A personal project — only you see it.
+        {{ $t('projectForm.personalNote') }}
       </p>
-      <BaseInput v-bind="form.field('name')" label="Name" placeholder="Website redesign" />
-      <BaseTextarea v-bind="form.field('description')" label="Description" placeholder="Goals, scope, links…" :rows="4" />
+      <BaseInput v-bind="form.field('name')" :label="$t('projectForm.name')" :placeholder="$t('projectForm.namePlaceholder')" />
+      <BaseTextarea
+        v-bind="form.field('description')"
+        :label="$t('projectForm.description')"
+        :placeholder="$t('projectForm.descriptionPlaceholder')"
+        :rows="4"
+      />
     </form>
 
     <template v-if="nobody" #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">Close</BaseButton>
+      <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">{{ $t('common.close') }}</BaseButton>
     </template>
     <template v-else #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">Cancel</BaseButton>
+      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
       <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
-        {{ isEdit ? 'Save' : 'Create project' }}
+        {{ isEdit ? $t('common.save') : $t('projectForm.create') }}
       </BaseButton>
     </template>
   </Modal>

@@ -8,13 +8,14 @@ import FormError from '@/components/auth/FormError.vue'
 import { invitationLink, usePeopleStore } from '@/stores/people'
 import { copyText } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import { useForm } from '@/composables/useForm'
 import { email, LIMITS, requiredText } from '@/utils/validation'
 
 const emit = defineEmits<{ close: [] }>()
 
 const people = usePeopleStore()
-const form = useForm(z.object({ name: requiredText('Name', LIMITS.name), email: email() }), { name: '', email: '' })
+const form = useForm(z.object({ name: requiredText('name', LIMITS.name), email: email() }), { name: '', email: '' })
 /** Set once the invitation exists: the modal then shows its link. */
 const link = ref('')
 
@@ -26,18 +27,19 @@ function submit() {
 }
 
 async function copy() {
-  if (await copyText(link.value)) toast.success('Link copied')
-  else toast.error('Could not copy — select the link and copy it manually')
+  if (await copyText(link.value)) toast.success(t('clients.linkCopied'))
+  else toast.error(t('errors.copyFailed'))
 }
 </script>
 
 <template>
-  <Modal title="Invite a client" @close="emit('close')">
+  <Modal :title="$t('inviteModal.title')" @close="emit('close')">
     <div v-if="link" class="space-y-3">
-      <p class="text-sm text-neutral-600">
-        We emailed the invitation to <span class="font-medium text-neutral-900">{{ form.values.email.trim() }}</span>. You can
-        also send them this link yourself. It works once and expires in 14 days.
-      </p>
+      <i18n-t keypath="inviteModal.emailed" tag="p" class="text-sm text-neutral-600" scope="global">
+        <template #email>
+          <span class="font-medium text-neutral-900">{{ form.values.email.trim() }}</span>
+        </template>
+      </i18n-t>
       <input
         :value="link"
         readonly
@@ -47,22 +49,22 @@ async function copy() {
     </div>
     <form v-else id="invite-form" class="space-y-4" novalidate @submit.prevent="submit">
       <p class="text-sm text-neutral-500">
-        We'll email your client a link. They set a password and can then give you tasks.
+        {{ $t('inviteModal.intro') }}
       </p>
       <FormError :message="form.formError" />
-      <BaseInput v-bind="form.field('name')" label="Client name" placeholder="Acme Inc. or Jane Doe" />
-      <BaseInput v-bind="form.field('email')" label="Client email" type="email" placeholder="client@example.com" />
+      <BaseInput v-bind="form.field('name')" :label="$t('inviteModal.name')" :placeholder="$t('inviteModal.namePlaceholder')" />
+      <BaseInput v-bind="form.field('email')" :label="$t('inviteModal.email')" type="email" :placeholder="$t('inviteModal.emailPlaceholder')" />
     </form>
 
     <template #footer>
       <template v-if="link">
-        <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">Done</BaseButton>
-        <BaseButton size="sm" :block="false" @click="copy">Copy link</BaseButton>
+        <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">{{ $t('common.done') }}</BaseButton>
+        <BaseButton size="sm" :block="false" @click="copy">{{ $t('common.copyLink') }}</BaseButton>
       </template>
       <template v-else>
-        <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">Cancel</BaseButton>
+        <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
         <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
-          Create invitation
+          {{ $t('inviteModal.create') }}
         </BaseButton>
       </template>
     </template>

@@ -1,20 +1,17 @@
+import { t } from '@/i18n'
 import type { TaskPriority, TaskStatus } from '@/types/tasks'
 
 /** Most urgent first, as pickers list them. */
-export const PRIORITIES: { value: TaskPriority; label: string }[] = [
-  { value: 'urgent', label: 'Urgent' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-  { value: 'none', label: 'No priority' },
-]
+export const PRIORITY_ORDER: TaskPriority[] = ['urgent', 'high', 'medium', 'low', 'none']
 
-export const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  urgent: 'Urgent',
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-  none: 'No priority',
+/** "Urgent", "No priority", in the interface's language. */
+export function priorityLabel(p: TaskPriority): string {
+  return t(`priority.${p}`)
+}
+
+/** The priorities as select options, most urgent first. Call it where it renders, so it follows the language. */
+export function priorityOptions(): { value: TaskPriority; label: string }[] {
+  return PRIORITY_ORDER.map((p) => ({ value: p, label: priorityLabel(p) }))
 }
 
 /** Label colors: the backend's palette names, each with a chip and a dot. Full class names, so Tailwind keeps them. */
@@ -31,11 +28,29 @@ export const LABEL_COLORS: Record<string, { chip: string; dot: string }> = {
 }
 export const LABEL_COLOR_NAMES = Object.keys(LABEL_COLORS)
 
-export const STATUS_LABELS: Record<TaskStatus, string> = {
-  new: 'New',
-  in_progress: 'In progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
+export const STATUSES: TaskStatus[] = ['new', 'in_progress', 'done', 'cancelled']
+
+/** "New", "In progress", in the interface's language. */
+export function statusLabel(s: TaskStatus): string {
+  return t(`status.${s}`)
+}
+
+/** The names Helpic gives the columns it makes: shown in the interface's language. */
+const DEFAULT_COLUMNS: Record<string, TaskStatus | 'paid'> = {
+  New: 'new',
+  'In progress': 'in_progress',
+  Done: 'done',
+  Cancelled: 'cancelled',
+  Paid: 'paid',
+}
+
+/**
+ * A board column's name as shown: one Helpic made by default is translated,
+ * one the user named stays as they wrote it.
+ */
+export function columnName(name: string): string {
+  const key = DEFAULT_COLUMNS[name]
+  return key ? t(`status.${key}`) : name
 }
 
 export const STATUS_BADGE: Record<TaskStatus, string> = {
@@ -54,14 +69,19 @@ export const STATUS_DOT: Record<TaskStatus, string> = {
 }
 
 export interface StatusFilter {
-  value: string
-  label: string
+  value: 'open' | 'done' | 'cancelled' | 'all'
   statuses: TaskStatus[]
 }
 
 export const STATUS_FILTERS: StatusFilter[] = [
-  { value: 'open', label: 'Open', statuses: ['new', 'in_progress'] },
-  { value: 'done', label: 'Done', statuses: ['done'] },
-  { value: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
-  { value: 'all', label: 'All', statuses: [] },
+  { value: 'open', statuses: ['new', 'in_progress'] },
+  { value: 'done', statuses: ['done'] },
+  { value: 'cancelled', statuses: ['cancelled'] },
+  { value: 'all', statuses: [] },
 ]
+
+/** "Open", "All", in the interface's language. */
+export function filterLabel(value: string): string {
+  const f = STATUS_FILTERS.find((x) => x.value === value)
+  return f ? t(`statusFilter.${f.value}`) : ''
+}

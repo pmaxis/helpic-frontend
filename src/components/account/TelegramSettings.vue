@@ -5,19 +5,16 @@
  * checks every few seconds (and when the tab regains focus) whether the chat
  * got connected.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
-import { useAuthStore } from '@/stores/auth'
+import NotificationKindToggles from '@/components/account/NotificationKindToggles.vue'
 import { ApiRequestError } from '@/services/api'
 import { createTelegramLink, disconnectTelegram, fetchTelegram, setTelegramKinds } from '@/services/telegram'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import { formatDate } from '@/utils/format'
-import { NOTIFICATION_GROUPS, type NotificationKindInfo } from '@/constants/notifications'
 import type { NotificationKind } from '@/types/notifications'
 import type { TelegramLink, TelegramStatus } from '@/types/telegram'
-
-const auth = useAuthStore()
 
 const status = ref<TelegramStatus | null>(null)
 const loadFailed = ref(false)
@@ -52,7 +49,7 @@ async function connect() {
     startWaiting()
   } catch (error) {
     win?.close()
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not connect Telegram')
+    toast.error(error instanceof ApiRequestError ? error.message : t('notificationSettings.telegram.connectFailed'))
   } finally {
     connecting.value = false
   }
@@ -78,7 +75,7 @@ async function check() {
   if (!pending.value) return
   if (new Date(pending.value.expires_at).getTime() < Date.now()) {
     cancelWaiting()
-    toast.info('The Telegram link expired. Connect again when you’re ready.')
+    toast.info(t('notificationSettings.telegram.expired'))
     return
   }
   try {
@@ -86,7 +83,7 @@ async function check() {
     if (s.connected) {
       status.value = s
       cancelWaiting()
-      toast.success('Telegram connected')
+      toast.success(t('notificationSettings.telegram.connectedToast'))
     }
   } catch {
     // Try again on the next tick.
@@ -96,20 +93,6 @@ async function check() {
 onBeforeUnmount(stopWaiting)
 
 // --- what goes there ------------------------------------------------------------
-
-function fits(k: NotificationKindInfo): boolean {
-  if (k.for === 'freelancer') return auth.isFreelancer
-  if (k.for === 'owner') return auth.isTeamOwner
-  return true
-}
-
-/** The kinds this user can get, in their groups. */
-const groups = computed(() => {
-  const available = status.value?.available ?? []
-  return NOTIFICATION_GROUPS.map((g) => ({ ...g, kinds: g.kinds.filter((k) => available.includes(k.kind) && fits(k)) })).filter(
-    (g) => g.kinds.length,
-  )
-})
 
 /** Saves run one after another, so quick toggles land in order. */
 let saving = Promise.resolve()
@@ -125,7 +108,7 @@ function toggle(kind: NotificationKind, on: boolean) {
       status.value = await setTelegramKinds(next)
     } catch (error) {
       s.kinds = previous
-      toast.error(error instanceof ApiRequestError ? error.message : 'Could not save your choice')
+      toast.error(error instanceof ApiRequestError ? error.message : t('notificationSettings.saveFailed'))
     }
   })
 }
@@ -139,9 +122,9 @@ async function disconnect() {
   try {
     await disconnectTelegram()
     status.value = await fetchTelegram()
-    toast.success('Telegram disconnected')
+    toast.success(t('notificationSettings.telegram.disconnected'))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not disconnect Telegram')
+    toast.error(error instanceof ApiRequestError ? error.message : t('notificationSettings.telegram.disconnectFailed'))
   } finally {
     disconnecting.value = false
   }
@@ -161,16 +144,20 @@ async function disconnect() {
       </span>
 
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-neutral-900">Telegram</p>
-        <p v-if="loadFailed" class="text-xs text-neutral-500">Could not load. Reload the page to try again.</p>
-        <p v-else-if="!status?.enabled" class="text-xs text-neutral-500">Not set up on this server yet.</p>
+        <p class="text-sm font-medium text-neutral-900">{{ $t('notificationSettings.telegram.title') }}</p>
+        <p v-if="loadFailed" class="text-xs text-neutral-500">{{ $t('notificationSettings.loadFailed') }}</p>
+        <p v-else-if="!status?.enabled" class="text-xs text-neutral-500">{{ $t('notificationSettings.telegram.notSetUp') }}</p>
         <p v-else-if="status.connected" class="truncate text-xs text-neutral-500">
-          <span class="font-medium text-emerald-600">Connected</span>
-          <template v-if="status.username"> as {{ status.username }}</template>
-          <template v-if="status.linked_at"> · since {{ formatDate(status.linked_at) }}</template>
+          <span class="font-medium text-emerald-600">{{ $t('notificationSettings.telegram.connected') }}</span>
+          <template v-if="status.username">{{ ' ' + $t('notificationSettings.telegram.as', { name: status.username }) }}</template>
+          <template v-if="status.linked_at"> · {{ $t('notificationSettings.telegram.since', { date: formatDate(status.linked_at) }) }}</template>
         </p>
-        <p v-else-if="pending" class="text-xs text-neutral-500">Press <b class="font-medium text-neutral-700">Start</b> in the bot to finish…</p>
-        <p v-else class="text-xs text-neutral-500">Get important notifications in a chat with the Helpic bot.</p>
+        <i18n-t v-else-if="pending" keypath="notificationSettings.telegram.pressStart" tag="p" class="text-xs text-neutral-500" scope="global">
+          <template #start>
+            <b class="font-medium text-neutral-700">{{ $t('notificationSettings.telegram.start') }}</b>
+          </template>
+        </i18n-t>
+        <p v-else class="text-xs text-neutral-500">{{ $t('notificationSettings.telegram.intro') }}</p>
       </div>
 
       <template v-if="status?.enabled">
@@ -181,7 +168,7 @@ async function disconnect() {
           :disabled="disconnecting"
           @click="disconnect"
         >
-          {{ disconnecting ? 'Disconnecting…' : 'Disconnect' }}
+          {{ disconnecting ? $t('notificationSettings.telegram.disconnecting') : $t('notificationSettings.telegram.disconnect') }}
         </button>
         <div v-else-if="pending" class="flex shrink-0 items-center gap-1">
           <a
@@ -190,30 +177,27 @@ async function disconnect() {
             rel="noopener noreferrer"
             class="rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
           >
-            Open Telegram
+            {{ $t('notificationSettings.telegram.open') }}
           </a>
           <button type="button" class="rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="cancelWaiting">
-            Cancel
+            {{ $t('common.cancel') }}
           </button>
         </div>
-        <BaseButton v-else size="sm" :block="false" :loading="connecting" :disabled="connecting" @click="connect">Connect Telegram</BaseButton>
+        <BaseButton v-else size="sm" :block="false" :loading="connecting" :disabled="connecting" @click="connect">{{ $t('notificationSettings.telegram.connect') }}</BaseButton>
       </template>
     </div>
 
     <!-- what goes to the chat -->
-    <div v-if="status?.connected" class="border-t border-neutral-100 px-5 py-4">
-      <p class="text-xs text-neutral-500">Send these to Telegram. Everything still shows up in the app.</p>
-      <div class="mt-3 grid gap-x-8 gap-y-5 sm:grid-cols-2">
-        <div v-for="g in groups" :key="g.label">
-          <p class="text-xs font-medium tracking-wide text-neutral-400 uppercase">{{ g.label }}</p>
-          <ul class="mt-1.5">
-            <li v-for="k in g.kinds" :key="k.kind" class="flex items-center justify-between gap-3 py-1.5">
-              <span class="text-sm text-neutral-700">{{ k.label }}</span>
-              <ToggleSwitch :model-value="status.kinds.includes(k.kind)" :label="k.label" @update:model-value="toggle(k.kind, $event)" />
-            </li>
-          </ul>
-        </div>
-      </div>
+    <div v-if="status?.connected" class="border-t border-neutral-100 px-5 py-3">
+      <NotificationKindToggles
+        :title="$t('notificationSettings.telegram.what')"
+        storage-key="telegram"
+        :available="status.available"
+        :selected="status.kinds"
+        @toggle="toggle"
+      >
+        {{ $t('notificationSettings.telegram.explain') }}
+      </NotificationKindToggles>
     </div>
   </section>
 </template>

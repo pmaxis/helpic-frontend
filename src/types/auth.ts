@@ -11,6 +11,8 @@ export interface User {
   role: Role
   /** What a freelancer bills in: their task prices and reports use it. */
   currency: string
+  /** The language they read Helpic in; their emails and Telegram messages too. */
+  locale: 'en' | 'uk'
   /** Set for a member of a client's company: they act for it, but don't see its reports. */
   member_of: { owner_id: string; name: string } | null
   created_at: string

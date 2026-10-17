@@ -1,46 +1,49 @@
 import type { Role } from '@/types/auth'
 
+/** Sidebar words: keys under "nav" in the messages. */
+export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'reports' | 'clients' | 'freelancers' | 'team'
+
 export interface NavItem {
-  label: string
+  label: NavKey
   icon: string
   to: string
 }
 
 export interface NavSection {
   /** Empty for the top section, which needs no heading. */
-  label: string
+  label: NavKey | ''
   items: NavItem[]
 }
 
-/** The sidebar per role: the overview, the work, then who it's with. */
+/** The sidebar per role: the overview, the work, then who it's with. Labels are message keys. */
 export const NAV_SECTIONS: Record<Role, NavSection[]> = {
   freelancer: [
-    { label: '', items: [{ label: 'Dashboard', icon: 'dashboard', to: '/dashboard' }] },
+    { label: '', items: [{ label: 'dashboard', icon: 'dashboard', to: '/dashboard' }] },
     {
-      label: 'Work',
+      label: 'work',
       items: [
-        { label: 'Projects', icon: 'projects', to: '/projects' },
-        { label: 'Tasks', icon: 'tasks', to: '/tasks' },
-        { label: 'Reports', icon: 'reports', to: '/reports' },
+        { label: 'projects', icon: 'projects', to: '/projects' },
+        { label: 'tasks', icon: 'tasks', to: '/tasks' },
+        { label: 'reports', icon: 'reports', to: '/reports' },
       ],
     },
-    { label: 'People', items: [{ label: 'Clients', icon: 'clients', to: '/clients' }] },
+    { label: 'people', items: [{ label: 'clients', icon: 'clients', to: '/clients' }] },
   ],
   client: [
-    { label: '', items: [{ label: 'Dashboard', icon: 'dashboard', to: '/dashboard' }] },
+    { label: '', items: [{ label: 'dashboard', icon: 'dashboard', to: '/dashboard' }] },
     {
-      label: 'Work',
+      label: 'work',
       items: [
-        { label: 'Projects', icon: 'projects', to: '/projects' },
-        { label: 'Tasks', icon: 'tasks', to: '/tasks' },
-        { label: 'Reports', icon: 'reports', to: '/reports' },
+        { label: 'projects', icon: 'projects', to: '/projects' },
+        { label: 'tasks', icon: 'tasks', to: '/tasks' },
+        { label: 'reports', icon: 'reports', to: '/reports' },
       ],
     },
     {
-      label: 'People',
+      label: 'people',
       items: [
-        { label: 'Freelancers', icon: 'freelancers', to: '/freelancers' },
-        { label: 'Team', icon: 'clients', to: '/team' },
+        { label: 'freelancers', icon: 'freelancers', to: '/freelancers' },
+        { label: 'team', icon: 'clients', to: '/team' },
       ],
     },
   ],

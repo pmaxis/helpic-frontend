@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useReportsStore } from '@/stores/reports'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import type { Report } from '@/types/reports'
 
 const auth = useAuthStore()
@@ -21,7 +22,7 @@ onMounted(async () => {
   try {
     await reports.fetchReports()
   } catch {
-    toast.error('Could not load reports')
+    toast.error(t('reports.loadFailed'))
   }
 })
 
@@ -41,21 +42,21 @@ function onCreated(r: Report) {
 
 <template>
   <DashboardLayout>
-    <PageHeader title="Reports">
+    <PageHeader :title="$t('reports.title')">
       <template v-if="auth.isFreelancer" #actions>
-        <BaseButton size="sm" :block="false" @click="creating = true">New report</BaseButton>
+        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('reports.new') }}</BaseButton>
       </template>
     </PageHeader>
 
     <div v-if="reports.loaded && !reports.reports.length" class="mt-6">
       <EmptyState
         v-if="auth.isFreelancer"
-        title="No reports yet"
-        description="Report the work you finished over a period — send it to a client, or download it as PDF."
+        :title="$t('reports.noneYet')"
+        :description="$t('reports.noneYetFreelancer')"
       >
-        <BaseButton size="sm" :block="false" @click="creating = true">New report</BaseButton>
+        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('reports.new') }}</BaseButton>
       </EmptyState>
-      <EmptyState v-else title="No reports yet" description="Reports your freelancers send you show up here." />
+      <EmptyState v-else :title="$t('reports.noneYet')" :description="$t('reports.noneYetClient')" />
     </div>
 
     <div v-else-if="reports.reports.length" class="mt-6 overflow-hidden rounded-xl border border-neutral-200">
@@ -63,11 +64,11 @@ function onCreated(r: Report) {
         class="hidden gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase md:grid md:grid-cols-[minmax(0,1fr)_11rem_12rem_5rem_7rem]"
         aria-hidden="true"
       >
-        <span>Report</span>
-        <span>{{ auth.isClient ? 'Freelancer' : 'Client' }}</span>
-        <span>Period</span>
-        <span class="text-right">Tasks</span>
-        <span class="text-right">Status</span>
+        <span>{{ $t('reports.report') }}</span>
+        <span>{{ auth.isClient ? $t('reports.freelancer') : $t('reports.client') }}</span>
+        <span>{{ $t('reports.period') }}</span>
+        <span class="text-right">{{ $t('reports.tasks') }}</span>
+        <span class="text-right">{{ $t('reports.status') }}</span>
       </div>
       <ul class="divide-y divide-neutral-100">
         <li v-for="r in reports.reports" :key="r.id">
@@ -88,7 +89,7 @@ function onCreated(r: Report) {
               </div>
             </div>
             <span class="truncate text-sm" :class="other(r) ? 'text-neutral-700' : 'text-neutral-400'">
-              {{ other(r) ? other(r)?.name || other(r)?.email : 'Personal' }}
+              {{ other(r) ? other(r)?.name || other(r)?.email : $t('reports.personal') }}
             </span>
             <span class="text-sm text-neutral-600">{{ period(r) }}</span>
             <span class="text-sm text-neutral-700 md:text-right">{{ r.item_count }}</span>
@@ -103,7 +104,7 @@ function onCreated(r: Report) {
                       : 'bg-neutral-100 text-neutral-600 ring-neutral-500/20'
                 "
               >
-                {{ r.status === 'paid' ? 'Paid' : r.status === 'sent' ? 'Sent' : r.client ? 'Draft' : 'Personal' }}
+                {{ r.status === 'paid' ? $t('reports.paid') : r.status === 'sent' ? $t('reports.sent') : r.client ? $t('reports.draft') : $t('reports.personal') }}
               </span>
             </span>
           </RouterLink>

@@ -9,6 +9,7 @@ import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import { usePeopleStore } from '@/stores/people'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import type { Task } from '@/types/tasks'
 
 const people = usePeopleStore()
@@ -20,7 +21,7 @@ onMounted(async () => {
   try {
     await people.fetchFreelancers()
   } catch {
-    toast.error('Could not load freelancers')
+    toast.error(t('freelancers.loadFailed'))
   }
 })
 
@@ -32,10 +33,10 @@ function onSaved(task: Task) {
 
 <template>
   <DashboardLayout>
-    <PageHeader title="Freelancers" />
+    <PageHeader :title="$t('freelancers.title')" />
 
     <div v-if="people.freelancersLoaded && !people.freelancers.length" class="mt-6">
-      <EmptyState title="No freelancers yet" description="A freelancer adds you by sending an invitation link." />
+      <EmptyState :title="$t('freelancers.noneYet')" :description="$t('freelancers.noneYetText')" />
     </div>
 
     <ul v-else-if="people.freelancers.length" class="mt-6 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
@@ -45,15 +46,15 @@ function onSaved(task: Task) {
         </span>
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm font-medium text-neutral-900">{{ f.name || f.email }}</p>
-          <p class="truncate text-xs text-neutral-500">{{ f.email }} · since {{ formatDate(f.linked_at) }}</p>
+          <p class="truncate text-xs text-neutral-500">{{ $t('people.since', { email: f.email, date: formatDate(f.linked_at) }) }}</p>
         </div>
         <RouterLink
           :to="{ name: 'tasks', query: { with: f.id } }"
           class="shrink-0 text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline"
         >
-          {{ f.open_tasks }} open {{ f.open_tasks === 1 ? 'task' : 'tasks' }}
+          {{ $t('people.openTasks', { n: f.open_tasks }, f.open_tasks) }}
         </RouterLink>
-        <BaseButton size="sm" :block="false" @click="taskFor = f.id">New task</BaseButton>
+        <BaseButton size="sm" :block="false" @click="taskFor = f.id">{{ $t('people.newTask') }}</BaseButton>
       </li>
     </ul>
 

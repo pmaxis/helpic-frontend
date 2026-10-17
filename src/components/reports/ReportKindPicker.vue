@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
 /**
  * Picks the report type with two cards, each a miniature of the printed
  * sheet — like choosing a résumé template. Native radios underneath, so the
  * arrow keys and screen readers work as usual.
  */
-import { useId } from 'vue'
+import { computed, useId } from 'vue'
 import type { ReportKind } from '@/types/reports'
 
 withDefaults(
@@ -24,10 +25,10 @@ const emit = defineEmits<{ 'update:modelValue': [value: ReportKind] }>()
 const name = useId()
 
 /** The hint explains the type where a report is made (inline cards only). */
-const KINDS: { value: ReportKind; label: string; hint: string }[] = [
-  { value: 'basic', label: 'Basic', hint: 'Finished tasks with dates and prices' },
-  { value: 'detailed', label: 'Detailed', hint: 'Plus a note on the work in each task' },
-]
+const KINDS = computed<{ value: ReportKind; label: string; hint: string }[]>(() => [
+  { value: 'basic', label: t('reportKind.basic'), hint: t('reportKind.basicHint') },
+  { value: 'detailed', label: t('reportKind.detailed'), hint: t('reportKind.detailedHint') },
+])
 
 /** Task rows in the miniature; a detailed sheet adds note lines under each. */
 const ROWS = [
@@ -41,7 +42,7 @@ const ICON_ROWS = ROWS.slice(0, 3)
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Report type">
+  <div class="grid grid-cols-2 gap-3" role="radiogroup" :aria-label="$t('reportKind.aria')">
     <label
       v-for="k in KINDS"
       :key="k.value"

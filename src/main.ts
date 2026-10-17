@@ -6,11 +6,13 @@ import { onUnauthorized } from './services/api'
 import { useAuthStore } from './stores/auth'
 import { useNotificationsStore } from './stores/notifications'
 import { toast } from './composables/useToasts'
+import { i18n, t } from './i18n'
 import './style.css'
 
 const app = createApp(App)
 const pinia = createPinia()
 
+app.use(i18n)
 app.use(pinia)
 app.use(router)
 
@@ -19,7 +21,7 @@ onUnauthorized(() => {
   useAuthStore().handleSessionExpired()
   useNotificationsStore().stopPolling()
   if (router.currentRoute.value.meta.requiresAuth) {
-    toast.info('Your session expired. Please sign in again.')
+    toast.info(t('errors.sessionExpired'))
     void router.replace({ name: 'login' })
   }
 })

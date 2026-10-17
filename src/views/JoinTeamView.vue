@@ -15,7 +15,8 @@ import { ApiRequestError } from '@/services/api'
 import { joinTeam, lookupTeamInvite } from '@/services/team'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
-import { across, currentPassword, LIMITS, newPassword, requiredText } from '@/utils/validation'
+import { currentPassword, LIMITS, newPassword, passwordsMatch, requiredText } from '@/utils/validation'
+import { t } from '@/i18n'
 import type { TeamInviteLookup } from '@/types/team'
 
 const auth = useAuthStore()
@@ -28,11 +29,11 @@ const invite = ref<TeamInviteLookup | null>(null)
 const invalid = ref('')
 const schema = z
   .object({
-    name: requiredText('Name', LIMITS.name),
+    name: requiredText('name', LIMITS.name),
     password: newPassword(),
-    password_confirmation: currentPassword('Please confirm your password'),
+    password_confirmation: currentPassword(() => t('validation.confirmPassword')),
   })
-  .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match'))
+  .refine(...passwordsMatch())
 const form = useForm(schema, { name: '', password: '', password_confirmation: '' })
 
 onMounted(async () => {
@@ -41,14 +42,14 @@ onMounted(async () => {
     form.values.name = invite.value.name
   } catch (error) {
     invalid.value =
-      error instanceof ApiRequestError && error.status === 404 ? error.message : 'Could not load the invitation. Please try again.'
+      error instanceof ApiRequestError && error.status === 404 ? error.message : t('invite.loadFailed')
   }
 })
 
 function company(): string {
   const i = invite.value
   if (!i) return ''
-  return i.company || `${i.owner.name || i.owner.email}'s team`
+  return i.company || t('joinTeam.teamOf', { name: i.owner.name || i.owner.email })
 }
 
 function onSubmit() {
@@ -56,7 +57,7 @@ function onSubmit() {
     const user = await joinTeam(token, data)
     people.$reset()
     auth.setUser(user)
-    toast.success(`You've joined ${company()}`)
+    toast.success(t('joinTeam.joined', { company: company() }))
     await router.replace('/dashboard')
   })
 }
@@ -64,33 +65,38 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard v-if="invalid" title="Invitation unavailable" :subtitle="invalid">
+    <AuthCard v-if="invalid" :title="$t('invite.unavailable')" :subtitle="invalid">
       <template #footer>
-        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">Go to sign in</RouterLink>
+        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('invite.goToSignIn') }}</RouterLink>
       </template>
     </AuthCard>
 
     <AuthCard
       v-else-if="invite"
-      :title="`Join ${company()}`"
-      :subtitle="`${invite.owner.name || invite.owner.email} invited you. You'll work with the company's freelancers and set tasks for them.`"
+      :title="$t('joinTeam.title', { company: company() })"
+      :subtitle="$t('joinTeam.subtitle', { owner: invite.owner.name || invite.owner.email })"
     >
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <p
           v-if="auth.user"
           class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-600/20 ring-inset"
         >
-          You're signed in as {{ auth.user.email }}. Joining creates a new account for {{ invite.email }} and signs you in to it.
+          {{ $t('joinTeam.signedInAs', { current: auth.user.email, email: invite.email }) }}
         </p>
         <FormError :message="form.formError" />
 
-        <BaseInput :model-value="invite.email" label="Email" type="email" size="lg" disabled />
-        <BaseInput v-bind="form.field('name')" label="Your name" autocomplete="name" size="lg" />
-        <PasswordInput v-bind="form.field('password')" label="Password" autocomplete="new-password" :hint="`At least ${LIMITS.password} characters.`" />
-        <PasswordInput v-bind="form.field('password_confirmation')" label="Confirm password" autocomplete="new-password" />
+        <BaseInput :model-value="invite.email" :label="$t('login.email')" type="email" size="lg" disabled />
+        <BaseInput v-bind="form.field('name')" :label="$t('register.name')" autocomplete="name" size="lg" />
+        <PasswordInput
+          v-bind="form.field('password')"
+          :label="$t('login.password')"
+          autocomplete="new-password"
+          :hint="$t('validation.passwordHint', { n: LIMITS.password })"
+        />
+        <PasswordInput v-bind="form.field('password_confirmation')" :label="$t('register.confirmPassword')" autocomplete="new-password" />
 
         <div class="pt-1">
-          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">Join the team</BaseButton>
+          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">{{ $t('joinTeam.submit') }}</BaseButton>
         </div>
       </form>
     </AuthCard>

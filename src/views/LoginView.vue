@@ -28,16 +28,16 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard title="Welcome back" subtitle="Sign in to see your tasks and projects.">
+    <AuthCard :title="$t('login.title')" :subtitle="$t('login.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
 
         <BaseInput
           v-bind="form.field('email')"
-          label="Email"
+          :label="$t('login.email')"
           type="email"
           autocomplete="email"
-          placeholder="you@example.com"
+          :placeholder="$t('login.emailPlaceholder')"
           size="lg"
         >
           <template #icon>
@@ -48,28 +48,28 @@ function onSubmit() {
           </template>
         </BaseInput>
         <div>
-          <PasswordInput v-bind="form.field('password')" label="Password" autocomplete="current-password" />
+          <PasswordInput v-bind="form.field('password')" :label="$t('login.password')" autocomplete="current-password" />
           <div class="mt-2 text-right">
             <RouterLink
               :to="{ name: 'forgot-password', query: form.values.email.trim() ? { email: form.values.email.trim() } : {} }"
               class="text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline"
             >
-              Forgot password?
+              {{ $t('login.forgot') }}
             </RouterLink>
           </div>
         </div>
 
         <div class="pt-1">
           <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
-            Sign in
+            {{ $t('login.submit') }}
           </BaseButton>
         </div>
       </form>
 
       <template #footer>
-        New to Helpic?
+        {{ $t('login.newHere') }}
         <RouterLink to="/register" class="font-medium text-neutral-900 underline-offset-4 hover:underline">
-          Create an account
+          {{ $t('login.createAccount') }}
         </RouterLink>
       </template>
     </AuthCard>
