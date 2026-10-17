@@ -445,7 +445,9 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
             <template v-if="!loaded">{{ $t('common.loading') }}</template>
             <template v-else>
               {{ $t('dashboard.noProjects') }}
-              <RouterLink to="/projects" class="font-medium text-neutral-700 underline-offset-4 hover:underline">{{ $t('dashboard.createOne') }}</RouterLink>
+              <RouterLink v-if="!auth.isContractor" to="/projects" class="font-medium text-neutral-700 underline-offset-4 hover:underline">{{
+                $t('dashboard.createOne')
+              }}</RouterLink>
             </template>
           </p>
         </section>

@@ -1,5 +1,5 @@
 import { http } from '@/services/api'
-import type { Team, TeamInvite, TeamInviteLookup } from '@/types/team'
+import type { Team, TeamInvite, TeamInviteLookup, TeamRole } from '@/types/team'
 import type { User, UserResponse } from '@/types/auth'
 
 export async function fetchTeam(): Promise<Team> {
@@ -12,9 +12,14 @@ export async function renameTeam(name: string): Promise<Team> {
   return data.team
 }
 
-export async function inviteToTeam(email: string, name: string): Promise<TeamInvite> {
-  const { data } = await http.post<{ invite: TeamInvite }>('/team/invites', { email, name })
+export async function inviteToTeam(email: string, name: string, role: TeamRole): Promise<TeamInvite> {
+  const { data } = await http.post<{ invite: TeamInvite }>('/team/invites', { email, name, role })
   return data.invite
+}
+
+export async function setTeamMemberRole(id: string, role: TeamRole): Promise<Team> {
+  const { data } = await http.put<{ team: Team }>(`/team/members/${id}`, { role })
+  return data.team
 }
 
 export async function revokeTeamInvite(id: string): Promise<void> {

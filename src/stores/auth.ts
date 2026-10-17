@@ -35,6 +35,8 @@ export const useAuthStore = defineStore('auth', {
     isClient: (state): boolean => state.user?.role === 'client',
     /** A member of a client's company: acts for it, but doesn't see its reports. */
     isTeamMember: (state): boolean => !!state.user?.member_of,
+    /** A contractor of a client's company: sees only the tasks they set or were added to. */
+    isContractor: (state): boolean => state.user?.member_of?.role === 'contractor',
     /** The client a freelancer invited: owns their company and its team. */
     isTeamOwner: (state): boolean => state.user?.role === 'client' && !state.user?.member_of,
   },

@@ -28,6 +28,7 @@ const auth = useAuthStore()
 function fits(k: NotificationKindInfo): boolean {
   if (k.for === 'freelancer') return auth.isFreelancer
   if (k.for === 'owner') return auth.isTeamOwner
+  if (k.for === 'client') return auth.isClient
   return true
 }
 

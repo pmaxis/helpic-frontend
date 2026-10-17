@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * A client's company and its people. The owner (the client a freelancer
- * invited) names it, invites members by link and removes them; members work
- * with the company's freelancers but don't see its reports. A member sees
- * whose team they're on.
+ * invited) names it, invites people by link as members or contractors,
+ * changes their role and removes them. Both work with the company's
+ * freelancers but don't see its reports; a contractor sees only the tasks
+ * they set or were added to. Someone on the team sees whose team it is.
  */
 import { computed, onMounted, ref } from 'vue'
 import { z } from 'zod'
@@ -12,15 +13,17 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FormError from '@/components/auth/FormError.vue'
-import { fetchTeam, inviteToTeam, removeTeamMember, renameTeam, revokeTeamInvite, teamInviteLink } from '@/services/team'
+import { fetchTeam, inviteToTeam, removeTeamMember, renameTeam, revokeTeamInvite, setTeamMemberRole, teamInviteLink } from '@/services/team'
 import { copyText, formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { email, LIMITS, optionalText } from '@/utils/validation'
 import { t } from '@/i18n'
-import type { Team, TeamInvite, TeamMember } from '@/types/team'
+import { TEAM_ROLES, type Team, type TeamInvite, type TeamMember, type TeamRole } from '@/types/team'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,13 +77,18 @@ function saveName() {
 
 // --- inviting -------------------------------------------------------------------------
 
-const inviteForm = useForm(z.object({ email: email(), name: optionalText('name', LIMITS.name) }), { email: '', name: '' })
+const inviteForm = useForm(z.object({ email: email(), name: optionalText('name', LIMITS.name), role: z.enum(TEAM_ROLES) }), {
+  email: '',
+  name: '',
+  role: 'member' as TeamRole,
+})
+const roleOptions = computed(() => TEAM_ROLES.map((r) => ({ value: r, label: t(`team.roles.${r}`) })))
 /** The link of the invitation just made, shown to copy. */
 const freshLink = ref('')
 
 function invite() {
   void inviteForm.submit(async (data) => {
-    const inv = await inviteToTeam(data.email, data.name)
+    const inv = await inviteToTeam(data.email, data.name, data.role)
     team.value?.invites?.unshift(inv)
     freshLink.value = teamInviteLink(inv.token)
     inviteForm.reset()
@@ -91,6 +99,24 @@ function invite() {
 async function copy(link: string) {
   if (await copyText(link)) toast.success(t('team.linkCopied'))
   else toast.error(t('team.copyFailed'))
+}
+
+// --- roles ------------------------------------------------------------------------------
+
+/** The member whose role is being saved, to dim their row meanwhile. */
+const savingRole = ref('')
+
+async function changeRole(m: TeamMember, role: string) {
+  if (role === m.role || !TEAM_ROLES.includes(role as TeamRole)) return
+  savingRole.value = m.id
+  try {
+    team.value = await setTeamMemberRole(m.id, role as TeamRole)
+    toast.success(t('team.roleChanged', { name: m.name || m.email, role: t(`team.roles.${role}`).toLowerCase() }))
+  } catch {
+    toast.error(t('team.roleFailed'))
+  } finally {
+    savingRole.value = ''
+  }
 }
 
 // --- revoking and removing -------------------------------------------------------------
@@ -150,7 +176,7 @@ async function remove() {
         </div>
       </div>
       <p class="mt-4 text-sm text-neutral-600">
-        {{ $t('team.memberText', { name: team.owner.name || team.owner.email }) }}
+        {{ $t(team.role === 'contractor' ? 'team.contractorText' : 'team.memberText', { name: team.owner.name || team.owner.email }) }}
       </p>
     </section>
 
@@ -187,11 +213,22 @@ async function remove() {
         <template v-else-if="tab === 'invite'">
           <section class="rounded-xl border border-neutral-200 p-5">
             <p class="text-sm text-neutral-500">{{ $t('team.inviteText') }}</p>
-            <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start" novalidate @submit.prevent="invite">
+            <form
+              class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_11rem_auto] lg:items-start"
+              novalidate
+              @submit.prevent="invite"
+            >
               <BaseInput v-bind="inviteForm.field('email')" :label="$t('team.email')" type="email" :placeholder="$t('team.emailPlaceholder')" />
               <BaseInput v-bind="inviteForm.field('name')" :label="$t('team.name')" :placeholder="$t('team.namePlaceholder')" />
+              <BaseSelect
+                :model-value="inviteForm.values.role"
+                :label="$t('team.role')"
+                :options="roleOptions"
+                @update:model-value="inviteForm.values.role = $event as TeamRole"
+              />
               <BaseButton type="submit" :block="false" class="h-[38px] sm:mt-[26px]" :loading="inviteForm.submitting">{{ $t('team.invite') }}</BaseButton>
             </form>
+            <p class="mt-2 text-xs text-neutral-500">{{ $t(`team.roleHints.${inviteForm.values.role}`) }}</p>
             <FormError class="mt-3" :message="inviteForm.formError" />
             <div v-if="freshLink" class="mt-4 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 ring-1 ring-neutral-200 ring-inset">
               <span class="min-w-0 flex-1 truncate font-mono text-xs text-neutral-700">{{ freshLink }}</span>
@@ -206,7 +243,8 @@ async function remove() {
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm text-neutral-900">{{ inv.name || inv.email }}</p>
                   <p class="truncate text-xs text-neutral-500">
-                    {{ inv.name ? `${inv.email} · ` : '' }}{{ inv.expired ? $t('team.expired') : $t('team.validUntil', { date: formatDate(inv.expires_at) }) }}
+                    {{ inv.name ? `${inv.email} · ` : '' }}{{ $t('team.asRole', { role: $t(`team.roles.${inv.role}`).toLowerCase() }) }} ·
+                    {{ inv.expired ? $t('team.expired') : $t('team.validUntil', { date: formatDate(inv.expires_at) }) }}
                   </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -231,7 +269,12 @@ async function remove() {
                 <p class="truncate text-xs text-neutral-500">{{ $t('team.owner') }}</p>
               </div>
             </li>
-            <li v-for="m in team.members" :key="m.id" class="flex items-center gap-3 px-5 py-3">
+            <li
+              v-for="m in team.members"
+              :key="m.id"
+              class="flex flex-wrap items-center gap-3 px-5 py-3 transition-opacity"
+              :class="savingRole === m.id ? 'pointer-events-none opacity-60' : ''"
+            >
               <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-600">
                 {{ initials(m.name || m.email) }}
               </span>
@@ -239,6 +282,14 @@ async function remove() {
                 <p class="truncate text-sm text-neutral-900">{{ m.name || m.email }}</p>
                 <p class="truncate text-xs text-neutral-500">{{ $t('team.joined', { email: m.email, date: formatDate(m.joined_at) }) }}</p>
               </div>
+              <SelectInput
+                class="w-40"
+                :model-value="m.role"
+                :options="roleOptions"
+                :aria-label="$t('team.roleFor', { name: m.name || m.email })"
+                :title="$t(`team.roleHints.${m.role}`)"
+                @update:model-value="changeRole(m, $event)"
+              />
               <button type="button" class="rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="removing = m">{{ $t('team.remove') }}</button>
             </li>
             <li v-if="!team.members?.length" class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm text-neutral-400">

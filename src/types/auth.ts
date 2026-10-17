@@ -1,3 +1,5 @@
+import type { TeamRole } from '@/types/team'
+
 /** Public sign-up creates a freelancer; clients join by a freelancer's invitation. */
 export type Role = 'freelancer' | 'client'
 
@@ -14,7 +16,7 @@ export interface User {
   /** The language they read Helpic in; their emails and Telegram messages too. */
   locale: 'en' | 'uk'
   /** Set for a member of a client's company: they act for it, but don't see its reports. */
-  member_of: { owner_id: string; name: string } | null
+  member_of: { owner_id: string; name: string; role: TeamRole } | null
   created_at: string
 }
 
