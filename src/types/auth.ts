@@ -49,3 +49,15 @@ export interface ApiError {
   message: string
   fields?: Record<string, string>
 }
+
+/** A signed-in device. */
+export interface Session {
+  id: string
+  user_agent: string
+  ip: string
+  /** The device looking at the list. */
+  current: boolean
+  created_at: string
+  last_used_at: string
+  expires_at: string
+}

@@ -34,3 +34,48 @@ export function timeAgo(iso: string): string {
   if (seconds < 7 * 86400) return `${Math.floor(seconds / 86400)}d ago`
   return formatDate(iso)
 }
+
+export type DeviceKind = 'desktop' | 'phone' | 'tablet' | 'unknown'
+
+export interface Device {
+  browser: string
+  os: string
+  kind: DeviceKind
+}
+
+/** The first label whose token the user agent contains. */
+function match(userAgent: string, table: [string, string][]): string {
+  return table.find(([token]) => userAgent.includes(token))?.[1] ?? ''
+}
+
+/** What a user agent says about the device: its browser, OS and form factor. */
+export function parseDevice(userAgent: string): Device {
+  const browser = match(userAgent, [
+    ['Edg/', 'Edge'],
+    ['OPR/', 'Opera'],
+    ['Firefox/', 'Firefox'],
+    ['Chrome/', 'Chrome'],
+    ['Safari/', 'Safari'],
+  ])
+  const os = match(userAgent, [
+    ['iPhone', 'iOS'],
+    ['iPad', 'iPadOS'],
+    ['Android', 'Android'],
+    ['CrOS', 'ChromeOS'],
+    ['Mac OS X', 'macOS'],
+    ['Windows', 'Windows'],
+    ['Linux', 'Linux'],
+  ])
+  let kind: DeviceKind = 'unknown'
+  if (/iPad|Tablet/.test(userAgent) || (userAgent.includes('Android') && !userAgent.includes('Mobile'))) kind = 'tablet'
+  else if (/iPhone|Android|Mobile/.test(userAgent)) kind = 'phone'
+  else if (os) kind = 'desktop'
+  return { browser, os, kind }
+}
+
+/** "Chrome on macOS" from a user agent; "Unknown device" when it says nothing useful. */
+export function deviceName(userAgent: string): string {
+  const { browser, os } = parseDevice(userAgent)
+  if (browser && os) return `${browser} on ${os}`
+  return browser || os || 'Unknown device'
+}

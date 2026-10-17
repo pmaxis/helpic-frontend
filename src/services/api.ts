@@ -1,11 +1,12 @@
-import axios, { AxiosError, type AxiosInstance } from 'axios'
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiError } from '@/types/auth'
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8090/api/v1'
 
 /**
  * Single axios instance for the whole app. Every request sends cookies
- * (withCredentials) so the HttpOnly JWT cookie is included automatically.
+ * (withCredentials) so the HttpOnly access and refresh cookies are included
+ * automatically.
  */
 export const http: AxiosInstance = axios.create({
   baseURL,
@@ -40,15 +41,47 @@ export class ApiRequestError extends Error {
   }
 }
 
-const AUTH_PROBE_PATHS = ['/me', '/auth/login', '/auth/register']
+/** A 401 from these means "not signed in" or "wrong password", not "the session expired". */
+function isAuthProbe(url: string): boolean {
+  return url === '/me' || url.startsWith('/auth/')
+}
+
+let refreshing: Promise<boolean> | null = null
+
+/**
+ * Swaps the refresh cookie for a new access cookie. Requests that fail
+ * together share one refresh: each refresh replaces the refresh token, so
+ * sending the same one twice would look like a stolen copy.
+ */
+function refreshSession(): Promise<boolean> {
+  refreshing ??= http
+    .post('/auth/refresh')
+    .then(
+      () => true,
+      () => false,
+    )
+    .finally(() => {
+      refreshing = null
+    })
+  return refreshing
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }
 
 http.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ error?: ApiError }>) => {
+  async (error: AxiosError<{ error?: ApiError }>) => {
     const status = error.response?.status ?? 0
-    const url = error.config?.url ?? ''
+    const config = error.config as RetriableConfig | undefined
+    const url = config?.url ?? ''
 
-    if (status === 401 && !AUTH_PROBE_PATHS.some((p) => url.includes(p))) {
+    // The access token is short-lived: refresh it and try once more.
+    if (status === 401 && config && !config._retried && !url.startsWith('/auth/')) {
+      config._retried = true
+      if (await refreshSession()) return http(config)
+    }
+
+    if (status === 401 && !isAuthProbe(url)) {
       unauthorizedHandler?.()
     }
 
