@@ -1,0 +1,134 @@
+<script setup lang="ts">
+import { reactive, ref } from 'vue'
+import { useRouter, RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { ApiRequestError } from '@/services/api'
+import AuthLayout from '@/layouts/AuthLayout.vue'
+import AuthCard from '@/components/auth/AuthCard.vue'
+import FormError from '@/components/auth/FormError.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import PasswordInput from '@/components/auth/PasswordInput.vue'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const MIN_PASSWORD = 8
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const form = reactive({ name: '', email: '', password: '', password_confirmation: '' })
+const fieldErrors = reactive<Record<string, string>>({})
+const formError = ref('')
+
+function validate(): boolean {
+  fieldErrors.name = ''
+  fieldErrors.email = ''
+  fieldErrors.password = ''
+  fieldErrors.password_confirmation = ''
+
+  if (!form.name.trim()) fieldErrors.name = 'Name is required'
+
+  if (!form.email.trim()) fieldErrors.email = 'Email is required'
+  else if (!EMAIL_RE.test(form.email.trim())) fieldErrors.email = 'Enter a valid email address'
+
+  if (!form.password) fieldErrors.password = 'Password is required'
+  else if (form.password.length < MIN_PASSWORD)
+    fieldErrors.password = `Password must be at least ${MIN_PASSWORD} characters`
+
+  if (!form.password_confirmation)
+    fieldErrors.password_confirmation = 'Please confirm your password'
+  else if (form.password !== form.password_confirmation)
+    fieldErrors.password_confirmation = 'Passwords do not match'
+
+  return (
+    !fieldErrors.name && !fieldErrors.email && !fieldErrors.password && !fieldErrors.password_confirmation
+  )
+}
+
+async function onSubmit() {
+  formError.value = ''
+  if (!validate()) return
+
+  try {
+    await auth.register({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      password_confirmation: form.password_confirmation,
+    })
+    // Auto sign-in after successful registration.
+    await auth.login({ email: form.email.trim(), password: form.password })
+    await router.replace('/dashboard')
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      if (error.fields) Object.assign(fieldErrors, error.fields)
+      formError.value = error.fields ? '' : error.message
+    } else {
+      formError.value = 'Something went wrong. Please try again.'
+    }
+  }
+}
+</script>
+
+<template>
+  <AuthLayout>
+    <AuthCard title="Create your account" subtitle="For freelancers. Invite your clients and get their tasks in one place.">
+      <form class="space-y-5" novalidate @submit.prevent="onSubmit">
+        <FormError :message="formError" />
+
+        <BaseInput
+          v-model="form.name"
+          label="Your name"
+          autocomplete="name"
+          placeholder="Jane Doe"
+          size="lg"
+          :error="fieldErrors.name"
+          required
+        />
+        <BaseInput
+          v-model="form.email"
+          label="Email"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+          size="lg"
+          :error="fieldErrors.email"
+          required
+        >
+          <template #icon>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="m3 7 9 6 9-6" />
+            </svg>
+          </template>
+        </BaseInput>
+        <PasswordInput
+          v-model="form.password"
+          label="Password"
+          autocomplete="new-password"
+          :hint="`At least ${MIN_PASSWORD} characters.`"
+          :error="fieldErrors.password"
+        />
+        <PasswordInput
+          v-model="form.password_confirmation"
+          label="Confirm password"
+          autocomplete="new-password"
+          :error="fieldErrors.password_confirmation"
+        />
+
+        <div class="pt-1">
+          <BaseButton type="submit" class="h-10" :loading="auth.isLoading" :disabled="auth.isLoading">
+            Create account
+          </BaseButton>
+        </div>
+      </form>
+
+      <template #footer>
+        Already have an account?
+        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">
+          Sign in
+        </RouterLink>
+      </template>
+    </AuthCard>
+  </AuthLayout>
+</template>
