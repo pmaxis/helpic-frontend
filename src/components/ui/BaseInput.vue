@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 defineProps<{
   modelValue: string
@@ -30,9 +31,7 @@ function onInput(event: Event) {
 
 <template>
   <div>
-    <label :for="inputId" class="block text-sm font-medium text-neutral-700">
-      {{ label }}
-    </label>
+    <FieldLabel :target="inputId" :label="label" :required="required" />
     <div class="relative mt-1.5">
       <span v-if="$slots.icon" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-neutral-400" aria-hidden="true">
         <slot name="icon" />
@@ -43,7 +42,6 @@ function onInput(event: Event) {
         :type="type ?? 'text'"
         :autocomplete="autocomplete"
         :placeholder="placeholder"
-        :required="required"
         :disabled="disabled"
         :list="list"
         :aria-invalid="error ? 'true' : undefined"

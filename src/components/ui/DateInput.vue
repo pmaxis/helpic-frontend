@@ -10,6 +10,7 @@
  * Home/End to the week's start/end, Enter/Space pick, Esc closes.
  */
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 const props = defineProps<{
   modelValue: string
@@ -17,6 +18,7 @@ const props = defineProps<{
   placeholder?: string
   error?: string
   disabled?: boolean
+  required?: boolean
   /** Keep the label for screen readers only, e.g. inline in a details list. */
   hideLabel?: boolean
   /** Show the date without the weekday ("3 Oct 2026"), for narrow places. */
@@ -214,7 +216,7 @@ function onPanelKeydown(e: KeyboardEvent) {
 
 <template>
   <div>
-    <label :for="id" :class="hideLabel ? 'sr-only' : 'block text-sm font-medium text-neutral-700'">{{ label }}</label>
+    <FieldLabel :target="id" :label="label" :required="required" :hidden="hideLabel" />
     <div class="relative" :class="hideLabel ? '' : 'mt-1.5'">
       <button
         :id="id"

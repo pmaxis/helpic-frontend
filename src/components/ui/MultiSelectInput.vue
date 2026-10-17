@@ -6,6 +6,7 @@
  * so modals don't clip it. Esc or a click outside closes it.
  */
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 type Option = { value: string; label: string }
 
@@ -17,6 +18,7 @@ const props = defineProps<{
   placeholder: string
   error?: string
   disabled?: boolean
+  required?: boolean
   /** Keep the label for screen readers only, e.g. in a toolbar. */
   hideLabel?: boolean
   /** "sm" is 32px tall, to line up with small buttons in a toolbar. */
@@ -94,7 +96,7 @@ onBeforeUnmount(stopListening)
 
 <template>
   <div>
-    <label :for="id" :class="hideLabel ? 'sr-only' : 'block text-sm font-medium text-neutral-700'">{{ label }}</label>
+    <FieldLabel :target="id" :label="label" :required="required" :hidden="hideLabel" />
     <button
       :id="id"
       ref="trigger"

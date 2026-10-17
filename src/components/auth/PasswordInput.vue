@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // A password field with a show/hide toggle; otherwise looks like BaseInput.
 import { computed, ref, useId } from 'vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 defineProps<{
   modelValue: string
@@ -9,6 +10,7 @@ defineProps<{
   error?: string
   /** Helper text under the field while there's no error. */
   hint?: string
+  required?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
@@ -19,7 +21,7 @@ const visible = ref(false)
 
 <template>
   <div>
-    <label :for="id" class="block text-sm font-medium text-neutral-700">{{ label }}</label>
+    <FieldLabel :target="id" :label="label" :required="required" />
     <div class="relative mt-1.5">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" aria-hidden="true">
         <rect x="4" y="11" width="16" height="10" rx="2" />
@@ -30,7 +32,6 @@ const visible = ref(false)
         :value="modelValue"
         :type="visible ? 'text' : 'password'"
         :autocomplete="autocomplete"
-        required
         placeholder="••••••••"
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="error || hint ? describedBy : undefined"

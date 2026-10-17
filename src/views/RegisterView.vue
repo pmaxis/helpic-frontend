@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { z } from 'zod'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ApiRequestError } from '@/services/api'
+import { useForm } from '@/composables/useForm'
+import { across, currentPassword, email, LIMITS, newPassword, requiredText } from '@/utils/validation'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
 import FormError from '@/components/auth/FormError.vue'
@@ -13,60 +14,24 @@ import PasswordInput from '@/components/auth/PasswordInput.vue'
 const auth = useAuthStore()
 const router = useRouter()
 
-const MIN_PASSWORD = 8
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const schema = z
+  .object({
+    name: requiredText('Name', LIMITS.name),
+    email: email(),
+    password: newPassword(),
+    password_confirmation: currentPassword('Please confirm your password'),
+  })
+  .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match'))
 
-const form = reactive({ name: '', email: '', password: '', password_confirmation: '' })
-const fieldErrors = reactive<Record<string, string>>({})
-const formError = ref('')
+const form = useForm(schema, { name: '', email: '', password: '', password_confirmation: '' })
 
-function validate(): boolean {
-  fieldErrors.name = ''
-  fieldErrors.email = ''
-  fieldErrors.password = ''
-  fieldErrors.password_confirmation = ''
-
-  if (!form.name.trim()) fieldErrors.name = 'Name is required'
-
-  if (!form.email.trim()) fieldErrors.email = 'Email is required'
-  else if (!EMAIL_RE.test(form.email.trim())) fieldErrors.email = 'Enter a valid email address'
-
-  if (!form.password) fieldErrors.password = 'Password is required'
-  else if (form.password.length < MIN_PASSWORD)
-    fieldErrors.password = `Password must be at least ${MIN_PASSWORD} characters`
-
-  if (!form.password_confirmation)
-    fieldErrors.password_confirmation = 'Please confirm your password'
-  else if (form.password !== form.password_confirmation)
-    fieldErrors.password_confirmation = 'Passwords do not match'
-
-  return (
-    !fieldErrors.name && !fieldErrors.email && !fieldErrors.password && !fieldErrors.password_confirmation
-  )
-}
-
-async function onSubmit() {
-  formError.value = ''
-  if (!validate()) return
-
-  try {
-    await auth.register({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      password: form.password,
-      password_confirmation: form.password_confirmation,
-    })
+function onSubmit() {
+  void form.submit(async (data) => {
+    await auth.register(data)
     // Auto sign-in after successful registration.
-    await auth.login({ email: form.email.trim(), password: form.password })
+    await auth.login({ email: data.email, password: data.password })
     await router.replace('/dashboard')
-  } catch (error) {
-    if (error instanceof ApiRequestError) {
-      if (error.fields) Object.assign(fieldErrors, error.fields)
-      formError.value = error.fields ? '' : error.message
-    } else {
-      formError.value = 'Something went wrong. Please try again.'
-    }
-  }
+  })
 }
 </script>
 
@@ -74,26 +39,16 @@ async function onSubmit() {
   <AuthLayout>
     <AuthCard title="Create your account" subtitle="For freelancers. Invite your clients and get their tasks in one place.">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
-        <FormError :message="formError" />
+        <FormError :message="form.formError" />
 
+        <BaseInput v-bind="form.field('name')" label="Your name" autocomplete="name" placeholder="Jane Doe" size="lg" />
         <BaseInput
-          v-model="form.name"
-          label="Your name"
-          autocomplete="name"
-          placeholder="Jane Doe"
-          size="lg"
-          :error="fieldErrors.name"
-          required
-        />
-        <BaseInput
-          v-model="form.email"
+          v-bind="form.field('email')"
           label="Email"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
           size="lg"
-          :error="fieldErrors.email"
-          required
         >
           <template #icon>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
@@ -103,21 +58,15 @@ async function onSubmit() {
           </template>
         </BaseInput>
         <PasswordInput
-          v-model="form.password"
+          v-bind="form.field('password')"
           label="Password"
           autocomplete="new-password"
-          :hint="`At least ${MIN_PASSWORD} characters.`"
-          :error="fieldErrors.password"
+          :hint="`At least ${LIMITS.password} characters.`"
         />
-        <PasswordInput
-          v-model="form.password_confirmation"
-          label="Confirm password"
-          autocomplete="new-password"
-          :error="fieldErrors.password_confirmation"
-        />
+        <PasswordInput v-bind="form.field('password_confirmation')" label="Confirm password" autocomplete="new-password" />
 
         <div class="pt-1">
-          <BaseButton type="submit" class="h-10" :loading="auth.isLoading" :disabled="auth.isLoading">
+          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
             Create account
           </BaseButton>
         </div>
