@@ -83,7 +83,7 @@ function invite() {
     team.value?.invites?.unshift(inv)
     freshLink.value = teamInviteLink(inv.token)
     inviteForm.reset()
-    void copy(freshLink.value)
+    toast.success(`Invitation emailed to ${inv.email}`)
   })
 }
 
@@ -186,7 +186,7 @@ async function remove() {
         <!-- invite -->
         <template v-else-if="tab === 'invite'">
           <section class="rounded-xl border border-neutral-200 p-5">
-            <p class="text-sm text-neutral-500">They get a link, set a password and join with a new account.</p>
+            <p class="text-sm text-neutral-500">We email them a link; they set a password and join with a new account.</p>
             <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start" novalidate @submit.prevent="invite">
               <BaseInput v-bind="inviteForm.field('email')" label="Email" type="email" placeholder="name@company.com" />
               <BaseInput v-bind="inviteForm.field('name')" label="Name" placeholder="Pre-fills their sign-up" />

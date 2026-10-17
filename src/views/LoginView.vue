@@ -47,7 +47,17 @@ function onSubmit() {
             </svg>
           </template>
         </BaseInput>
-        <PasswordInput v-bind="form.field('password')" label="Password" autocomplete="current-password" />
+        <div>
+          <PasswordInput v-bind="form.field('password')" label="Password" autocomplete="current-password" />
+          <div class="mt-2 text-right">
+            <RouterLink
+              :to="{ name: 'forgot-password', query: form.values.email.trim() ? { email: form.values.email.trim() } : {} }"
+              class="text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline"
+            >
+              Forgot password?
+            </RouterLink>
+          </div>
+        </div>
 
         <div class="pt-1">
           <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">

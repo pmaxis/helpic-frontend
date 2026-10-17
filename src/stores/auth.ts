@@ -97,9 +97,10 @@ export const useAuthStore = defineStore('auth', {
       this.user = data.user
     },
 
-    async changeEmail(payload: ChangeEmailPayload): Promise<void> {
-      const { data } = await http.put<UserResponse>('/me/email', payload)
-      this.user = data.user
+    /** Emails a confirmation link to the new address; returns it. The email changes once it's opened. */
+    async changeEmail(payload: ChangeEmailPayload): Promise<string> {
+      const { data } = await http.put<{ pending_email: string }>('/me/email', payload)
+      return data.pending_email
     },
 
     async setCurrency(currency: string): Promise<void> {
