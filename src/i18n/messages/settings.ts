@@ -56,6 +56,16 @@ const en = {
     loadFailed: 'Could not load. Reload the page to try again.',
     saveFailed: 'Could not save your choice',
     onOf: '{on} of {total} on',
+    email: {
+      title: 'Email',
+      off: 'Off: nothing is emailed to {email}.',
+      on: 'On',
+      to: 'to {email}',
+      turnOff: 'Turn off',
+      turnOn: 'Turn on',
+      what: 'What gets emailed',
+      explain: "Emailed a few minutes after they happen, several in one email, and not if you've already seen them in Helpic.",
+    },
     telegram: {
       title: 'Telegram',
       notSetUp: 'Not set up on this server yet.',
@@ -137,6 +147,16 @@ const uk: typeof en = {
     loadFailed: 'Не вдалося завантажити. Оновіть сторінку.',
     saveFailed: 'Не вдалося зберегти вибір',
     onOf: 'увімкнено {on} з {total}',
+    email: {
+      title: 'Пошта',
+      off: 'Вимкнено: на {email} нічого не надсилається.',
+      on: 'Увімкнено',
+      to: 'на {email}',
+      turnOff: 'Вимкнути',
+      turnOn: 'Увімкнути',
+      what: 'Що надсилати поштою',
+      explain: 'Надходять за кілька хвилин після події, по кілька в одному листі, і не надходять, якщо ви вже побачили їх у Helpic.',
+    },
     telegram: {
       title: 'Telegram',
       notSetUp: 'На цьому сервері ще не налаштовано.',
