@@ -1,6 +1,7 @@
 /** The kanban board and its columns. */
 const en = {
   board: {
+    moreLabels: 'More labels: {names}',
     edit: 'Edit',
     moveLeft: 'Move left',
     moveRight: 'Move right',
@@ -36,6 +37,7 @@ const en = {
 
 const uk: typeof en = {
   board: {
+    moreLabels: 'Ще мітки: {names}',
     edit: 'Змінити',
     moveLeft: 'Посунути ліворуч',
     moveRight: 'Посунути праворуч',
