@@ -46,19 +46,22 @@ function isAuthProbe(url: string): boolean {
   return url === '/me' || url.startsWith('/auth/')
 }
 
-let refreshing: Promise<boolean> | null = null
+/** "ok": refreshed; "ended": the session is over; "busy": rate limited, the session may still be fine. */
+type RefreshResult = 'ok' | 'ended' | 'busy'
+
+let refreshing: Promise<RefreshResult> | null = null
 
 /**
  * Swaps the refresh cookie for a new access cookie. Requests that fail
  * together share one refresh: each refresh replaces the refresh token, so
  * sending the same one twice would look like a stolen copy.
  */
-function refreshSession(): Promise<boolean> {
+function refreshSession(): Promise<RefreshResult> {
   refreshing ??= http
     .post('/auth/refresh')
     .then(
-      () => true,
-      () => false,
+      (): RefreshResult => 'ok',
+      (error): RefreshResult => (error instanceof ApiRequestError && error.status === 429 ? 'busy' : 'ended'),
     )
     .finally(() => {
       refreshing = null
@@ -78,7 +81,12 @@ http.interceptors.response.use(
     // The access token is short-lived: refresh it and try once more.
     if (status === 401 && config && !config._retried && !url.startsWith('/auth/')) {
       config._retried = true
-      if (await refreshSession()) return http(config)
+      const refreshed = await refreshSession()
+      if (refreshed === 'ok') return http(config)
+      // Too many refreshes: fail this request, but don't sign the user out.
+      if (refreshed === 'busy') {
+        return Promise.reject(new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'Too many requests. Try again in a moment.' }))
+      }
     }
 
     if (status === 401 && !isAuthProbe(url)) {
