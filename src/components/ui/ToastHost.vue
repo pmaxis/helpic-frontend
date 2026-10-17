@@ -26,7 +26,7 @@ const { toasts, dismiss } = useToasts()
         <button
           type="button"
           class="shrink-0 text-neutral-400 transition-colors hover:text-neutral-900"
-          aria-label="Dismiss"
+          :aria-label="$t('ui.dismiss')"
           @click="dismiss(t.id)"
         >
           ✕

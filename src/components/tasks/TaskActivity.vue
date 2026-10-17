@@ -16,8 +16,8 @@ const commentCount = ref(0)
 </script>
 
 <template>
-  <section class="mt-8 min-w-0" aria-label="Activity">
-    <div class="flex items-center gap-4 border-b border-neutral-200" role="tablist" aria-label="Activity">
+  <section class="mt-8 min-w-0" :aria-label="$t('activity.label')">
+    <div class="flex items-center gap-4 border-b border-neutral-200" role="tablist" :aria-label="$t('activity.label')">
       <button
         v-for="t in (['comments', 'history'] as const)"
         :id="`activity-tab-${t}`"
@@ -30,7 +30,7 @@ const commentCount = ref(0)
         :class="tab === t ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-700'"
         @click="tab = t"
       >
-        {{ t === 'comments' ? 'Comments' : 'History' }}<span v-if="t === 'comments' && commentCount" class="ml-1.5 font-normal text-neutral-400">{{ commentCount }}</span>
+        {{ t === 'comments' ? $t('activity.comments') : $t('activity.history') }}<span v-if="t === 'comments' && commentCount" class="ml-1.5 font-normal text-neutral-400">{{ commentCount }}</span>
       </button>
     </div>
 

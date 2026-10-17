@@ -14,7 +14,8 @@ import { useProjectsStore } from '@/stores/projects'
 import { priceInput } from '@/utils/money'
 import { useForm } from '@/composables/useForm'
 import { choice, LIMITS, optionalText, price, requiredText } from '@/utils/validation'
-import { PRIORITIES } from '@/constants/tasks'
+import { priorityOptions as priorityChoices } from '@/constants/tasks'
+import { t } from '@/i18n'
 import type { Task, TaskInput, TaskPriority } from '@/types/tasks'
 import type { Project } from '@/types/projects'
 import type { Link } from '@/types/people'
@@ -45,7 +46,8 @@ const projects = useProjectsStore()
 const isEdit = computed(() => !!props.task)
 /** The field naming the other side: a client picks a freelancer and vice versa. */
 const personField = auth.isClient ? 'freelancer_id' : 'client_id'
-const personLabel = auth.isClient ? 'freelancer' : 'client'
+/** What picking the other side asks for. */
+const choosePerson = () => (auth.isClient ? t('validation.chooseFreelancer') : t('validation.chooseClient'))
 
 /** A new task from a client goes to a freelancer, unless its project says who. */
 const needsPerson = !isEdit.value && auth.isClient && !props.projectId
@@ -53,10 +55,10 @@ const needsPerson = !isEdit.value && auth.isClient && !props.projectId
 const schema = z.object({
   // A client must pick a freelancer; a freelancer's empty choice means a
   // personal task.
-  person_id: needsPerson ? choice(`Choose a ${personLabel}`) : z.string(),
+  person_id: needsPerson ? choice(choosePerson) : z.string(),
   project_id: z.string(),
-  title: requiredText('Title', LIMITS.taskTitle),
-  description: optionalText('Description', LIMITS.taskDescription),
+  title: requiredText('title', LIMITS.taskTitle),
+  description: optionalText('description', LIMITS.taskDescription),
   due_on: z.string(),
   price: price(),
   // Always set: the select has no empty option.
@@ -80,7 +82,7 @@ const form = useForm(
   },
   { serverFields: { [personField]: 'person_id' } },
 )
-const priorityOptions = PRIORITIES.map((p) => ({ value: p.value, label: p.label }))
+const priorityOptions = computed(() => priorityChoices())
 
 /** The freelancer prices the task: on create, or on edit when it's theirs to price. */
 const showPrice = computed(() => (props.task ? props.task.can_set_price : auth.isFreelancer))
@@ -96,7 +98,7 @@ const fixedProject = computed(() => (props.projectId ? projects.projects.find((p
 /** A client can only create a task for a freelancer they work with. */
 const nobody = computed(() => !isEdit.value && !props.projectId && auth.isClient && !props.people?.length)
 const personOptions = computed(() => [
-  ...(auth.isFreelancer ? [{ value: '', label: 'Personal — no client' }] : []),
+  ...(auth.isFreelancer ? [{ value: '', label: t('taskForm.personalOption') }] : []),
   ...(props.people ?? []).map((p) => ({ value: p.id, label: p.name || p.email })),
 ])
 
@@ -149,50 +151,59 @@ function submit() {
 </script>
 
 <template>
-  <Modal :title="isEdit ? 'Edit task' : columnName ? `New task in ${columnName}` : 'New task'" size="lg" @close="emit('close')">
+  <Modal
+    :title="isEdit ? $t('taskForm.edit') : columnName ? $t('taskForm.newIn', { column: columnName }) : $t('taskForm.new')"
+    size="lg"
+    @close="emit('close')"
+  >
     <div v-if="nobody" class="space-y-2 text-sm text-neutral-600">
-      <p>Tasks go to a freelancer you work with, and you don't have one yet.</p>
-      <p>Ask your freelancer to send you an invitation link.</p>
+      <p>{{ $t('taskForm.nobody') }}</p>
+      <p>{{ $t('taskForm.askInvite') }}</p>
     </div>
     <form v-else id="task-form" class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
 
       <p v-if="fixedProject" class="text-sm text-neutral-500">
-        In <span class="font-medium text-neutral-900">{{ fixedProject.name }}</span>
-        <template v-if="auth.isClient"> · with {{ fixedProject.freelancer.name || fixedProject.freelancer.email }}</template>
-        <template v-else-if="fixedProject.client"> · for {{ fixedProject.client.name || fixedProject.client.email }}</template>
-        <template v-else> · personal</template>
+        {{ $t('taskForm.in') }} <span class="font-medium text-neutral-900">{{ fixedProject.name }}</span>
+        <template v-if="auth.isClient"> · {{ $t('taskForm.with', { name: fixedProject.freelancer.name || fixedProject.freelancer.email }) }}</template>
+        <template v-else-if="fixedProject.client"> · {{ $t('taskForm.for', { name: fixedProject.client.name || fixedProject.client.email }) }}</template>
+        <template v-else> · {{ $t('taskForm.personalSuffix') }}</template>
       </p>
       <template v-else>
         <BaseSelect
           v-if="!isEdit && !statusId && personOptions.length > 1"
           v-bind="form.field('person_id')"
-          :label="auth.isClient ? 'Freelancer' : 'Client'"
-          :placeholder="auth.isClient ? `Choose a ${personLabel}` : undefined"
+          :label="auth.isClient ? $t('taskForm.freelancer') : $t('taskForm.client')"
+          :placeholder="auth.isClient ? choosePerson() : undefined"
           :options="personOptions"
         />
-        <BaseSelect v-if="projectOptions.length > 1" v-bind="form.field('project_id')" label="Project" :options="projectOptions" />
+        <BaseSelect v-if="projectOptions.length > 1" v-bind="form.field('project_id')" :label="$t('taskForm.project')" :options="projectOptions" />
         <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">
-          A personal task — only you see it.
+          {{ $t('taskForm.personalNote') }}
         </p>
       </template>
 
-      <BaseInput v-bind="form.field('title')" label="Title" placeholder="What needs to be done?" />
-      <BaseTextarea v-bind="form.field('description')" label="Description" placeholder="Details, links, acceptance criteria…" :rows="6" />
+      <BaseInput v-bind="form.field('title')" :label="$t('task.titleLabel')" :placeholder="$t('taskForm.titlePlaceholder')" />
+      <BaseTextarea v-bind="form.field('description')" :label="$t('task.description')" :placeholder="$t('task.descriptionPlaceholder')" :rows="6" />
       <div class="grid gap-4" :class="showPrice ? 'sm:grid-cols-3' : 'sm:grid-cols-2'">
-        <DateInput v-bind="form.field('due_on')" label="Due date" placeholder="No due date" />
-        <BaseSelect v-bind="form.field('priority')" label="Priority" :options="priorityOptions" />
-        <BaseInput v-if="showPrice" v-bind="form.field('price')" :label="`Price, ${priceCurrency}`" placeholder="No price" />
+        <DateInput v-bind="form.field('due_on')" :label="$t('taskForm.dueDate')" :placeholder="$t('taskForm.noDueDate')" />
+        <BaseSelect v-bind="form.field('priority')" :label="$t('taskForm.priority')" :options="priorityOptions" />
+        <BaseInput
+          v-if="showPrice"
+          v-bind="form.field('price')"
+          :label="$t('taskForm.price', { currency: priceCurrency })"
+          :placeholder="$t('taskForm.noPrice')"
+        />
       </div>
     </form>
 
     <template v-if="nobody" #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">Close</BaseButton>
+      <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">{{ $t('common.close') }}</BaseButton>
     </template>
     <template v-else #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">Cancel</BaseButton>
+      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
       <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
-        {{ isEdit ? 'Save' : 'Create task' }}
+        {{ isEdit ? $t('common.save') : $t('taskForm.create') }}
       </BaseButton>
     </template>
   </Modal>

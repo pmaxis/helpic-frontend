@@ -65,7 +65,7 @@ function onPaste(e: ClipboardEvent) {
       <button
         type="button"
         class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-900"
-        :aria-label="`Remove ${tag}`"
+        :aria-label="$t('ui.removeTag', { tag })"
         @click.stop="remove(i)"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="h-3 w-3">

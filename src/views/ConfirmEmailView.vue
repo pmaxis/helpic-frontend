@@ -7,6 +7,7 @@ import AuthCard from '@/components/auth/AuthCard.vue'
 import { confirmEmail } from '@/services/account'
 import { ApiRequestError } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { t } from '@/i18n'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -24,27 +25,27 @@ onMounted(async () => {
     failed.value =
       error instanceof ApiRequestError
         ? (Object.values(error.fields ?? {})[0] ?? error.message)
-        : 'Could not confirm the email. Please try again.'
+        : t('confirmEmail.failedGeneric')
   }
 })
 </script>
 
 <template>
   <AuthLayout>
-    <AuthCard v-if="confirmed" title="Email confirmed" :subtitle="`You now sign in to Helpic with ${confirmed}.`">
+    <AuthCard v-if="confirmed" :title="$t('confirmEmail.title')" :subtitle="$t('confirmEmail.subtitle', { email: confirmed })">
       <template #footer>
         <RouterLink :to="auth.isAuthenticated ? '/settings?tab=email' : '/login'" class="font-medium text-neutral-900 underline-offset-4 hover:underline">
-          {{ auth.isAuthenticated ? 'Back to settings' : 'Sign in' }}
+          {{ auth.isAuthenticated ? $t('confirmEmail.backToSettings') : $t('confirmEmail.signIn') }}
         </RouterLink>
       </template>
     </AuthCard>
-    <AuthCard v-else-if="failed" title="Couldn't confirm the email" :subtitle="failed">
+    <AuthCard v-else-if="failed" :title="$t('confirmEmail.failed')" :subtitle="failed">
       <template #footer>
         <RouterLink :to="auth.isAuthenticated ? '/settings?tab=email' : '/login'" class="font-medium text-neutral-900 underline-offset-4 hover:underline">
-          {{ auth.isAuthenticated ? 'Back to settings' : 'Sign in' }}
+          {{ auth.isAuthenticated ? $t('confirmEmail.backToSettings') : $t('confirmEmail.signIn') }}
         </RouterLink>
       </template>
     </AuthCard>
-    <AuthCard v-else title="Confirming your email…" />
+    <AuthCard v-else :title="$t('confirmEmail.confirming')" />
   </AuthLayout>
 </template>

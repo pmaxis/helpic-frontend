@@ -15,6 +15,6 @@ defineProps<{
 
 <template>
   <label :for="target" :class="hidden ? 'sr-only' : 'block text-sm font-medium text-neutral-700'">
-    {{ label }}<template v-if="required"><span class="ml-0.5 text-red-500" aria-hidden="true">*</span><span class="sr-only"> (required)</span></template>
+    {{ label }}<template v-if="required"><span class="ml-0.5 text-red-500" aria-hidden="true">*</span><span class="sr-only"> {{ $t('ui.required') }}</span></template>
   </label>
 </template>

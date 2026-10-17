@@ -13,7 +13,7 @@ const props = withDefaults(
     /** "danger" (red) for destructive actions, "primary" for the rest. */
     tone?: 'danger' | 'primary'
   }>(),
-  { confirmLabel: 'Delete', cancelLabel: 'Cancel', loading: false, tone: 'danger' },
+  { confirmLabel: undefined, cancelLabel: undefined, loading: false, tone: 'danger' },
 )
 
 const emit = defineEmits<{
@@ -32,7 +32,7 @@ function close() {
 
     <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="loading" @click="close">
-        {{ cancelLabel }}
+        {{ cancelLabel ?? $t('common.cancel') }}
       </BaseButton>
       <BaseButton
         :variant="tone"
@@ -42,7 +42,7 @@ function close() {
         :disabled="loading"
         @click="emit('confirm')"
       >
-        {{ confirmLabel }}
+        {{ confirmLabel ?? $t('common.delete') }}
       </BaseButton>
     </template>
   </Modal>

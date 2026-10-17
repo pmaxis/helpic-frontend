@@ -26,6 +26,7 @@ import { formatMoney } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { LIMITS, optionalText, requiredText } from '@/utils/validation'
+import { t } from '@/i18n'
 import type { Report, ReportKind } from '@/types/reports'
 
 const reports = useReportsStore()
@@ -51,7 +52,7 @@ async function printPreview() {
     pdf.value = await reports.fetchPdf(id)
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 503) htmlFallback.value = true
-    else toast.error('Could not render the report')
+    else toast.error(t('report.renderFailed'))
   } finally {
     printing.value = false
   }
@@ -62,7 +63,7 @@ onMounted(async () => {
     report.value = await reports.fetchReport(id)
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) notFound.value = true
-    else toast.error('Could not load the report')
+    else toast.error(t('report.loadFailed'))
     return
   }
   syncForm()
@@ -82,7 +83,7 @@ function changed(r: Report) {
 // --- editing a draft ------------------------------------------------------------------
 
 const form = useForm(
-  z.object({ title: requiredText('Title', LIMITS.reportTitle), summary: optionalText('Summary', LIMITS.reportSummary) }),
+  z.object({ title: requiredText('title', LIMITS.reportTitle), summary: optionalText('summary', LIMITS.reportSummary) }),
   { title: '', summary: '' },
 )
 
@@ -115,7 +116,7 @@ async function setKind(kind: ReportKind) {
   try {
     changed(await reports.updateReport(r.id, { title: r.title, summary: r.summary, kind }))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not change the report type')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.kindFailed'))
   } finally {
     switchingKind.value = false
   }
@@ -149,7 +150,7 @@ async function saveNotes(itemId: string, value: string) {
   try {
     changed(await reports.updateItemNotes(r.id, itemId, value))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not save the notes')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.notesFailed'))
   }
 }
 
@@ -158,7 +159,7 @@ async function removeItem(itemId: string) {
   try {
     changed(await reports.removeItem(report.value.id, itemId))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not remove the task')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.removeFailed'))
   }
 }
 
@@ -174,9 +175,9 @@ async function markPaid() {
   markingPaid.value = true
   try {
     changed(await reports.markPaid(report.value.id))
-    toast.success('Marked as paid')
+    toast.success(t('report.markedPaid'))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not mark the report as paid')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.markPaidFailed'))
   } finally {
     markingPaid.value = false
     confirmPaid.value = false
@@ -189,9 +190,9 @@ const isDraft = computed(() => report.value?.status === 'draft' && !!report.valu
 const deleteText = computed(() => {
   const r = report.value
   if (!r) return ''
-  if (isDraft.value) return "The client never saw it. This can't be undone."
-  if (r.client) return `${r.client.name || r.client.email} will no longer see it. This can't be undone.`
-  return "This can't be undone."
+  if (isDraft.value) return t('report.deleteDraftText')
+  if (r.client) return t('report.deleteSentText', { name: r.client.name || r.client.email })
+  return t('report.deletePersonalText')
 })
 const deleting = ref(false)
 const downloading = ref(false)
@@ -202,9 +203,9 @@ async function send() {
   try {
     changed(await reports.sendReport(report.value.id))
     const c = report.value.client
-    toast.success(c ? `Sent to ${c.name || c.email}` : 'Report sent')
+    toast.success(c ? t('report.sentTo', { name: c.name || c.email }) : t('report.sent'))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not send the report')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.sendFailed'))
   } finally {
     sending.value = false
     confirmSend.value = false
@@ -217,7 +218,7 @@ async function download() {
   try {
     await reports.downloadPdf(id)
   } catch {
-    toast.error('Could not download the PDF')
+    toast.error(t('report.downloadFailed'))
   } finally {
     downloading.value = false
   }
@@ -228,10 +229,10 @@ async function remove() {
   deleting.value = true
   try {
     await reports.deleteReport(report.value.id)
-    toast.success('Report deleted')
+    toast.success(t('report.deleted'))
     await router.replace('/reports')
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not delete the report')
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.deleteFailed'))
   } finally {
     deleting.value = false
     confirmDelete.value = false
@@ -243,8 +244,10 @@ const actions = computed<MenuAction[]>(() => {
   const r = report.value
   const list: MenuAction[] = []
   if (!r) return list
-  if (!htmlFallback.value) list.push({ label: 'Download PDF', onSelect: () => void download() })
-  if (r.can_delete) list.push({ label: isDraft.value ? 'Delete draft' : 'Delete report', danger: true, onSelect: () => (confirmDelete.value = true) })
+  if (!htmlFallback.value) list.push({ label: t('report.downloadPdf'), onSelect: () => void download() })
+  if (r.can_delete) {
+    list.push({ label: isDraft.value ? t('report.deleteDraft') : t('report.deleteReport'), danger: true, onSelect: () => (confirmDelete.value = true) })
+  }
   return list
 })
 
@@ -257,9 +260,9 @@ const period = computed(() => {
 const status = computed(() => {
   const r = report.value
   if (!r) return { label: '', tone: '' }
-  if (r.status === 'paid') return { label: `Paid ${r.paid_at ? formatDate(r.paid_at) : ''}`, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' }
-  if (r.status === 'sent') return { label: `Sent ${r.sent_at ? formatDate(r.sent_at) : ''}`, tone: 'bg-sky-50 text-sky-700 ring-sky-600/20' }
-  return { label: r.client ? 'Draft — only you see it' : 'Personal — only you see it', tone: 'bg-neutral-100 text-neutral-600 ring-neutral-500/20' }
+  if (r.status === 'paid') return { label: t('report.statusPaid', { date: r.paid_at ? formatDate(r.paid_at) : '' }), tone: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' }
+  if (r.status === 'sent') return { label: t('report.statusSent', { date: r.sent_at ? formatDate(r.sent_at) : '' }), tone: 'bg-sky-50 text-sky-700 ring-sky-600/20' }
+  return { label: r.client ? t('report.statusDraft') : t('report.statusPersonal'), tone: 'bg-neutral-100 text-neutral-600 ring-neutral-500/20' }
 })
 
 const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xs'
@@ -269,20 +272,20 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
   <DashboardLayout bare>
     <div class="grid min-h-0 flex-1 gap-4" :class="report ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''">
       <!-- the report, as printed -->
-      <section :class="[card, 'flex flex-col']" aria-label="Report preview">
-        <nav class="flex items-center gap-1.5 px-5 pt-5 text-sm text-neutral-500 sm:px-8 sm:pt-8" aria-label="Breadcrumb">
+      <section :class="[card, 'flex flex-col']" :aria-label="$t('report.preview')">
+        <nav class="flex items-center gap-1.5 px-5 pt-5 text-sm text-neutral-500 sm:px-8 sm:pt-8" :aria-label="$t('report.breadcrumb')">
           <RouterLink
             to="/reports"
             class="-ml-1.5 mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-            aria-label="Back to reports"
-            title="Back to reports"
+            :aria-label="$t('report.backToReports')"
+            :title="$t('report.backToReports')"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
               <path d="M19 12H5" />
               <polyline points="12 19 5 12 12 5" />
             </svg>
           </RouterLink>
-          <RouterLink to="/reports" class="hover:text-neutral-900">Reports</RouterLink>
+          <RouterLink to="/reports" class="hover:text-neutral-900">{{ $t('reports.title') }}</RouterLink>
           <template v-if="report">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-neutral-300" aria-hidden="true">
               <polyline points="9 18 15 12 9 6" />
@@ -292,7 +295,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
         </nav>
 
         <div v-if="notFound" class="p-5 sm:p-8">
-          <EmptyState title="Report not found" description="It may have been deleted, or it isn't one of yours." />
+          <EmptyState :title="$t('report.notFound')" :description="$t('report.notFoundText')" />
         </div>
         <!-- grows with the pages, so the card scrolls them with the bottom padding after the last one -->
         <div v-else class="relative px-5 pt-5 pb-5 sm:px-8 sm:pb-8">
@@ -301,12 +304,12 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
               v-if="htmlFallback"
               :src="htmlUrl"
               sandbox=""
-              title="Report preview"
+              :title="$t('report.preview')"
               class="h-[calc(297mm+48px)] w-full rounded-sm bg-neutral-100 ring-1 ring-neutral-200"
             />
             <PdfPreview v-else-if="pdf" :data="pdf" />
             <div v-else class="flex aspect-[210/297] items-center justify-center rounded-sm bg-neutral-50 ring-1 ring-neutral-200">
-              <span class="text-sm text-neutral-400">Preparing the report…</span>
+              <span class="text-sm text-neutral-400">{{ $t('report.preparing') }}</span>
             </div>
           </div>
         </div>
@@ -316,8 +319,8 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
       <aside v-if="report" :class="card" aria-labelledby="report-panel">
         <div class="border-b border-neutral-200 px-5 py-4">
           <div class="flex items-center justify-between gap-2">
-            <h2 id="report-panel" class="text-sm font-semibold text-neutral-900">Report</h2>
-            <ActionMenu v-if="actions.length" :actions="actions" label="Report options" />
+            <h2 id="report-panel" class="text-sm font-semibold text-neutral-900">{{ $t('report.panel') }}</h2>
+            <ActionMenu v-if="actions.length" :actions="actions" :label="$t('report.options')" />
           </div>
           <span class="mt-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset" :class="status.tone">
             {{ status.label }}
@@ -326,59 +329,59 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
             <BaseButton
               size="sm"
               :disabled="!report.items?.length"
-              :title="report.items?.length ? undefined : 'Nothing to send: the report has no tasks'"
+              :title="report.items?.length ? undefined : $t('report.nothingToSend')"
               @click="confirmSend = true"
             >
-              Send to {{ report.client.name || report.client.email }}
+              {{ $t('report.sendTo', { name: report.client.name || report.client.email }) }}
             </BaseButton>
           </div>
           <div v-if="report.can_mark_paid" class="mt-4">
-            <BaseButton size="sm" @click="confirmPaid = true">Mark as paid</BaseButton>
+            <BaseButton size="sm" @click="confirmPaid = true">{{ $t('report.markPaid') }}</BaseButton>
           </div>
         </div>
 
         <dl class="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 border-b border-neutral-200 px-5 py-4 text-sm">
-          <dt class="text-neutral-500">{{ report.client ? 'Client' : 'For' }}</dt>
-          <dd class="truncate text-neutral-800">{{ report.client ? report.client.name || report.client.email : 'Personal work' }}</dd>
-          <dt class="text-neutral-500">Period</dt>
+          <dt class="text-neutral-500">{{ report.client ? $t('report.client') : $t('report.for') }}</dt>
+          <dd class="truncate text-neutral-800">{{ report.client ? report.client.name || report.client.email : $t('report.personalWork') }}</dd>
+          <dt class="text-neutral-500">{{ $t('report.period') }}</dt>
           <dd class="text-neutral-800">{{ period }}</dd>
-          <dt class="text-neutral-500">{{ report.projects.length > 1 ? 'Projects' : 'Project' }}</dt>
-          <dd class="text-neutral-800" :class="report.projects.length > 1 ? 'break-words' : 'truncate'">{{ report.projects.map((p) => p.name).join(', ') || 'All projects' }}</dd>
+          <dt class="text-neutral-500">{{ report.projects.length > 1 ? $t('report.projects') : $t('report.project') }}</dt>
+          <dd class="text-neutral-800" :class="report.projects.length > 1 ? 'break-words' : 'truncate'">{{ report.projects.map((p) => p.name).join(', ') || $t('report.allProjects') }}</dd>
           <template v-if="!report.can_edit">
-            <dt class="text-neutral-500">Type</dt>
-            <dd class="text-neutral-800">{{ report.kind === 'detailed' ? 'Detailed' : 'Basic' }}</dd>
+            <dt class="text-neutral-500">{{ $t('report.type') }}</dt>
+            <dd class="text-neutral-800">{{ report.kind === 'detailed' ? $t('report.detailed') : $t('report.basic') }}</dd>
           </template>
-          <dt class="text-neutral-500">Tasks</dt>
+          <dt class="text-neutral-500">{{ $t('report.tasks') }}</dt>
           <dd class="text-neutral-800">{{ report.items?.length ?? report.item_count }}</dd>
           <template v-if="report.total_cents !== null">
-            <dt class="text-neutral-500">Total</dt>
+            <dt class="text-neutral-500">{{ $t('report.total') }}</dt>
             <dd class="font-semibold text-neutral-900">{{ formatMoney(report.total_cents, report.currency) }}</dd>
           </template>
         </dl>
 
         <template v-if="report.can_edit">
           <div class="border-b border-neutral-200 px-5 py-4">
-            <p class="text-sm font-medium text-neutral-700">Type</p>
+            <p class="text-sm font-medium text-neutral-700">{{ $t('report.type') }}</p>
             <ReportKindPicker :model-value="report.kind" :disabled="switchingKind" compact class="mt-2" @update:model-value="setKind" />
           </div>
 
           <form class="space-y-4 border-b border-neutral-200 px-5 py-4" novalidate @submit.prevent="save">
             <FormError :message="form.formError" />
-            <BaseInput v-bind="form.field('title')" label="Title" />
-            <BaseTextarea v-bind="form.field('summary')" label="Summary" placeholder="Highlights, what's next… one point per line for a list." :rows="5" />
+            <BaseInput v-bind="form.field('title')" :label="$t('report.title')" />
+            <BaseTextarea v-bind="form.field('summary')" :label="$t('report.summary')" :placeholder="$t('report.summaryPlaceholder')" :rows="5" />
             <div class="flex justify-end gap-2">
-              <BaseButton v-if="dirty" variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="syncForm">Reset</BaseButton>
-              <BaseButton type="submit" size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting || !dirty">Save</BaseButton>
+              <BaseButton v-if="dirty" variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="syncForm">{{ $t('common.reset') }}</BaseButton>
+              <BaseButton type="submit" size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting || !dirty">{{ $t('common.save') }}</BaseButton>
             </div>
           </form>
 
           <section class="px-5 py-4" aria-labelledby="report-tasks">
-            <h3 id="report-tasks" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">Tasks in the report</h3>
+            <h3 id="report-tasks" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('report.tasksInReport') }}</h3>
             <p v-if="report.items?.length" class="mt-1 text-xs text-neutral-400">
-              {{ report.client ? 'Prices come from the tasks until the report is sent.' : 'Prices come from the tasks.' }}
+              {{ report.client ? $t('report.pricesUntilSent') : $t('report.pricesFromTasks') }}
             </p>
             <p v-if="!report.items?.length" class="mt-2 text-sm text-neutral-400">
-              No tasks were finished {{ report.client ? 'for this client ' : '' }}in the period.
+              {{ report.client ? $t('report.noTasksForClient') : $t('report.noTasks') }}
             </p>
             <ul v-else class="mt-2 divide-y divide-neutral-100">
               <li v-for="it in report.items" :key="it.id" class="py-2">
@@ -390,12 +393,12 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
                   <span v-if="it.price_cents !== null" class="shrink-0 pt-px text-sm text-neutral-800 tabular-nums">
                     {{ formatMoney(it.price_cents, report.currency) }}
                   </span>
-                  <span v-else-if="report.total_cents !== null" class="shrink-0 pt-px text-xs text-neutral-400">No price</span>
+                  <span v-else-if="report.total_cents !== null" class="shrink-0 pt-px text-xs text-neutral-400">{{ $t('report.noPrice') }}</span>
                   <button
                     type="button"
                     class="shrink-0 rounded-md p-1 text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-700"
-                    :aria-label="`Remove ${it.title} from the report`"
-                    title="Remove from the report"
+                    :aria-label="$t('report.removeTask', { title: it.title })"
+                    :title="$t('report.removeFromReport')"
                     @click="removeItem(it.id)"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
@@ -427,13 +430,13 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
                     >
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
-                    <span class="shrink-0 font-medium text-neutral-600">Notes</span>
+                    <span class="shrink-0 font-medium text-neutral-600">{{ $t('report.notes') }}</span>
                     <span v-if="!openNotes.has(it.id)" class="min-w-0 truncate text-neutral-400">
-                      {{ notesPreview(it.notes) || 'empty' }}
+                      {{ notesPreview(it.notes) || $t('report.notesEmpty') }}
                     </span>
                   </button>
                   <template v-if="openNotes.has(it.id)">
-                    <label :for="`notes-${it.id}`" class="sr-only">Notes for {{ it.title }}</label>
+                    <label :for="`notes-${it.id}`" class="sr-only">{{ $t('report.notesFor', { title: it.title }) }}</label>
                     <textarea
                       :id="`notes-${it.id}`"
                       :value="it.notes"
@@ -454,25 +457,25 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
 
     <ConfirmDialog
       v-model:open="confirmSend"
-      title="Send this report?"
-      :description="`${report?.client?.name || report?.client?.email} will be notified and can read it. A sent report can't be changed.`"
-      confirm-label="Send"
+      :title="$t('report.confirmSend')"
+      :description="$t('report.confirmSendText', { name: report?.client?.name || report?.client?.email })"
+      :confirm-label="$t('report.send')"
       tone="primary"
       :loading="sending"
       @confirm="send"
     />
     <ConfirmDialog
       v-model:open="confirmPaid"
-      title="Mark this report as paid?"
-      :description="`Its tasks move to the Paid column, and ${report?.freelancer.name || report?.freelancer.email} is told. This can't be undone.`"
-      confirm-label="Mark as paid"
+      :title="$t('report.confirmPaid')"
+      :description="$t('report.confirmPaidText', { name: report?.freelancer.name || report?.freelancer.email })"
+      :confirm-label="$t('report.markPaid')"
       tone="primary"
       :loading="markingPaid"
       @confirm="markPaid"
     />
     <ConfirmDialog
       v-model:open="confirmDelete"
-      :title="isDraft ? 'Delete this draft?' : 'Delete this report?'"
+      :title="isDraft ? $t('report.confirmDeleteDraft') : $t('report.confirmDelete')"
       :description="deleteText"
       :loading="deleting"
       @confirm="remove"

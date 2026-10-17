@@ -11,6 +11,8 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import FieldLabel from '@/components/ui/FieldLabel.vue'
+import { useI18n } from 'vue-i18n'
+import { intlLocale } from '@/i18n'
 
 const props = defineProps<{
   modelValue: string
@@ -56,9 +58,12 @@ function addMonths(d: Date, n: number): Date {
 const todayISO = toISO(new Date())
 const selected = computed(() => parse(props.modelValue))
 
+const { t, tm, locale } = useI18n()
+
 const displayLabel = computed(() =>
-  selected.value
-    ? selected.value.toLocaleDateString('en-GB', {
+  // Read the locale so the label follows a change of language.
+  locale.value && selected.value
+    ? selected.value.toLocaleDateString(intlLocale(), {
         weekday: props.compact ? undefined : 'short',
         day: 'numeric',
         month: 'short',
@@ -68,12 +73,12 @@ const displayLabel = computed(() =>
 )
 
 // Weeks start on Monday.
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+const WEEKDAYS = computed(() => tm('ui.weekdays') as string[])
 
 /** The day keyboard focus is on; its month is the one shown. */
 const cursor = ref(selected.value ?? new Date())
 
-const monthLabel = computed(() => cursor.value.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }))
+const monthLabel = computed(() => locale.value && cursor.value.toLocaleDateString(intlLocale(), { month: 'long', year: 'numeric' }))
 
 /** Six weeks covering the shown month, padded with the neighbouring months' days. */
 const days = computed(() => {
@@ -255,14 +260,14 @@ function onPanelKeydown(e: KeyboardEvent) {
           <path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
         <span class="min-w-0 flex-1 truncate" :class="displayLabel ? 'text-neutral-900' : 'text-neutral-400'">
-          {{ displayLabel || placeholder || 'Pick a date' }}
+          {{ displayLabel || placeholder || t('ui.pickDate') }}
         </span>
       </button>
       <button
         v-if="modelValue && !disabled"
         type="button"
         class="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-        aria-label="Clear date"
+        :aria-label="t('ui.clearDate')"
         @click="clear"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
@@ -278,7 +283,7 @@ function onPanelKeydown(e: KeyboardEvent) {
         v-if="open"
         ref="panel"
         role="dialog"
-        :aria-label="`Choose ${label.toLowerCase()}`"
+        :aria-label="t('ui.chooseDate', { label: label.toLowerCase() })"
         :style="panelStyle"
         class="z-[60] w-74 rounded-xl border border-neutral-200 bg-white p-3 shadow-lg shadow-neutral-900/10"
         :class="placement === 'bottom' ? 'animate-pop-down' : 'animate-pop-up'"
@@ -288,7 +293,7 @@ function onPanelKeydown(e: KeyboardEvent) {
           <button
             type="button"
             class="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-            aria-label="Previous month"
+            :aria-label="t('ui.prevMonth')"
             @click="shiftMonth(-1)"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
@@ -299,7 +304,7 @@ function onPanelKeydown(e: KeyboardEvent) {
           <button
             type="button"
             class="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-            aria-label="Next month"
+            :aria-label="t('ui.nextMonth')"
             @click="shiftMonth(1)"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
@@ -329,7 +334,7 @@ function onPanelKeydown(e: KeyboardEvent) {
               :tabindex="d.iso === cursorISO ? 0 : -1"
               :aria-selected="d.iso === modelValue"
               :aria-current="d.iso === todayISO ? 'date' : undefined"
-              :aria-label="d.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"
+              :aria-label="d.date.toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"
               class="mx-auto flex h-9 w-9 items-center justify-center rounded-full border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/20"
               :class="[
                 d.iso === modelValue
@@ -352,7 +357,7 @@ function onPanelKeydown(e: KeyboardEvent) {
             class="rounded-md px-2 py-1 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
             @click="pick(todayISO)"
           >
-            Today
+            {{ t('ui.today') }}
           </button>
           <button
             v-if="modelValue"
@@ -360,7 +365,7 @@ function onPanelKeydown(e: KeyboardEvent) {
             class="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
             @click="clear"
           >
-            Clear
+            {{ t('ui.clear') }}
           </button>
         </div>
       </div>

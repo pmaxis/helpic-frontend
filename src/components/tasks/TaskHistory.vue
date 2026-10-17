@@ -5,7 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 import { fetchHistory } from '@/services/history'
 import { formatDate, timeAgo } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
-import { PRIORITY_LABELS } from '@/constants/tasks'
+import { columnName, priorityLabel } from '@/constants/tasks'
+import { t } from '@/i18n'
 import type { TaskPriority } from '@/types/tasks'
 import { toast } from '@/composables/useToasts'
 import type { TaskEvent } from '@/types/history'
@@ -25,7 +26,7 @@ async function load(taskId: string) {
     const list = await fetchHistory(taskId)
     if (taskId === props.taskId) events.value = list
   } catch {
-    toast.error('Could not load the history')
+    toast.error(t('history.loadFailed'))
   } finally {
     loaded.value = true
   }
@@ -38,59 +39,65 @@ watch(
 )
 
 function who(e: TaskEvent): string {
-  return e.actor.id === auth.user?.id ? 'You' : e.actor.name || e.actor.email
+  return e.actor.id === auth.user?.id ? t('common.you_capital') : e.actor.name || e.actor.email
 }
 
 function quote(v: unknown): string {
   return `“${v}”`
 }
 
-/** What happened, after the actor's name: a sentence with the values set off. */
-function describe(e: TaskEvent): { text: string; value?: string }[] {
+/**
+ * What happened, as a message with the values set off: its key, the values,
+ * and a count when it has plural forms.
+ */
+function describe(e: TaskEvent): { key: string; values: Record<string, string>; plural?: number } {
   const { from, to } = e.data
   const money = (v: unknown) => formatMoney(Number(v), e.data.currency ?? 'USD')
   const date = (v: unknown) => formatDate(String(v))
+  const priority = (v: unknown) => (v ? priorityLabel(v as TaskPriority) : String(v))
+  const pair = (key: string, f: string, t_: string) => ({ key, values: { from: f, to: t_ } })
   switch (e.kind) {
     case 'created':
-      return [{ text: 'created the task' }]
+      return { key: 'history.created', values: {} }
     case 'title':
-      return [{ text: 'renamed it from ' }, { text: '', value: quote(from) }, { text: ' to ' }, { text: '', value: quote(to) }]
+      return pair('history.title', quote(from), quote(to))
     case 'description':
-      return [{ text: 'edited the description' }]
+      return { key: 'history.description', values: {} }
     case 'due_on':
-      if (from == null) return [{ text: 'set the due date to ' }, { text: '', value: date(to) }]
-      if (to == null) return [{ text: 'removed the due date ' }, { text: '', value: date(from) }]
-      return [{ text: 'moved the due date from ' }, { text: '', value: date(from) }, { text: ' to ' }, { text: '', value: date(to) }]
+      if (from == null) return pair('history.dueSet', '', date(to))
+      if (to == null) return pair('history.dueRemoved', date(from), '')
+      return pair('history.dueMoved', date(from), date(to))
     case 'project':
-      if (from == null) return [{ text: 'added it to ' }, { text: '', value: quote(to) }]
-      if (to == null) return [{ text: 'took it out of ' }, { text: '', value: quote(from) }]
-      return [{ text: 'moved it from ' }, { text: '', value: quote(from) }, { text: ' to ' }, { text: '', value: quote(to) }]
+      if (from == null) return pair('history.projectAdded', '', quote(to))
+      if (to == null) return pair('history.projectRemoved', quote(from), '')
+      return pair('history.projectMoved', quote(from), quote(to))
     case 'status':
-      return [{ text: 'moved it from ' }, { text: '', value: String(from) }, { text: ' to ' }, { text: '', value: String(to) }]
+      return pair('history.status', columnName(String(from)), columnName(String(to)))
     case 'price':
-      if (from == null) return [{ text: 'set the price to ' }, { text: '', value: money(to) }]
-      if (to == null) return [{ text: 'removed the price ' }, { text: '', value: money(from) }]
-      return [{ text: 'changed the price from ' }, { text: '', value: money(from) }, { text: ' to ' }, { text: '', value: money(to) }]
+      if (from == null) return pair('history.priceSet', '', money(to))
+      if (to == null) return pair('history.priceRemoved', money(from), '')
+      return pair('history.priceChanged', money(from), money(to))
     case 'priority':
-      if (to === 'none') return [{ text: 'removed the priority ' }, { text: '', value: PRIORITY_LABELS[from as TaskPriority] ?? String(from) }]
-      return [{ text: 'set the priority to ' }, { text: '', value: PRIORITY_LABELS[to as TaskPriority] ?? String(to) }]
+      if (to === 'none') return pair('history.priorityRemoved', priority(from), '')
+      return pair('history.prioritySet', '', priority(to))
     case 'labels': {
       const added = e.data.added ?? []
       const removed = e.data.removed ?? []
-      const parts: { text: string; value?: string }[] = []
-      if (added.length) parts.push({ text: added.length > 1 ? 'added the labels ' : 'added the label ' }, { text: '', value: added.join(', ') })
-      if (added.length && removed.length) parts.push({ text: ' and ' })
-      if (removed.length) parts.push({ text: removed.length > 1 ? 'removed the labels ' : 'removed the label ' }, { text: '', value: removed.join(', ') })
-      return parts
+      if (added.length && removed.length) return { key: 'history.labelsBoth', values: { added: added.join(', '), removed: removed.join(', ') } }
+      if (added.length) return { key: 'history.labelsAdded', values: { value: added.join(', ') }, plural: added.length }
+      return { key: 'history.labelsRemoved', values: { value: removed.join(', ') }, plural: removed.length }
     }
     case 'attachment_added':
-      return [{ text: 'attached ' }, { text: '', value: quote(e.data.name) }]
+      return { key: 'history.attachmentAdded', values: { value: quote(e.data.name) } }
     case 'attachment_removed':
-      return [{ text: 'removed the file ' }, { text: '', value: quote(e.data.name) }]
+      return { key: 'history.attachmentRemoved', values: { value: quote(e.data.name) } }
     default:
-      return [{ text: 'changed the task' }]
+      return { key: 'history.other', values: {} }
   }
 }
+
+/** The slots a history message may fill with a value set off in bold. */
+const VALUE_SLOTS = ['from', 'to', 'value', 'added', 'removed'] as const
 
 function initials(name: string): string {
   const words = name.split(/\s+/).filter(Boolean)
@@ -108,12 +115,15 @@ function initials(name: string): string {
         {{ initials(e.actor.name || e.actor.email) }}
       </span>
       <p class="min-w-0 flex-1 pt-0.5 text-sm leading-snug break-words text-neutral-600">
-        <span class="font-medium text-neutral-900">{{ who(e) }}</span>
-        {{ ' ' }}
-        <template v-for="(part, i) in describe(e)" :key="i">{{ part.text }}<span v-if="part.value" class="font-medium text-neutral-800">{{ part.value }}</span></template>
+        <i18n-t :keypath="describe(e).key" :plural="describe(e).plural" scope="global">
+          <template #who><span class="font-medium text-neutral-900">{{ who(e) }}</span></template>
+          <template v-for="slot in VALUE_SLOTS" :key="slot" #[slot]>
+            <span class="font-medium text-neutral-800">{{ describe(e).values[slot] }}</span>
+          </template>
+        </i18n-t>
         <time class="ml-1.5 text-xs whitespace-nowrap text-neutral-400" :datetime="e.created_at" :title="formatDate(e.created_at)">{{ timeAgo(e.created_at) }}</time>
       </p>
     </li>
   </ol>
-  <p v-else-if="loaded" class="mt-3 text-sm text-neutral-400">No history yet.</p>
+  <p v-else-if="loaded" class="mt-3 text-sm text-neutral-400">{{ $t('history.empty') }}</p>
 </template>

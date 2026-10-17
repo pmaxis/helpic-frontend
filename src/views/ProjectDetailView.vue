@@ -16,7 +16,8 @@ import { useTaskView } from '@/composables/useTaskView'
 import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
 import { ApiRequestError } from '@/services/api'
-import { STATUS_FILTERS } from '@/constants/tasks'
+import { filterLabel as statusFilterLabel, STATUS_FILTERS } from '@/constants/tasks'
+import { t } from '@/i18n'
 import { toast } from '@/composables/useToasts'
 import type { Project } from '@/types/projects'
 import type { Task } from '@/types/tasks'
@@ -33,7 +34,7 @@ const id = String(route.params.id)
 const project = ref<Project | null>(null)
 const notFound = ref(false)
 const filter = ref('open')
-const filterLabel = computed(() => STATUS_FILTERS.find((f) => f.value === filter.value)?.label ?? '')
+const filterLabel = computed(() => statusFilterLabel(filter.value))
 const editing = ref(false)
 const addingTask = ref(false)
 /** The board column a task is being added from, if any. */
@@ -46,10 +47,10 @@ function startTask(column: BoardColumn | null = null) {
 const confirmDelete = ref(false)
 const deleting = ref(false)
 
-const projectActions = [
-  { label: 'Edit project', onSelect: () => (editing.value = true) },
-  { label: 'Delete project', danger: true, onSelect: () => (confirmDelete.value = true) },
-]
+const projectActions = computed(() => [
+  { label: t('project.edit'), onSelect: () => (editing.value = true) },
+  { label: t('project.delete'), danger: true, onSelect: () => (confirmDelete.value = true) },
+])
 
 async function loadTasks() {
   try {
@@ -60,7 +61,7 @@ async function loadTasks() {
       await tasks.fetchTasks({ statuses, project: id })
     }
   } catch {
-    toast.error('Could not load tasks')
+    toast.error(t('project.tasksLoadFailed'))
   }
 }
 
@@ -73,7 +74,7 @@ onMounted(async () => {
     await loadTasks()
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) notFound.value = true
-    else toast.error('Could not load the project')
+    else toast.error(t('project.loadFailed'))
   }
 })
 
@@ -94,10 +95,10 @@ async function remove() {
   deleting.value = true
   try {
     await projects.deleteProject(id)
-    toast.success('Project deleted')
+    toast.success(t('project.deleted'))
     await router.replace('/projects')
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not delete the project')
+    toast.error(error instanceof ApiRequestError ? error.message : t('project.deleteFailed'))
   } finally {
     deleting.value = false
     confirmDelete.value = false
@@ -108,19 +109,19 @@ async function remove() {
 <template>
   <DashboardLayout :fill="view === 'board'">
     <!-- back, then breadcrumbs -->
-    <nav class="flex items-center gap-1.5 self-start text-sm text-neutral-500" aria-label="Breadcrumb">
+    <nav class="flex items-center gap-1.5 self-start text-sm text-neutral-500" :aria-label="$t('project.breadcrumb')">
       <RouterLink
         to="/projects"
         class="-ml-1.5 mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-        aria-label="Back to projects"
-        title="Back to projects"
+        :aria-label="$t('project.backToProjects')"
+        :title="$t('project.backToProjects')"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
           <path d="M19 12H5" />
           <polyline points="12 19 5 12 12 5" />
         </svg>
       </RouterLink>
-      <RouterLink to="/projects" class="hover:text-neutral-900">Projects</RouterLink>
+      <RouterLink to="/projects" class="hover:text-neutral-900">{{ $t('projects.title') }}</RouterLink>
       <template v-if="project">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-neutral-300" aria-hidden="true">
           <polyline points="9 18 15 12 9 6" />
@@ -130,7 +131,7 @@ async function remove() {
     </nav>
 
     <div v-if="notFound" class="mt-6">
-      <EmptyState title="Project not found" description="It may have been deleted, or it isn't one of yours." />
+      <EmptyState :title="$t('project.notFound')" :description="$t('project.notFoundText')" />
     </div>
 
     <template v-else-if="project">
@@ -146,8 +147,8 @@ async function remove() {
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <ViewToggle v-model="view" />
-            <ActionMenu v-if="project.can_edit" :actions="projectActions" label="Project options" />
-            <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+            <ActionMenu v-if="project.can_edit" :actions="projectActions" :label="$t('project.options')" />
+            <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
           </div>
         </div>
 
@@ -163,7 +164,7 @@ async function remove() {
           :class="filter === f.value ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
           @click="filter = f.value"
         >
-          {{ f.label }}
+          {{ statusFilterLabel(f.value) }}
         </button>
       </div>
 
@@ -171,16 +172,16 @@ async function remove() {
       <div v-else-if="!tasks.isLoading && !tasks.tasks.length" class="mt-5">
         <EmptyState
           v-if="filter !== 'all'"
-          :title="`No ${filterLabel.toLowerCase()} tasks`"
-          :description="filter === 'open' ? 'Everything in this project is done or cancelled.' : 'Nothing matches this filter.'"
+          :title="$t('project.noFiltered', { filter: filterLabel.toLowerCase() })"
+          :description="filter === 'open' ? $t('project.allDoneOrCancelled') : $t('tasks.nothingMatches')"
         >
           <div class="flex items-center gap-4">
-            <BaseButton size="sm" variant="ghost" :block="false" @click="filter = 'all'">Show all tasks</BaseButton>
-            <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+            <BaseButton size="sm" variant="ghost" :block="false" @click="filter = 'all'">{{ $t('tasks.showAll') }}</BaseButton>
+            <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
           </div>
         </EmptyState>
-        <EmptyState v-else title="No tasks here" description="Tasks you add to this project show up here.">
-          <BaseButton size="sm" :block="false" @click="startTask()">New task</BaseButton>
+        <EmptyState v-else :title="$t('project.noTasksTitle')" :description="$t('project.noTasksText')">
+          <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
         </EmptyState>
       </div>
       <TaskList v-else class="mt-5" :tasks="tasks.tasks" :loading="tasks.isLoading" hide-project @saved="loadTasks" />
@@ -190,8 +191,8 @@ async function remove() {
     <TaskFormModal v-if="addingTask" :project-id="id" :status-id="newTaskColumn?.id" :column-name="newTaskColumn?.name" @close="addingTask = false" @saved="onTaskSaved" />
     <ConfirmDialog
       v-model:open="confirmDelete"
-      title="Delete this project?"
-      description="Its tasks are kept — they just won't belong to a project any more."
+      :title="$t('project.confirmDelete')"
+      :description="$t('project.confirmDeleteText')"
       :loading="deleting"
       @confirm="remove"
     />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** A task's priority as a small icon, Jira-style; nothing for "none" unless asked. */
-import { PRIORITY_LABELS } from '@/constants/tasks'
+import { priorityLabel } from '@/constants/tasks'
 import type { TaskPriority } from '@/types/tasks'
 
 withDefaults(defineProps<{ priority: TaskPriority; showNone?: boolean }>(), { showNone: false })
@@ -24,9 +24,9 @@ withDefaults(defineProps<{ priority: TaskPriority; showNone?: boolean }>(), { sh
       'text-neutral-300': priority === 'none',
     }"
     role="img"
-    :aria-label="PRIORITY_LABELS[priority]"
+    :aria-label="priorityLabel(priority)"
   >
-    <title>{{ PRIORITY_LABELS[priority] }}</title>
+    <title>{{ priorityLabel(priority) }}</title>
     <template v-if="priority === 'urgent'">
       <polyline points="4 8.5 8 4.5 12 8.5" />
       <polyline points="4 12.5 8 8.5 12 12.5" />

@@ -13,6 +13,7 @@ import { usePeopleStore } from '@/stores/people'
 import { useViewMode } from '@/composables/useViewMode'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import type { Project } from '@/types/projects'
 
 const auth = useAuthStore()
@@ -23,8 +24,8 @@ const creating = ref(false)
 const query = ref('')
 
 const VIEWS: ViewOption<'cards' | 'list'>[] = [
-  { value: 'cards', label: 'Cards', icon: 'cards' },
-  { value: 'list', label: 'List', icon: 'list' },
+  { value: 'cards', icon: 'cards' },
+  { value: 'list', icon: 'list' },
 ]
 const view = useViewMode('helpic:projects-view', ['cards', 'list'] as const, 'cards')
 
@@ -53,14 +54,14 @@ function owner(p: Project) {
 
 function ownerName(p: Project): string {
   const o = owner(p)
-  return o.id === auth.user?.id ? 'You' : o.name || o.email
+  return o.id === auth.user?.id ? t('common.you_capital') : o.name || o.email
 }
 
 onMounted(async () => {
   try {
     await Promise.all([projects.fetchProjects(), auth.isClient ? people.fetchFreelancers() : people.fetchClients()])
   } catch {
-    toast.error('Could not load projects')
+    toast.error(t('projects.loadFailed'))
   }
 })
 
@@ -72,7 +73,7 @@ function onSaved(project: Project) {
 
 <template>
   <DashboardLayout>
-    <PageHeader title="Projects">
+    <PageHeader :title="$t('projects.title')">
       <template #actions>
         <!-- search -->
         <div v-if="projects.projects.length" class="relative w-56">
@@ -92,31 +93,27 @@ function onSaved(project: Project) {
           <input
             v-model="query"
             type="search"
-            placeholder="Search projects"
-            aria-label="Search projects"
+            :placeholder="$t('projects.search')"
+            :aria-label="$t('projects.search')"
             class="h-8 w-full rounded-lg border border-neutral-200 bg-white pr-3 pl-9 text-sm text-neutral-900 shadow-xs placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
           />
         </div>
         <ViewToggle v-model="view" :options="VIEWS" />
-        <BaseButton size="sm" :block="false" @click="creating = true">New project</BaseButton>
+        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
       </template>
     </PageHeader>
 
     <div v-if="projects.loaded && !projects.projects.length" class="mt-6">
       <EmptyState
-        title="No projects yet"
-        :description="
-          auth.isClient
-            ? 'Start a project with your freelancer to keep its tasks together.'
-            : 'Create a project for a client, or a personal one, to keep its tasks together.'
-        "
+        :title="$t('projects.noneYet')"
+        :description="auth.isClient ? $t('projects.noneYetClient') : $t('projects.noneYetFreelancer')"
       >
-        <BaseButton size="sm" :block="false" @click="creating = true">New project</BaseButton>
+        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
       </EmptyState>
     </div>
 
     <template v-else-if="projects.projects.length">
-      <p v-if="!shown.length" class="mt-8 text-center text-sm text-neutral-400">No projects match “{{ query.trim() }}”.</p>
+      <p v-if="!shown.length" class="mt-8 text-center text-sm text-neutral-400">{{ $t('projects.noMatch', { query: query.trim() }) }}</p>
 
       <!-- cards -->
       <ul v-else-if="view === 'cards'" class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -133,24 +130,24 @@ function onSaved(project: Project) {
               </span>
               <div class="min-w-0 flex-1">
                 <p class="truncate font-semibold text-neutral-900">{{ p.name }}</p>
-                <p class="mt-0.5 text-xs text-neutral-400">Updated {{ formatDate(p.updated_at) }}</p>
+                <p class="mt-0.5 text-xs text-neutral-400">{{ $t('projects.updated', { date: formatDate(p.updated_at) }) }}</p>
               </div>
             </div>
 
-            <p class="mt-3 line-clamp-2 min-h-10 text-sm text-neutral-500">{{ p.description || 'No description.' }}</p>
+            <p class="mt-3 line-clamp-2 min-h-10 text-sm text-neutral-500">{{ p.description || $t('projects.noDescription') }}</p>
 
             <div class="mt-auto pt-4">
-              <p class="text-xs text-neutral-500">{{ p.open_tasks }} open · {{ p.total_tasks }} total</p>
+              <p class="text-xs text-neutral-500">{{ $t('projects.openTotal', { open: p.open_tasks, total: p.total_tasks }) }}</p>
 
               <dl class="mt-3 grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-y-2 border-t border-neutral-100 pt-3 text-sm">
-                <dt class="text-xs text-neutral-400">Owner</dt>
+                <dt class="text-xs text-neutral-400">{{ $t('projects.owner') }}</dt>
                 <dd class="flex min-w-0 items-center gap-2">
                   <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
                     {{ initials(owner(p).name || owner(p).email) }}
                   </span>
                   <span class="truncate text-neutral-700">{{ ownerName(p) }}</span>
                 </dd>
-                <dt class="text-xs text-neutral-400">{{ auth.isClient ? 'Freelancer' : 'Client' }}</dt>
+                <dt class="text-xs text-neutral-400">{{ auth.isClient ? $t('projects.freelancer') : $t('projects.client') }}</dt>
                 <dd class="flex min-w-0 items-center gap-2">
                   <template v-if="other(p)">
                     <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
@@ -158,7 +155,7 @@ function onSaved(project: Project) {
                     </span>
                     <span class="truncate text-neutral-700">{{ other(p)?.name || other(p)?.email }}</span>
                   </template>
-                  <span v-else class="text-neutral-400">Personal project</span>
+                  <span v-else class="text-neutral-400">{{ $t('projects.personalProject') }}</span>
                 </dd>
               </dl>
             </div>
@@ -172,11 +169,11 @@ function onSaved(project: Project) {
           class="hidden gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase md:grid md:grid-cols-[minmax(0,1fr)_11rem_11rem_5rem_7rem]"
           aria-hidden="true"
         >
-          <span>Project</span>
-          <span>Owner</span>
-          <span>{{ auth.isClient ? 'Freelancer' : 'Client' }}</span>
-          <span class="text-right">Open</span>
-          <span class="text-right">Updated</span>
+          <span>{{ $t('projects.project') }}</span>
+          <span>{{ $t('projects.owner') }}</span>
+          <span>{{ auth.isClient ? $t('projects.freelancer') : $t('projects.client') }}</span>
+          <span class="text-right">{{ $t('projects.open') }}</span>
+          <span class="text-right">{{ $t('projects.updatedColumn') }}</span>
         </div>
         <ul class="divide-y divide-neutral-100">
           <li v-for="p in shown" :key="p.id">
@@ -200,7 +197,7 @@ function onSaved(project: Project) {
                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
                   {{ initials(owner(p).name || owner(p).email) }}
                 </span>
-                <span class="truncate text-neutral-700"><span class="text-neutral-500 md:hidden">Owner: </span>{{ ownerName(p) }}</span>
+                <span class="truncate text-neutral-700"><span class="text-neutral-500 md:hidden">{{ $t('projects.ownerColon') }} </span>{{ ownerName(p) }}</span>
               </div>
 
               <div class="flex min-w-0 items-center gap-2 text-sm">
@@ -210,11 +207,11 @@ function onSaved(project: Project) {
                   </span>
                   <span class="truncate text-neutral-700">{{ other(p)?.name || other(p)?.email }}</span>
                 </template>
-                <span v-else class="text-neutral-400">Personal</span>
+                <span v-else class="text-neutral-400">{{ $t('projects.personal') }}</span>
               </div>
 
               <div class="text-sm text-neutral-700 md:text-right">
-                <span class="md:hidden text-neutral-500">Open: </span>{{ p.open_tasks }}<span class="text-neutral-400"> / {{ p.total_tasks }}</span>
+                <span class="md:hidden text-neutral-500">{{ $t('projects.openColon') }} </span>{{ p.open_tasks }}<span class="text-neutral-400"> / {{ p.total_tasks }}</span>
               </div>
 
               <div class="text-sm text-neutral-500 md:text-right">{{ formatDate(p.updated_at) }}</div>

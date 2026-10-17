@@ -54,11 +54,11 @@ function summary(t: Task): string {
     <!-- the last, unnamed column holds the row's edit button -->
     <div class="hidden border-b border-neutral-200 bg-neutral-50 pr-10 md:block" aria-hidden="true">
       <div class="grid gap-4 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase" :class="grid">
-        <span>Task</span>
-        <span>Status</span>
-        <span v-if="!hideProject">Project</span>
-        <span>People</span>
-        <span class="text-right">Due</span>
+        <span>{{ $t('taskList.task') }}</span>
+        <span>{{ $t('taskList.status') }}</span>
+        <span v-if="!hideProject">{{ $t('taskList.project') }}</span>
+        <span>{{ $t('taskList.people') }}</span>
+        <span class="text-right">{{ $t('taskList.due') }}</span>
       </div>
     </div>
 
@@ -148,8 +148,8 @@ function summary(t: Task): string {
             v-if="t.can_edit"
             type="button"
             class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-200/70 hover:text-neutral-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-            :aria-label="`Edit ${t.title}`"
-            title="Edit task"
+            :aria-label="$t('taskList.editNamed', { title: t.title })"
+            :title="$t('taskList.edit')"
             @click="editing = t"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">

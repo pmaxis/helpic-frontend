@@ -2,49 +2,51 @@ import type { NotificationKind } from '@/types/notifications'
 
 export interface NotificationKindInfo {
   kind: NotificationKind
-  label: string
   /** Who gets it: the freelancer, or the client company's owner; everyone when unset. */
   for?: 'freelancer' | 'owner'
 }
 
-/** The kinds of notification, grouped as the settings list them. */
-export const NOTIFICATION_GROUPS: { label: string; kinds: NotificationKindInfo[] }[] = [
+/** Groups of kinds: keys under "notificationKinds.groups" in the messages. */
+export type NotificationGroupKey = 'tasks' | 'deadlines' | 'discussion' | 'projectsReports' | 'people'
+
+/** The kinds of notification, grouped as the settings list them; each kind's words are under "notificationKinds". */
+export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: NotificationKindInfo[] }[] = [
   {
-    label: 'Tasks',
+    group: 'tasks',
     kinds: [
-      { kind: 'task_created', label: 'A task is added' },
-      { kind: 'task_status', label: 'A task moves to another status' },
-      { kind: 'task_updated', label: 'A task is edited' },
-      { kind: 'task_deleted', label: 'A task is deleted' },
+      { kind: 'task_created' },
+      { kind: 'task_status' },
+      { kind: 'task_updated' },
+      { kind: 'task_deleted' },
     ],
   },
   {
-    label: 'Deadlines',
+    group: 'deadlines',
     kinds: [
-      { kind: 'task_due_soon', label: 'A task is due tomorrow', for: 'freelancer' },
-      { kind: 'task_overdue', label: 'A task is overdue' },
+      { kind: 'task_due_soon', for: 'freelancer' },
+      { kind: 'task_overdue' },
     ],
   },
   {
-    label: 'Discussion',
+    group: 'discussion',
     kinds: [
-      { kind: 'comment_added', label: 'Someone comments' },
-      { kind: 'attachment_added', label: 'A file is attached' },
+      { kind: 'comment_added' },
+      { kind: 'attachment_added' },
     ],
   },
   {
-    label: 'Projects & reports',
+    group: 'projectsReports',
     kinds: [
-      { kind: 'project_created', label: 'A project is started' },
-      { kind: 'report_sent', label: 'A report is sent to you', for: 'owner' },
-      { kind: 'report_paid', label: 'A report is marked paid', for: 'freelancer' },
+      { kind: 'project_created' },
+      { kind: 'report_sent', for: 'owner' },
+      { kind: 'report_paid', for: 'freelancer' },
     ],
   },
   {
-    label: 'People',
+    group: 'people',
     kinds: [
-      { kind: 'client_joined', label: 'A client accepts your invitation', for: 'freelancer' },
-      { kind: 'member_joined', label: 'Someone joins your team', for: 'owner' },
+      { kind: 'client_joined', for: 'freelancer' },
+      { kind: 'member_joined', for: 'owner' },
     ],
   },
 ]

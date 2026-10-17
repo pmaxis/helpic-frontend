@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
 /**
  * People as a row of overlapping initials — a task's participants on a card.
  * Shows up to `max`, then "+N"; each one's name is in its tooltip, and the
@@ -16,7 +17,7 @@ const shown = computed(() => props.people.slice(0, props.max))
 const rest = computed(() => props.people.length - shown.value.length)
 
 function name(p: Party): string {
-  return p.id === auth.user?.id ? 'You' : p.name || p.email
+  return p.id === auth.user?.id ? t('common.you_capital') : p.name || p.email
 }
 
 function initials(p: Party): string {

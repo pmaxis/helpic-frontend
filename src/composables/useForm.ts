@@ -16,6 +16,7 @@
 import { computed, nextTick, reactive, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import type { z } from 'zod'
 import { ApiRequestError } from '@/services/api'
+import { t } from '@/i18n'
 
 type Errors = Record<string, string>
 
@@ -114,7 +115,7 @@ export function useForm<S extends z.ZodObject>(schema: MaybeRefOrGetter<S>, init
   /** Shows what the API said: per field where it can, for the whole form otherwise. */
   function fail(error: unknown) {
     if (!(error instanceof ApiRequestError)) {
-      formError.value = 'Something went wrong. Please try again.'
+      formError.value = t('errors.generic')
       return
     }
     if (!error.fields) {

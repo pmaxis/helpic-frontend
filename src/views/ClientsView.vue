@@ -11,6 +11,7 @@ import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import { invitationLink, usePeopleStore } from '@/stores/people'
 import { copyText, formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { t } from '@/i18n'
 import type { Invitation } from '@/types/people'
 import type { Task } from '@/types/tasks'
 
@@ -32,15 +33,15 @@ onMounted(async () => {
   try {
     await people.fetchClients()
   } catch {
-    toast.error('Could not load clients')
+    toast.error(t('clients.loadFailed'))
   } finally {
     loaded.value = true
   }
 })
 
 async function copy(inv: Invitation) {
-  if (await copyText(invitationLink(inv.token))) toast.success('Link copied')
-  else toast.error('Could not copy the link')
+  if (await copyText(invitationLink(inv.token))) toast.success(t('clients.linkCopied'))
+  else toast.error(t('clients.copyFailed'))
 }
 
 async function revoke() {
@@ -48,9 +49,9 @@ async function revoke() {
   revokeBusy.value = true
   try {
     await people.revokeInvitation(revoking.value.id)
-    toast.success('Invitation revoked')
+    toast.success(t('clients.revoked'))
   } catch {
-    toast.error('Could not revoke the invitation')
+    toast.error(t('clients.revokeFailed'))
   } finally {
     revokeBusy.value = false
     revoking.value = null
@@ -60,15 +61,15 @@ async function revoke() {
 
 <template>
   <DashboardLayout>
-    <PageHeader title="Clients">
+    <PageHeader :title="$t('clients.title')">
       <template #actions>
-        <BaseButton size="sm" :block="false" @click="inviting = true">Invite client</BaseButton>
+        <BaseButton size="sm" :block="false" @click="inviting = true">{{ $t('clients.invite') }}</BaseButton>
       </template>
     </PageHeader>
 
     <div v-if="loaded && !people.clients.length && !people.invitations.length" class="mt-6">
-      <EmptyState title="No clients yet" description="Invite a client by email. They get a link, set a password and can start giving you tasks.">
-        <BaseButton size="sm" :block="false" @click="inviting = true">Invite client</BaseButton>
+      <EmptyState :title="$t('clients.noneYet')" :description="$t('clients.noneYetText')">
+        <BaseButton size="sm" :block="false" @click="inviting = true">{{ $t('clients.invite') }}</BaseButton>
       </EmptyState>
     </div>
 
@@ -81,34 +82,34 @@ async function revoke() {
             </span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-neutral-900">{{ c.name || c.email }}</p>
-              <p class="truncate text-xs text-neutral-500">{{ c.email }} · since {{ formatDate(c.linked_at) }}</p>
+              <p class="truncate text-xs text-neutral-500">{{ $t('people.since', { email: c.email, date: formatDate(c.linked_at) }) }}</p>
             </div>
             <RouterLink
               :to="{ name: 'tasks', query: { with: c.id } }"
               class="shrink-0 text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline"
             >
-              {{ c.open_tasks }} open {{ c.open_tasks === 1 ? 'task' : 'tasks' }}
+              {{ $t('people.openTasks', { n: c.open_tasks }, c.open_tasks) }}
             </RouterLink>
-            <BaseButton variant="ghost" size="sm" :block="false" @click="taskFor = c.id">New task</BaseButton>
+            <BaseButton variant="ghost" size="sm" :block="false" @click="taskFor = c.id">{{ $t('people.newTask') }}</BaseButton>
           </li>
         </ul>
       </section>
 
       <section v-if="people.invitations.length" class="mt-8">
-        <h2 class="text-sm font-semibold text-neutral-900">Pending invitations</h2>
+        <h2 class="text-sm font-semibold text-neutral-900">{{ $t('clients.pending') }}</h2>
         <ul class="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
           <li v-for="inv in people.invitations" :key="inv.id" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-neutral-900">{{ inv.name }}</p>
               <p class="truncate text-xs text-neutral-500">
                 {{ inv.email }} ·
-                <span v-if="inv.expired" class="font-medium text-red-600">expired</span>
-                <span v-else>expires {{ formatDate(inv.expires_at) }}</span>
+                <span v-if="inv.expired" class="font-medium text-red-600">{{ $t('clients.expired') }}</span>
+                <span v-else>{{ $t('clients.expires', { date: formatDate(inv.expires_at) }) }}</span>
               </p>
             </div>
             <div class="flex shrink-0 gap-2">
-              <BaseButton v-if="!inv.expired" variant="ghost" size="sm" :block="false" @click="copy(inv)">Copy link</BaseButton>
-              <BaseButton variant="ghost" size="sm" :block="false" @click="revoking = inv">{{ inv.expired ? 'Remove' : 'Revoke' }}</BaseButton>
+              <BaseButton v-if="!inv.expired" variant="ghost" size="sm" :block="false" @click="copy(inv)">{{ $t('common.copyLink') }}</BaseButton>
+              <BaseButton variant="ghost" size="sm" :block="false" @click="revoking = inv">{{ inv.expired ? $t('clients.remove') : $t('clients.revoke') }}</BaseButton>
             </div>
           </li>
         </ul>
@@ -119,9 +120,9 @@ async function revoke() {
     <TaskFormModal v-if="taskFor" :people="people.clients" :person-id="taskFor" @close="taskFor = ''" @saved="onSaved" />
     <ConfirmDialog
       :open="!!revoking"
-      title="Revoke invitation?"
-      :description="`The link sent to ${revoking?.email ?? ''} will stop working.`"
-      confirm-label="Revoke"
+      :title="$t('clients.confirmRevoke')"
+      :description="$t('clients.confirmRevokeText', { email: revoking?.email ?? '' })"
+      :confirm-label="$t('clients.revoke')"
       :loading="revokeBusy"
       @update:open="(v) => { if (!v) revoking = null }"
       @confirm="revoke"

@@ -28,7 +28,8 @@ import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
 import { fetchColumns } from '@/stores/board'
 import { ApiRequestError } from '@/services/api'
-import { PRIORITIES, STATUS_DOT } from '@/constants/tasks'
+import { columnName, priorityOptions as priorityChoices, STATUS_DOT } from '@/constants/tasks'
+import { useI18n } from 'vue-i18n'
 import { formatDate, isOverdue } from '@/utils/format'
 import { formatMoney, priceInput } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
@@ -67,6 +68,8 @@ const emit = defineEmits<{
   deleted: []
 }>()
 
+// tr, not t: t is the task in the functions below.
+const { t: tr } = useI18n()
 const auth = useAuthStore()
 const tasks = useTasksStore()
 const projects = useProjectsStore()
@@ -84,10 +87,10 @@ const open = computed(() => task.value?.status === 'new' || task.value?.status =
 
 /** Edit and delete, as far as the viewer may — behind the "⋯" button. */
 const taskActions = computed(() => {
-  const t = task.value
   const actions: MenuAction[] = []
-  if (t?.can_edit) actions.push({ label: 'Edit task', onSelect: () => (editing.value = true) })
-  if (t?.can_delete) actions.push({ label: 'Delete task', danger: true, onSelect: () => (confirmDelete.value = true) })
+  const task_ = task.value
+  if (task_?.can_edit) actions.push({ label: tr('task.edit'), onSelect: () => (editing.value = true) })
+  if (task_?.can_delete) actions.push({ label: tr('task.delete'), danger: true, onSelect: () => (confirmDelete.value = true) })
   return actions
 })
 const overdue = computed(() => !!task.value?.due_on && open.value && isOverdue(task.value.due_on))
@@ -113,7 +116,7 @@ const statusOptions = computed(() => {
   if (!t) return []
   return columns.value
     .filter((c) => c.id === t.status_id || c.category === t.status || t.next_statuses.includes(c.category))
-    .map((c) => ({ value: c.id, label: c.name }))
+    .map((c) => ({ value: c.id, label: columnName(c.name) }))
 })
 
 async function load(id: string) {
@@ -124,7 +127,7 @@ async function load(id: string) {
     task.value = await tasks.fetchTask(id)
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) notFound.value = true
-    else toast.error('Could not load the task')
+    else toast.error(tr('task.loadFailed'))
     emit('loaded', null)
     return
   }
@@ -152,7 +155,7 @@ const boardScope = computed<BoardScope>(() => {
   return { with: auth.isClient ? t.freelancer.id : (t.client?.id ?? 'personal') }
 })
 
-const priorityOptions = PRIORITIES.map((p) => ({ value: p.value, label: p.label }))
+const priorityOptions = computed(() => priorityChoices())
 
 /** Either side sets the priority and the labels, in any status. */
 async function setPriority(priority: string) {
@@ -163,7 +166,7 @@ async function setPriority(priority: string) {
     task.value = await tasks.setPriority(t.id, priority as TaskPriority)
     emit('changed', task.value)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not change the priority')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.priorityFailed'))
   } finally {
     busy.value = false
   }
@@ -176,7 +179,7 @@ async function setLabels(ids: string[]) {
     task.value = await tasks.setLabels(t.id, ids)
     emit('changed', task.value)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not change the labels')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.labelsFailed'))
   }
 }
 
@@ -199,7 +202,7 @@ async function move(statusId: string) {
     task.value = await tasks.moveToStatus(task.value.id, statusId)
     emit('changed', task.value)
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not change the status')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.statusFailed'))
   } finally {
     busy.value = false
   }
@@ -210,10 +213,10 @@ async function remove() {
   deleting.value = true
   try {
     await tasks.deleteTask(task.value.id)
-    toast.success('Task deleted')
+    toast.success(tr('task.deleted'))
     emit('deleted')
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not delete the task')
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.deleteFailed'))
   } finally {
     deleting.value = false
     confirmDelete.value = false
@@ -264,7 +267,7 @@ async function save(change: Partial<TaskInput>): Promise<boolean> {
     return true
   } catch (error) {
     const message = error instanceof ApiRequestError ? (Object.values(error.fields ?? {})[0] ?? error.message) : ''
-    toast.error(message || 'Could not save the task')
+    toast.error(message || tr('task.saveFailed'))
     return false
   } finally {
     saving.value = false
@@ -312,7 +315,7 @@ async function commitPrice() {
     editingPrice.value = false
   } catch (error) {
     const message = error instanceof ApiRequestError ? (Object.values(error.fields ?? {})[0] ?? error.message) : ''
-    toast.error(message || 'Could not save the price')
+    toast.error(message || tr('task.priceFailed'))
   } finally {
     saving.value = false
   }
@@ -331,7 +334,7 @@ const projectOptions = computed(() => {
   const t = task.value
   if (!t) return []
   const pair = projects.projects.filter((p) => p.freelancer.id === t.freelancer.id && (p.client?.id ?? '') === (t.client?.id ?? ''))
-  return [{ value: '', label: 'None' }, ...pair.map((p) => ({ value: p.id, label: p.name }))]
+  return [{ value: '', label: tr('task.none') }, ...pair.map((p) => ({ value: p.id, label: p.name }))]
 })
 
 function onSaved(t: Task) {
@@ -346,12 +349,12 @@ function onSaved(t: Task) {
   <div class="grid min-h-0 flex-1 gap-4" :class="task && !detailsHidden ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : ''">
     <article :class="[card, 'p-5 sm:p-8']">
       <slot name="nav" :task="task" />
-      <EmptyState v-if="notFound" class="mt-6" title="Task not found" description="It may have been deleted, or it isn't one of yours." />
+      <EmptyState v-if="notFound" class="mt-6" :title="$t('task.notFound')" :description="$t('task.notFoundText')" />
       <template v-else-if="task">
         <!-- title and actions -->
         <header class="mt-3 flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-5">
           <div v-if="inline === 'title'" class="min-w-0 flex-1">
-            <label for="task-title-input" class="sr-only">Title</label>
+            <label for="task-title-input" class="sr-only">{{ $t('task.titleLabel') }}</label>
             <input
               id="task-title-input"
               ref="titleInput"
@@ -365,9 +368,9 @@ function onSaved(t: Task) {
               @blur="commitInline"
             />
             <div class="mt-2 flex items-center justify-end gap-2">
-              <span class="mr-auto text-xs text-neutral-400">Enter to save · Esc to cancel</span>
-              <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @mousedown="keepFocus" @click="inline = null">Cancel</BaseButton>
-              <BaseButton size="sm" :block="false" :loading="saving" :disabled="!draft.trim()" @mousedown="keepFocus" @click="commitInline">Save</BaseButton>
+              <span class="mr-auto text-xs text-neutral-400">{{ $t('task.enterToSave') }}</span>
+              <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @mousedown="keepFocus" @click="inline = null">{{ $t('common.cancel') }}</BaseButton>
+              <BaseButton size="sm" :block="false" :loading="saving" :disabled="!draft.trim()" @mousedown="keepFocus" @click="commitInline">{{ $t('common.save') }}</BaseButton>
             </div>
           </div>
           <h1
@@ -379,7 +382,7 @@ function onSaved(t: Task) {
               v-if="task.can_edit"
               type="button"
               class="-mx-2 -my-1 w-[calc(100%+1rem)] cursor-text rounded-lg px-2 py-1 text-left transition-colors hover:bg-neutral-100"
-              title="Click to edit the title"
+              :title="$t('task.clickToEditTitle')"
               @click="startInline('title')"
             >
               {{ task.title }}
@@ -387,21 +390,21 @@ function onSaved(t: Task) {
             <template v-else>{{ task.title }}</template>
           </h1>
           <div class="flex shrink-0 items-center gap-2">
-            <BaseButton v-if="detailsHidden" variant="ghost" size="sm" :block="false" title="Show details" @click="detailsHidden = false">
+            <BaseButton v-if="detailsHidden" variant="ghost" size="sm" :block="false" :title="$t('task.showDetails')" @click="detailsHidden = false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M15 3v18" />
               </svg>
-              Details
+              {{ $t('task.details') }}
             </BaseButton>
-            <ActionMenu v-if="taskActions.length" :actions="taskActions" label="Task options" />
+            <ActionMenu v-if="taskActions.length" :actions="taskActions" :label="$t('task.options')" />
           </div>
         </header>
 
         <section aria-labelledby="task-description" class="mt-5 min-w-0">
-          <h2 id="task-description" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">Description</h2>
+          <h2 id="task-description" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('task.description') }}</h2>
           <div v-if="inline === 'description'" class="mt-3">
-            <label for="task-description-input" class="sr-only">Description</label>
+            <label for="task-description-input" class="sr-only">{{ $t('task.description') }}</label>
             <textarea
               id="task-description-input"
               ref="descriptionInput"
@@ -409,7 +412,7 @@ function onSaved(t: Task) {
               rows="8"
               maxlength="20000"
               :disabled="saving"
-              placeholder="Details, links, acceptance criteria…"
+              :placeholder="$t('task.descriptionPlaceholder')"
               class="block w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-[15px] leading-7 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
               @keydown.esc.prevent="inline = null"
               @keydown.meta.enter.prevent="commitInline"
@@ -417,27 +420,27 @@ function onSaved(t: Task) {
               @blur="commitInline"
             />
             <div class="mt-2 flex items-center justify-end gap-2">
-              <span class="mr-auto text-xs text-neutral-400">⌘/Ctrl + Enter to save · Esc to cancel</span>
-              <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @mousedown="keepFocus" @click="inline = null">Cancel</BaseButton>
-              <BaseButton size="sm" :block="false" :loading="saving" @mousedown="keepFocus" @click="commitInline">Save</BaseButton>
+              <span class="mr-auto text-xs text-neutral-400">{{ $t('task.ctrlEnterToSave') }}</span>
+              <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @mousedown="keepFocus" @click="inline = null">{{ $t('common.cancel') }}</BaseButton>
+              <BaseButton size="sm" :block="false" :loading="saving" @mousedown="keepFocus" @click="commitInline">{{ $t('common.save') }}</BaseButton>
             </div>
           </div>
           <div
             v-else-if="task.description"
             class="mt-3 text-[15px] leading-7 whitespace-pre-wrap break-words text-neutral-800"
             :class="task.can_edit ? '-mx-2 cursor-text rounded-lg px-2 transition-colors hover:bg-neutral-50' : ''"
-            :title="task.can_edit ? 'Click to edit the description' : undefined"
+            :title="task.can_edit ? $t('task.clickToEditDescription') : undefined"
             @click="task.can_edit && onDescriptionClick()"
           >{{ task.description }}</div>
           <div v-else class="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-center">
-            <p class="text-sm text-neutral-400">No description yet.</p>
+            <p class="text-sm text-neutral-400">{{ $t('task.noDescription') }}</p>
             <button
               v-if="task.can_edit"
               type="button"
               class="mt-2 text-sm font-medium text-neutral-700 underline-offset-4 hover:text-neutral-900 hover:underline"
               @click="startInline('description')"
             >
-              Add a description
+              {{ $t('task.addDescription') }}
             </button>
           </div>
         </section>
@@ -450,12 +453,12 @@ function onSaved(t: Task) {
       <!-- details -->
     <aside v-if="task && !detailsHidden" :class="card" aria-labelledby="task-details">
       <div class="flex items-center justify-between gap-2 border-b border-neutral-200 py-3 pr-3 pl-5">
-        <h2 id="task-details" class="text-sm font-semibold text-neutral-900">Details</h2>
+        <h2 id="task-details" class="text-sm font-semibold text-neutral-900">{{ $t('task.details') }}</h2>
         <button
           type="button"
           class="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          title="Hide details"
-          aria-label="Hide details"
+          :title="$t('task.hideDetails')"
+          :aria-label="$t('task.hideDetails')"
           @click="detailsHidden = true"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
@@ -466,7 +469,7 @@ function onSaved(t: Task) {
         </button>
       </div>
       <dl class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3.5 px-5 py-5 text-sm">
-        <dt class="text-neutral-500">Status</dt>
+        <dt class="text-neutral-500">{{ $t('task.status') }}</dt>
         <dd class="min-w-0">
           <SelectInput
             v-if="statusOptions.length > 1"
@@ -474,7 +477,7 @@ function onSaved(t: Task) {
             :options="statusOptions"
             :disabled="busy"
             :searchable="false"
-            aria-label="Status"
+            :aria-label="$t('task.status')"
             @update:model-value="move"
           >
             <template #icon>
@@ -484,14 +487,14 @@ function onSaved(t: Task) {
           <StatusBadge v-else :status="task.status" :name="task.status_name" />
         </dd>
 
-        <dt class="text-neutral-500">Priority</dt>
+        <dt class="text-neutral-500">{{ $t('task.priority') }}</dt>
         <dd class="min-w-0">
           <SelectInput
             :model-value="task.priority"
             :options="priorityOptions"
             :disabled="busy"
             :searchable="false"
-            aria-label="Priority"
+            :aria-label="$t('task.priority')"
             @update:model-value="setPriority"
           >
             <template #icon>
@@ -500,7 +503,7 @@ function onSaved(t: Task) {
           </SelectInput>
         </dd>
 
-        <dt class="self-start pt-0.5 text-neutral-500">Labels</dt>
+        <dt class="self-start pt-0.5 text-neutral-500">{{ $t('task.labels') }}</dt>
         <dd class="flex min-w-0 flex-wrap items-center gap-1">
           <LabelChip v-for="l in task.labels" :key="l.id" :name="l.name" :color="l.color" />
           <LabelPicker
@@ -511,35 +514,35 @@ function onSaved(t: Task) {
           />
         </dd>
 
-        <dt class="text-neutral-500">Freelancer</dt>
+        <dt class="text-neutral-500">{{ $t('task.freelancer') }}</dt>
         <dd class="flex min-w-0 items-center gap-2">
           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
             {{ initials(task.freelancer.name || task.freelancer.email) }}
           </span>
           <span class="truncate text-neutral-800">{{ task.freelancer.name || task.freelancer.email }}</span>
-          <span v-if="isMe(task.freelancer.id)" class="shrink-0 text-xs text-neutral-400">you</span>
+          <span v-if="isMe(task.freelancer.id)" class="shrink-0 text-xs text-neutral-400">{{ $t('common.you') }}</span>
         </dd>
 
-        <dt class="text-neutral-500">Client</dt>
+        <dt class="text-neutral-500">{{ $t('task.client') }}</dt>
         <dd class="flex min-w-0 items-center gap-2">
           <template v-if="task.client">
             <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
               {{ initials(task.client.name || task.client.email) }}
             </span>
             <span class="truncate text-neutral-800">{{ task.client.name || task.client.email }}</span>
-            <span v-if="isMe(task.client.id)" class="shrink-0 text-xs text-neutral-400">you</span>
+            <span v-if="isMe(task.client.id)" class="shrink-0 text-xs text-neutral-400">{{ $t('common.you') }}</span>
           </template>
-          <span v-else class="text-neutral-400">Personal task</span>
+          <span v-else class="text-neutral-400">{{ $t('task.personal') }}</span>
         </dd>
 
-        <dt class="text-neutral-500">Project</dt>
+        <dt class="text-neutral-500">{{ $t('task.project') }}</dt>
         <dd class="min-w-0">
           <SelectInput
             v-if="task.can_edit && projectOptions.length > 1"
             :model-value="task.project?.id ?? ''"
             :options="projectOptions"
             :disabled="saving"
-            aria-label="Project"
+            :aria-label="$t('task.project')"
             @update:model-value="saveProject"
           />
           <RouterLink
@@ -552,36 +555,36 @@ function onSaved(t: Task) {
             </svg>
             <span class="truncate">{{ task.project.name }}</span>
           </RouterLink>
-          <span v-else class="text-neutral-400">None</span>
+          <span v-else class="text-neutral-400">{{ $t('task.none') }}</span>
         </dd>
 
-        <dt class="text-neutral-500">Due date</dt>
+        <dt class="text-neutral-500">{{ $t('task.dueDate') }}</dt>
         <dd v-if="task.can_edit" class="min-w-0">
           <DateInput
             :model-value="task.due_on ?? ''"
-            label="Due date"
+            :label="$t('task.dueDate')"
             hide-label
             compact
-            placeholder="None"
+            :placeholder="$t('task.none')"
             :disabled="saving"
             @update:model-value="saveDueOn"
           />
           <span v-if="overdue" class="mt-1.5 inline-block rounded-full bg-red-50 px-1.5 py-px text-xs font-medium text-red-700 ring-1 ring-red-600/20 ring-inset">
-            Overdue
+            {{ $t('task.overdue') }}
           </span>
         </dd>
         <dd v-else class="flex min-w-0 items-center gap-2">
           <template v-if="task.due_on">
             <span :class="overdue ? 'font-medium text-red-600' : 'text-neutral-800'">{{ formatDate(task.due_on) }}</span>
             <span v-if="overdue" class="rounded-full bg-red-50 px-1.5 py-px text-xs font-medium text-red-700 ring-1 ring-red-600/20 ring-inset">
-              Overdue
+              {{ $t('task.overdue') }}
             </span>
           </template>
-          <span v-else class="text-neutral-400">None</span>
+          <span v-else class="text-neutral-400">{{ $t('task.none') }}</span>
         </dd>
 
         <template v-if="task.can_see_price">
-          <dt class="text-neutral-500">Price</dt>
+          <dt class="text-neutral-500">{{ $t('task.price') }}</dt>
           <dd class="min-w-0">
             <input
               v-if="editingPrice"
@@ -589,8 +592,8 @@ function onSaved(t: Task) {
               v-model="priceDraft"
               type="text"
               inputmode="decimal"
-              aria-label="Price"
-              :placeholder="`None — e.g. 1200 (${task.currency})`"
+              :aria-label="$t('task.price')"
+              :placeholder="$t('task.pricePlaceholder', { currency: task.currency })"
               :disabled="saving"
               class="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
               @keydown.enter.prevent="commitPrice"
@@ -602,38 +605,38 @@ function onSaved(t: Task) {
               type="button"
               class="-mx-2 w-[calc(100%+1rem)] cursor-text rounded-lg px-2 py-1 text-left transition-colors hover:bg-neutral-100"
               :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'"
-              title="Click to set the price"
+              :title="$t('task.clickToSetPrice')"
               @click="startPrice"
             >
-              {{ task.price_cents === null ? 'None' : formatMoney(task.price_cents, task.currency) }}
+              {{ task.price_cents === null ? $t('task.none') : formatMoney(task.price_cents, task.currency) }}
             </button>
             <span v-else :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'">
-              {{ task.price_cents === null ? 'None' : formatMoney(task.price_cents, task.currency) }}
+              {{ task.price_cents === null ? $t('task.none') : formatMoney(task.price_cents, task.currency) }}
             </span>
           </dd>
         </template>
 
-        <dt class="text-neutral-500">Created by</dt>
+        <dt class="text-neutral-500">{{ $t('task.createdBy') }}</dt>
         <dd class="flex min-w-0 items-center gap-2">
           <template v-if="creator">
             <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
               {{ initials(creator.name || creator.email) }}
             </span>
-            <span class="truncate text-neutral-800">{{ isMe(creator.id) ? 'You' : creator.name || creator.email }}</span>
+            <span class="truncate text-neutral-800">{{ isMe(creator.id) ? $t('common.you_capital') : creator.name || creator.email }}</span>
           </template>
         </dd>
       </dl>
       <p class="border-t border-neutral-100 px-5 py-4 text-xs text-neutral-400">
-        Created {{ formatDate(task.created_at) }}
-        <template v-if="formatDate(task.updated_at) !== formatDate(task.created_at)"> · Updated {{ formatDate(task.updated_at) }}</template>
+        {{ $t('task.created', { date: formatDate(task.created_at) }) }}
+        <template v-if="formatDate(task.updated_at) !== formatDate(task.created_at)"> · {{ $t('task.updated', { date: formatDate(task.updated_at) }) }}</template>
       </p>
     </aside>
 
     <TaskFormModal v-if="editing && task" :task="task" @close="editing = false" @saved="onSaved" />
     <ConfirmDialog
       v-model:open="confirmDelete"
-      title="Delete this task?"
-      description="Work on it hasn't started yet. This can't be undone."
+      :title="$t('task.confirmDelete')"
+      :description="$t('task.confirmDeleteText')"
       :loading="deleting"
       @confirm="remove"
     />

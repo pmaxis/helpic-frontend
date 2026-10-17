@@ -17,7 +17,9 @@ import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
-import { across, currentPassword, email, LIMITS, newPassword, optionalText, requiredText } from '@/utils/validation'
+import { currentPassword, email, LIMITS, newPassword, optionalText, passwordsMatch, requiredText } from '@/utils/validation'
+import { isLocale, LOCALE_NAMES, LOCALES, t } from '@/i18n'
+import { useI18n } from 'vue-i18n'
 import { CURRENCIES } from '@/utils/money'
 import { deviceName, formatDate, parseDevice, timeAgo } from '@/utils/format'
 import type { Session } from '@/types/auth'
@@ -27,11 +29,11 @@ const route = useRoute()
 const router = useRouter()
 
 const TABS = [
-  { value: 'profile', label: 'Profile' },
-  { value: 'email', label: 'Email' },
-  { value: 'password', label: 'Password' },
-  { value: 'notifications', label: 'Notifications' },
-  { value: 'sessions', label: 'Sessions' },
+  { value: 'profile' },
+  { value: 'email' },
+  { value: 'password' },
+  { value: 'notifications' },
+  { value: 'sessions' },
 ] as const
 type Tab = (typeof TABS)[number]['value']
 
@@ -44,15 +46,35 @@ const tab = computed<Tab>({
 // --- name -------------------------------------------------------------------
 
 const nameForm = useForm(
-  z.object({ first_name: requiredText('First name', LIMITS.name), last_name: optionalText('Last name', LIMITS.name) }),
+  z.object({ first_name: requiredText('firstName', LIMITS.name), last_name: optionalText('lastName', LIMITS.name) }),
   { first_name: auth.user?.first_name ?? '', last_name: auth.user?.last_name ?? '' },
 )
 
 function saveName() {
   void nameForm.submit(async (data) => {
     await auth.updateName(data.first_name, data.last_name)
-    toast.success('Name updated')
+    toast.success(t('settings.profile.nameUpdated'))
   })
+}
+
+// --- language ---------------------------------------------------------------------
+
+const { locale } = useI18n()
+const localeOptions = LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }))
+const savingLocale = ref(false)
+
+/** Switches at once; the account keeps it for emails and Telegram. */
+async function saveLocale(value: string) {
+  if (!isLocale(value) || value === locale.value) return
+  savingLocale.value = true
+  try {
+    await auth.setLocale(value)
+    toast.success(t('settings.profile.languageChanged'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : t('errors.generic'))
+  } finally {
+    savingLocale.value = false
+  }
 }
 
 // --- currency (freelancers) ---------------------------------------------------
@@ -66,9 +88,9 @@ async function saveCurrency(currency: string) {
   savingCurrency.value = true
   try {
     await auth.setCurrency(currency)
-    toast.success(`Prices are now in ${currency}`)
+    toast.success(t('settings.profile.currencyChanged', { currency }))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not change the currency')
+    toast.error(error instanceof ApiRequestError ? error.message : t('settings.profile.currencyFailed'))
   } finally {
     savingCurrency.value = false
   }
@@ -76,7 +98,7 @@ async function saveCurrency(currency: string) {
 
 // --- email ------------------------------------------------------------------
 
-const emailForm = useForm(z.object({ email: email(), current_password: currentPassword('Enter your current password') }), {
+const emailForm = useForm(z.object({ email: email(), current_password: currentPassword(() => t('validation.currentPassword')) }), {
   email: auth.user?.email ?? '',
   current_password: '',
 })
@@ -96,11 +118,11 @@ function saveEmail() {
 const passwordForm = useForm(
   z
     .object({
-      current_password: currentPassword('Enter your current password'),
+      current_password: currentPassword(() => t('validation.currentPassword')),
       password: newPassword(),
-      password_confirmation: currentPassword('Please confirm your new password'),
+      password_confirmation: currentPassword(() => t('validation.confirmNewPassword')),
     })
-    .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match')),
+    .refine(...passwordsMatch()),
   { current_password: '', password: '', password_confirmation: '' },
 )
 /** Bumped to remount the form after a change, hiding any shown passwords. */
@@ -109,7 +131,7 @@ const passwordKey = ref(0)
 function savePassword() {
   void passwordForm.submit(async (data) => {
     await auth.changePassword(data)
-    toast.success('Password changed')
+    toast.success(t('settings.password.changed'))
     passwordForm.reset()
     passwordKey.value++
   })
@@ -137,7 +159,7 @@ async function loadSessions() {
   try {
     sessions.value = await fetchSessions()
   } catch {
-    toast.error('Could not load your sessions')
+    toast.error(t('settings.sessions.loadFailed'))
   } finally {
     sessionsLoaded.value = true
   }
@@ -157,9 +179,9 @@ async function signOut(session: Session) {
   try {
     await endSession(session.id)
     sessions.value = sessions.value.filter((s) => s.id !== session.id)
-    toast.success(`${deviceName(session.user_agent)} signed out`)
+    toast.success(t('settings.sessions.signedOut', { device: deviceName(session.user_agent) }))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not sign the device out')
+    toast.error(error instanceof ApiRequestError ? error.message : t('settings.sessions.signOutFailed'))
   } finally {
     endingId.value = ''
   }
@@ -171,9 +193,9 @@ async function signOutOthers() {
     await endOtherSessions()
     sessions.value = sessions.value.filter((s) => s.current)
     confirmEndOthers.value = false
-    toast.success('Signed out of every other device')
+    toast.success(t('settings.sessions.othersSignedOut'))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not sign the other devices out')
+    toast.error(error instanceof ApiRequestError ? error.message : t('settings.sessions.othersFailed'))
   } finally {
     endingOthers.value = false
   }
@@ -182,9 +204,9 @@ async function signOutOthers() {
 
 <template>
   <DashboardLayout>
-    <PageHeader title="Settings" />
+    <PageHeader :title="$t('settings.title')" />
 
-    <nav class="mt-5 flex gap-6 border-b border-neutral-200" aria-label="Settings sections">
+    <nav class="mt-5 flex gap-6 border-b border-neutral-200" :aria-label="$t('settings.sections')">
       <button
         v-for="t in TABS"
         :key="t.value"
@@ -194,48 +216,50 @@ async function signOutOthers() {
         :aria-current="tab === t.value ? 'page' : undefined"
         @click="tab = t.value"
       >
-        {{ t.label }}
+        {{ $t(`settings.tabs.${t.value}`) }}
       </button>
     </nav>
 
     <div class="mt-6">
       <template v-if="tab === 'profile'">
         <section class="rounded-xl border border-neutral-200 p-5">
-          <p class="text-sm text-neutral-500">
-            {{ auth.isClient ? 'Your freelancers see this name.' : 'Your clients see this name.' }}
-          </p>
-          <form class="mt-4 space-y-4" novalidate @submit.prevent="saveName">
+          <form class="space-y-4" novalidate @submit.prevent="saveName">
             <FormError :message="nameForm.formError" />
             <div class="grid gap-4 sm:grid-cols-2">
               <BaseInput
                 v-bind="nameForm.field('first_name')"
-                :label="auth.isClient ? 'First name or company' : 'First name'"
+                :label="auth.isClient ? $t('settings.profile.firstNameOrCompany') : $t('settings.profile.firstName')"
                 autocomplete="given-name"
               />
-              <BaseInput v-bind="nameForm.field('last_name')" label="Last name" autocomplete="family-name" />
+              <BaseInput v-bind="nameForm.field('last_name')" :label="$t('settings.profile.lastName')" autocomplete="family-name" />
             </div>
             <div class="flex justify-end">
-              <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.submitting" :disabled="nameForm.submitting">Save</BaseButton>
+              <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.submitting" :disabled="nameForm.submitting">{{ $t('common.save') }}</BaseButton>
             </div>
           </form>
         </section>
 
-        <section v-if="auth.isFreelancer" class="mt-4 rounded-xl border border-neutral-200 p-5">
-          <p class="text-sm text-neutral-500">Task prices and report totals use this currency. Sent reports keep the one they were sent in.</p>
-          <div class="mt-4 sm:w-56">
-            <BaseSelect
-              :model-value="auth.user?.currency ?? 'USD'"
-              label="Currency"
-              :options="currencyOptions"
-              :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
-              @update:model-value="saveCurrency"
-            />
-          </div>
+        <section class="mt-4 grid gap-4 rounded-xl border border-neutral-200 p-5 sm:grid-cols-2">
+          <BaseSelect
+            :model-value="locale"
+            :label="$t('common.language')"
+            :options="localeOptions"
+            :class="savingLocale ? 'pointer-events-none opacity-60' : ''"
+            @update:model-value="saveLocale"
+          />
+          <BaseSelect
+            v-if="auth.isFreelancer"
+            :model-value="auth.user?.currency ?? 'USD'"
+            :label="$t('settings.profile.currency')"
+            :options="currencyOptions"
+            :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
+            @update:model-value="saveCurrency"
+          />
         </section>
       </template>
 
       <section v-else-if="tab === 'email'" class="rounded-xl border border-neutral-200 p-5">
-        <p class="text-sm text-neutral-500">You sign in with this email. A new one needs confirming from its own inbox.</p>
+        <p class="text-sm text-neutral-500">{{ $t('settings.email.text') }}</p>
         <div
           v-if="pendingEmail"
           class="mt-4 flex items-start gap-3 rounded-lg bg-sky-50 px-3.5 py-3 text-sm text-sky-900 ring-1 ring-sky-600/15 ring-inset"
@@ -245,21 +269,21 @@ async function signOutOthers() {
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <path d="m3 7 9 6 9-6" />
           </svg>
-          <p>
-            We sent a link to <span class="font-medium">{{ pendingEmail }}</span>. Open it to start signing in with that email; until then
-            it stays {{ auth.user?.email }}. The link works for 24 hours.
-          </p>
+          <i18n-t keypath="settings.email.pending" tag="p" scope="global">
+            <template #email><span class="font-medium">{{ pendingEmail }}</span></template>
+            <template #current>{{ auth.user?.email }}</template>
+          </i18n-t>
         </div>
         <form class="mt-4 space-y-4" novalidate @submit.prevent="saveEmail">
           <FormError :message="emailForm.formError" />
-          <BaseInput v-bind="emailForm.field('email')" label="Email" type="email" autocomplete="email" />
+          <BaseInput v-bind="emailForm.field('email')" :label="$t('settings.email.email')" type="email" autocomplete="email" />
           <PasswordInput
             v-bind="emailForm.field('current_password')"
-            label="Current password"
+            :label="$t('settings.email.currentPassword')"
             autocomplete="current-password"
           />
           <div class="flex justify-end">
-            <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">Change email</BaseButton>
+            <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">{{ $t('settings.email.change') }}</BaseButton>
           </div>
         </form>
       </section>
@@ -275,7 +299,7 @@ async function signOutOthers() {
         <template v-else>
           <!-- the device looking at the page -->
           <section v-if="currentSession" class="rounded-xl border border-neutral-200 p-5">
-            <p class="text-xs font-medium tracking-wide text-neutral-400 uppercase">This device</p>
+            <p class="text-xs font-medium tracking-wide text-neutral-400 uppercase">{{ $t('settings.sessions.thisDevice') }}</p>
             <div class="mt-3 flex items-center gap-4">
               <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-white">
                 <DeviceIcon :kind="parseDevice(currentSession.user_agent).kind" class="h-[18px] w-[18px]" />
@@ -284,9 +308,9 @@ async function signOutOthers() {
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-neutral-900">{{ deviceName(currentSession.user_agent) }}</p>
                 <p class="truncate text-xs text-neutral-500">
-                  <span class="font-medium text-emerald-600">Active now</span>
+                  <span class="font-medium text-emerald-600">{{ $t('settings.sessions.activeNow') }}</span>
                   <template v-if="currentSession.ip"> · {{ currentSession.ip }}</template>
-                  · Signed in {{ formatDate(currentSession.created_at) }}
+                  · {{ $t('settings.sessions.signedIn', { date: formatDate(currentSession.created_at) }) }}
                 </p>
               </div>
             </div>
@@ -297,13 +321,13 @@ async function signOutOthers() {
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-3.5">
               <div>
                 <h2 class="text-sm font-semibold text-neutral-900">
-                  Other devices
+                  {{ $t('settings.sessions.otherDevices') }}
                   <span v-if="otherSessions.length" class="ml-1 font-normal text-neutral-400">{{ otherSessions.length }}</span>
                 </h2>
-                <p class="mt-0.5 text-xs text-neutral-500">Changing your password signs them all out.</p>
+                <p class="mt-0.5 text-xs text-neutral-500">{{ $t('settings.sessions.otherText') }}</p>
               </div>
               <BaseButton v-if="otherSessions.length > 1" variant="danger" size="sm" :block="false" @click="confirmEndOthers = true">
-                Sign out all
+                {{ $t('settings.sessions.signOutAll') }}
               </BaseButton>
             </div>
 
@@ -319,10 +343,10 @@ async function signOutOthers() {
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm text-neutral-900">{{ deviceName(s.user_agent) }}</p>
                   <p class="truncate text-xs text-neutral-500">
-                    <span v-if="isRecent(s)" class="text-emerald-600">Active recently</span>
-                    <template v-else>Active {{ timeAgo(s.last_used_at) }}</template>
+                    <span v-if="isRecent(s)" class="text-emerald-600">{{ $t('settings.sessions.activeRecently') }}</span>
+                    <template v-else>{{ $t('settings.sessions.active', { ago: timeAgo(s.last_used_at) }) }}</template>
                     <template v-if="s.ip"> · {{ s.ip }}</template>
-                    <span class="hidden sm:inline"> · Signed in {{ formatDate(s.created_at) }}</span>
+                    <span class="hidden sm:inline"> · {{ $t('settings.sessions.signedIn', { date: formatDate(s.created_at) }) }}</span>
                   </p>
                 </div>
                 <button
@@ -331,7 +355,7 @@ async function signOutOthers() {
                   :disabled="endingId === s.id"
                   @click="signOut(s)"
                 >
-                  {{ endingId === s.id ? 'Signing out…' : 'Sign out' }}
+                  {{ endingId === s.id ? $t('settings.sessions.signingOut') : $t('settings.sessions.signOut') }}
                 </button>
               </li>
             </ul>
@@ -344,8 +368,8 @@ async function signOutOthers() {
                 </svg>
               </span>
               <div>
-                <p class="text-sm text-neutral-900">You're signed in only on this device.</p>
-                <p class="text-xs text-neutral-500">Sign in anywhere else and it shows up here.</p>
+                <p class="text-sm text-neutral-900">{{ $t('settings.sessions.onlyHere') }}</p>
+                <p class="text-xs text-neutral-500">{{ $t('settings.sessions.onlyHereText') }}</p>
               </div>
             </div>
           </section>
@@ -353,37 +377,37 @@ async function signOutOthers() {
 
         <ConfirmDialog
           v-model:open="confirmEndOthers"
-          title="Sign out other devices?"
-          :description="`${otherSessions.length} other ${otherSessions.length === 1 ? 'device' : 'devices'} will need to sign in again. They stay in for a few minutes at most.`"
-          confirm-label="Sign out"
+          :title="$t('settings.sessions.confirmOthers')"
+          :description="$t('settings.sessions.confirmOthersText', { n: otherSessions.length }, otherSessions.length)"
+          :confirm-label="$t('settings.sessions.signOut')"
           :loading="endingOthers"
           @confirm="signOutOthers"
         />
       </template>
 
       <section v-else class="rounded-xl border border-neutral-200 p-5">
-        <p class="text-sm text-neutral-500">Confirm the change with your current password. Your other devices will be signed out.</p>
+        <p class="text-sm text-neutral-500">{{ $t('settings.password.text') }}</p>
         <form :key="passwordKey" class="mt-4 space-y-4" novalidate @submit.prevent="savePassword">
           <FormError :message="passwordForm.formError" />
           <PasswordInput
             v-bind="passwordForm.field('current_password')"
-            label="Current password"
+            :label="$t('settings.password.current')"
             autocomplete="current-password"
           />
           <PasswordInput
             v-bind="passwordForm.field('password')"
-            label="New password"
+            :label="$t('settings.password.new')"
             autocomplete="new-password"
-            :hint="`At least ${LIMITS.password} characters.`"
+            :hint="$t('validation.passwordHint', { n: LIMITS.password })"
           />
           <PasswordInput
             v-bind="passwordForm.field('password_confirmation')"
-            label="Confirm new password"
+            :label="$t('settings.password.confirm')"
             autocomplete="new-password"
           />
           <div class="flex justify-end">
             <BaseButton type="submit" size="sm" :block="false" :loading="passwordForm.submitting" :disabled="passwordForm.submitting">
-              Change password
+              {{ $t('settings.password.change') }}
             </BaseButton>
           </div>
         </form>

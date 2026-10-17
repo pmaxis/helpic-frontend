@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
 // Draws the pages of the server-rendered PDF with pdf.js, so the page shows
 // the exact file that will be downloaded — same fonts, wrapping and page breaks.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -15,7 +16,7 @@ const host = ref<HTMLDivElement | null>(null)
 const current = ref(0)
 const total = ref(0)
 let canvases: HTMLCanvasElement[] = []
-const label = computed(() => `Page ${current.value + 1} of ${total.value}`)
+const label = computed(() => t('pdfPreview.pageOf', { n: current.value + 1, total: total.value }))
 
 function show() {
   if (!host.value || canvases.length === 0) return
@@ -61,7 +62,7 @@ async function draw() {
     canvas.style.width = `${width}px`
     canvas.style.height = `${(width * base.height) / base.width}px`
     canvas.className = 'block rounded-sm bg-white shadow-sm ring-1 ring-neutral-200'
-    canvas.setAttribute('aria-label', `Page ${n} of ${doc.numPages}`)
+    canvas.setAttribute('aria-label', t('pdfPreview.pageOf', { n, total: doc.numPages }))
     canvas.setAttribute('role', 'img')
     await page.render({ canvasContext: canvas.getContext('2d')!, viewport }).promise
     if (seq !== drawSeq) return
@@ -116,26 +117,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="outline-none" tabindex="0" aria-label="PDF preview, use arrow keys to change page" @keydown="onKey">
+  <div class="outline-none" tabindex="0" :aria-label="$t('pdfPreview.aria')" @keydown="onKey">
     <div ref="host" />
     <div v-if="total > 1" class="mt-4 flex items-center justify-center gap-3">
       <button
         type="button"
-        aria-label="Previous page"
+        :aria-label="$t('pdfPreview.prev')"
         :disabled="current === 0"
         class="rounded-full bg-white p-1.5 text-neutral-600 shadow-sm ring-1 ring-neutral-200 transition hover:text-neutral-900 disabled:opacity-40"
         @click="go(-1)"
       >
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m12 15-5-5 5-5" /></svg>
       </button>
-      <div class="flex items-center gap-1.5" role="tablist" aria-label="Pages">
+      <div class="flex items-center gap-1.5" role="tablist" :aria-label="$t('pdfPreview.pages')">
         <button
           v-for="n in total"
           :key="n"
           type="button"
           role="tab"
           :aria-selected="current === n - 1"
-          :aria-label="`Page ${n}`"
+          :aria-label="$t('pdfPreview.page', { n })"
           class="h-2 rounded-full transition-all"
           :class="current === n - 1 ? 'w-5 bg-neutral-900' : 'w-2 bg-neutral-300 hover:bg-neutral-400'"
           @click="go(n - 1 - current)"
@@ -143,7 +144,7 @@ onBeforeUnmount(() => {
       </div>
       <button
         type="button"
-        aria-label="Next page"
+        :aria-label="$t('pdfPreview.next')"
         :disabled="current === total - 1"
         class="rounded-full bg-white p-1.5 text-neutral-600 shadow-sm ring-1 ring-neutral-200 transition hover:text-neutral-900 disabled:opacity-40"
         @click="go(1)"

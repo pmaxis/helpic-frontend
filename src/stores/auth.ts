@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { http, ApiRequestError } from '@/services/api'
+import { isLocale, setLocale, type Locale } from '@/i18n'
 import type {
   ChangeEmailPayload,
   ChangePasswordPayload,
@@ -13,6 +14,12 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   isInitialized: boolean
+}
+
+/** A signed-in user reads Helpic in their account's language. */
+function follow(user: User | null): User | null {
+  if (user && isLocale(user.locale)) setLocale(user.locale)
+  return user
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -48,7 +55,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchCurrentUser(): Promise<void> {
       try {
         const { data } = await http.get<UserResponse>('/me')
-        this.user = data.user
+        this.user = follow(data.user)
       } catch (error) {
         if (error instanceof ApiRequestError && error.status === 401) {
           this.user = null
@@ -63,7 +70,7 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true
       try {
         const { data } = await http.post<UserResponse>('/auth/login', payload)
-        this.user = data.user
+        this.user = follow(data.user)
         this.isInitialized = true
       } finally {
         this.isLoading = false
@@ -94,7 +101,7 @@ export const useAuthStore = defineStore('auth', {
 
     async updateName(firstName: string, lastName: string): Promise<void> {
       const { data } = await http.put<UserResponse>('/me', { first_name: firstName, last_name: lastName })
-      this.user = data.user
+      this.user = follow(data.user)
     },
 
     /** Emails a confirmation link to the new address; returns it. The email changes once it's opened. */
@@ -103,9 +110,20 @@ export const useAuthStore = defineStore('auth', {
       return data.pending_email
     },
 
+    /**
+     * Switches the language: at once here, and on the account when signed in,
+     * so emails and Telegram follow.
+     */
+    async setLocale(locale: Locale): Promise<void> {
+      setLocale(locale)
+      if (!this.user) return
+      const { data } = await http.put<UserResponse>('/me/locale', { locale })
+      this.user = data.user
+    },
+
     async setCurrency(currency: string): Promise<void> {
       const { data } = await http.put<UserResponse>('/me/currency', { currency })
-      this.user = data.user
+      this.user = follow(data.user)
     },
 
     async changePassword(payload: ChangePasswordPayload): Promise<void> {
@@ -114,7 +132,7 @@ export const useAuthStore = defineStore('auth', {
 
     /** Accepting an invitation signs the client in; the backend returns the user. */
     setUser(user: User): void {
-      this.user = user
+      this.user = follow(user)
       this.isInitialized = true
     },
 

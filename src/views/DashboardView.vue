@@ -23,6 +23,9 @@ import { usePeopleStore } from '@/stores/people'
 import { formatDate, isOverdue, timeAgo } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
+import { useI18n } from 'vue-i18n'
+import { columnName } from '@/constants/tasks'
+import { intlLocale } from '@/i18n'
 import type { Task, TaskPriority } from '@/types/tasks'
 import type { Report } from '@/types/reports'
 
@@ -46,7 +49,7 @@ onMounted(async () => {
       auth.isClient ? people.fetchFreelancers() : people.fetchClients(),
     ])
   } catch {
-    toast.error('Could not load the dashboard')
+    toast.error(tr('dashboard.loadFailed'))
   } finally {
     loaded.value = true
   }
@@ -62,7 +65,10 @@ function dayISO(offset: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+// tr, not t: t is a task in the functions below.
+const { t: tr, locale } = useI18n()
+
+const today = computed(() => locale.value && new Date().toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' }))
 
 // --- tasks -----------------------------------------------------------------------
 
@@ -84,7 +90,7 @@ const week = computed(() =>
     const d = new Date(Date.now() + i * DAY)
     return {
       iso,
-      weekday: i === 0 ? 'Today' : d.toLocaleDateString('en-GB', { weekday: 'short' }),
+      weekday: i === 0 ? tr('dashboard.today') : d.toLocaleDateString(intlLocale(), { weekday: 'short' }),
       day: d.getDate(),
       count: open.value.filter((t) => t.due_on === iso).length,
     }
@@ -112,16 +118,16 @@ const focus = computed(() => {
 
 function dueChip(t: Task): { text: string; tone: string } | null {
   if (!t.due_on) return null
-  if (isOverdue(t.due_on)) return { text: `Overdue · ${formatDate(t.due_on)}`, tone: 'bg-red-50 text-red-700 ring-red-600/20' }
-  if (t.due_on === dayISO(0)) return { text: 'Today', tone: 'bg-amber-50 text-amber-800 ring-amber-600/20' }
-  if (t.due_on === dayISO(1)) return { text: 'Tomorrow', tone: 'bg-sky-50 text-sky-700 ring-sky-600/20' }
+  if (isOverdue(t.due_on)) return { text: tr('dashboard.overdueOn', { date: formatDate(t.due_on) }), tone: 'bg-red-50 text-red-700 ring-red-600/20' }
+  if (t.due_on === dayISO(0)) return { text: tr('dashboard.today'), tone: 'bg-amber-50 text-amber-800 ring-amber-600/20' }
+  if (t.due_on === dayISO(1)) return { text: tr('dashboard.tomorrow'), tone: 'bg-sky-50 text-sky-700 ring-sky-600/20' }
   return { text: formatDate(t.due_on), tone: 'bg-neutral-50 text-neutral-600 ring-neutral-500/20' }
 }
 
 function where(t: Task): string {
   if (t.project) return t.project.name
   const other = auth.isClient ? t.freelancer : t.client
-  return other ? other.name || other.email : 'Personal'
+  return other ? other.name || other.email : tr('dashboard.personal')
 }
 
 const recent = computed(() => [...tasks.tasks].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6))
@@ -178,32 +184,48 @@ interface Stat {
 }
 
 const stats = computed<Stat[]>(() => {
-  const openStat: Stat = { label: 'Open tasks', value: String(open.value.length), hint: `${inProgress.value.length} in progress`, to: '/tasks', icon: 'open', tone: 'neutral' }
+  const openStat: Stat = {
+    label: tr('dashboard.stats.open'),
+    value: String(open.value.length),
+    hint: tr('dashboard.stats.inProgressCount', { n: inProgress.value.length }),
+    to: '/tasks',
+    icon: 'open',
+    tone: 'neutral',
+  }
   const overdueStat: Stat = {
-    label: 'Overdue',
+    label: tr('dashboard.stats.overdue'),
     value: String(overdue.value.length),
-    hint: overdue.value.length ? 'Past their due date' : 'Nothing late',
+    hint: overdue.value.length ? tr('dashboard.stats.pastDue') : tr('dashboard.stats.nothingLate'),
     to: '/tasks',
     icon: 'overdue',
     tone: overdue.value.length ? 'red' : 'neutral',
   }
-  const doneStat: Stat = { label: 'Done this week', value: String(doneThisWeek.value), hint: 'In the last 7 days', to: '/tasks?status=done', icon: 'done', tone: 'emerald' }
+  const doneStat: Stat = {
+    label: tr('dashboard.stats.doneWeek'),
+    value: String(doneThisWeek.value),
+    hint: tr('dashboard.stats.last7'),
+    to: '/tasks?status=done',
+    icon: 'done',
+    tone: 'emerald',
+  }
   if (auth.isFreelancer) {
     return [
       openStat,
       overdueStat,
       {
-        label: 'Awaiting payment',
+        label: tr('dashboard.stats.awaiting'),
         value: moneyText(awaitingSums.value),
-        hint: awaiting.value.length ? `${awaiting.value.length} sent ${awaiting.value.length === 1 ? 'report' : 'reports'}` : 'No sent reports',
+        hint: awaiting.value.length ? tr('dashboard.stats.sentReports', { n: awaiting.value.length }, awaiting.value.length) : tr('dashboard.stats.noSent'),
         to: '/reports',
         icon: 'awaiting',
         tone: 'sky',
       },
       {
-        label: 'Earned this month',
+        label: tr('dashboard.stats.earned'),
         value: moneyText(paidSums.value),
-        hint: paidThisMonth.value.length ? `${paidThisMonth.value.length} paid ${paidThisMonth.value.length === 1 ? 'report' : 'reports'}` : 'Nothing paid yet',
+        hint: paidThisMonth.value.length
+          ? tr('dashboard.stats.paidReports', { n: paidThisMonth.value.length }, paidThisMonth.value.length)
+          : tr('dashboard.stats.nothingPaid'),
         to: '/reports',
         icon: 'earned',
         tone: 'emerald',
@@ -215,9 +237,9 @@ const stats = computed<Stat[]>(() => {
       openStat,
       overdueStat,
       {
-        label: 'To pay',
+        label: tr('dashboard.stats.toPay'),
         value: moneyText(awaitingSums.value),
-        hint: awaiting.value.length ? `${awaiting.value.length} ${awaiting.value.length === 1 ? 'report' : 'reports'} to pay` : 'Nothing to pay',
+        hint: awaiting.value.length ? tr('dashboard.stats.reportsToPay', { n: awaiting.value.length }, awaiting.value.length) : tr('dashboard.stats.nothingToPay'),
         to: '/reports',
         icon: 'awaiting',
         tone: 'sky',
@@ -225,7 +247,12 @@ const stats = computed<Stat[]>(() => {
       doneStat,
     ]
   }
-  return [openStat, { ...openStat, label: 'In progress', value: String(inProgress.value.length), hint: 'Being worked on', icon: 'progress', tone: 'amber' }, overdueStat, doneStat]
+  return [
+    openStat,
+    { ...openStat, label: tr('dashboard.stats.inProgress'), value: String(inProgress.value.length), hint: tr('dashboard.stats.beingWorkedOn'), icon: 'progress', tone: 'amber' },
+    overdueStat,
+    doneStat,
+  ]
 })
 
 const TONES: Record<Tone, { chip: string; value: string }> = {
@@ -240,19 +267,19 @@ const TONES: Record<Tone, { chip: string; value: string }> = {
 
 const greeting = computed(() => {
   const h = new Date().getHours()
-  const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  const part = tr(`dashboard.greeting.${h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'}`)
   const name = auth.user?.name.split(/\s+/)[0]
-  return name ? `${part}, ${name}` : part
+  return name ? tr('dashboard.greetingNamed', { part, name }) : part
 })
 
 const summary = computed(() => {
-  if (!loaded.value) return today
+  if (!loaded.value) return today.value
   const o = open.value.length
-  const parts = [`${o} open ${o === 1 ? 'task' : 'tasks'}`]
-  parts.push(overdue.value.length ? `${overdue.value.length} overdue` : 'nothing overdue')
+  const parts = [tr('dashboard.openTasks', { n: o }, o)]
+  parts.push(overdue.value.length ? tr('dashboard.overdueCount', { n: overdue.value.length }) : tr('dashboard.nothingOverdue'))
   const dueToday = week.value[0].count
-  if (dueToday) parts.push(`${dueToday} due today`)
-  return `${today} — ${parts.join(' · ')}`
+  if (dueToday) parts.push(tr('dashboard.dueToday', { n: dueToday }))
+  return `${today.value} — ${parts.join(' · ')}`
 })
 
 const creating = ref(false)
@@ -270,7 +297,7 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
   <DashboardLayout>
     <PageHeader :title="greeting" :description="summary">
       <template #actions>
-        <BaseButton size="sm" :block="false" @click="creating = true">New task</BaseButton>
+        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('tasks.newTask') }}</BaseButton>
       </template>
     </PageHeader>
 
@@ -306,12 +333,12 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
         <!-- focus: the week and what to work on -->
         <section :class="card" aria-labelledby="dash-focus">
           <header class="flex items-center justify-between px-5 pt-4">
-            <h2 id="dash-focus" class="text-sm font-semibold text-neutral-900">Focus</h2>
-            <RouterLink to="/tasks" class="text-xs text-neutral-500 hover:text-neutral-900">All tasks →</RouterLink>
+            <h2 id="dash-focus" class="text-sm font-semibold text-neutral-900">{{ $t('dashboard.focus') }}</h2>
+            <RouterLink to="/tasks" class="text-xs text-neutral-500 hover:text-neutral-900">{{ $t('dashboard.allTasks') }}</RouterLink>
           </header>
 
           <!-- the week, a day picks the list -->
-          <div class="mt-3 grid grid-cols-7 gap-1.5 px-5" role="group" aria-label="Due this week">
+          <div class="mt-3 grid grid-cols-7 gap-1.5 px-5" role="group" :aria-label="$t('dashboard.dueThisWeek')">
             <button
               v-for="d in week"
               :key="d.iso"
@@ -325,7 +352,7 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
                     : 'text-neutral-400 hover:bg-neutral-50'
               "
               :aria-pressed="pickedDay === d.iso"
-              :aria-label="`${d.weekday} ${d.day}: ${d.count} due`"
+              :aria-label="$t('dashboard.dayDue', { weekday: d.weekday, day: d.day, n: d.count })"
               @click="pickedDay = pickedDay === d.iso ? '' : d.iso"
             >
               <span class="font-medium">{{ d.weekday }}</span>
@@ -342,7 +369,7 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
                 <PriorityIcon :priority="t.priority" show-none />
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-medium text-neutral-900">{{ t.title }}</p>
-                  <p class="truncate text-xs text-neutral-500">{{ where(t) }} · {{ t.status_name }}</p>
+                  <p class="truncate text-xs text-neutral-500">{{ where(t) }} · {{ columnName(t.status_name) }}</p>
                 </div>
                 <span
                   v-if="dueChip(t)"
@@ -356,10 +383,10 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
           </ul>
           <div v-else class="mt-3 border-t border-neutral-100 px-5 py-8 text-center">
             <p class="text-sm text-neutral-500">
-              {{ !loaded ? 'Loading…' : pickedDay ? 'Nothing due that day.' : open.length ? '' : 'No open tasks — all caught up.' }}
+              {{ !loaded ? $t('common.loading') : pickedDay ? $t('dashboard.nothingThatDay') : open.length ? '' : $t('dashboard.allCaughtUp') }}
             </p>
             <button v-if="pickedDay" type="button" class="mt-1 text-xs font-medium text-neutral-700 hover:text-neutral-900" @click="pickedDay = ''">
-              Show every open task
+              {{ $t('dashboard.showEveryOpen') }}
             </button>
           </div>
         </section>
@@ -367,7 +394,7 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
         <!-- what happened lately -->
         <section :class="card" aria-labelledby="dash-recent">
           <header class="px-5 pt-4 pb-2">
-            <h2 id="dash-recent" class="text-sm font-semibold text-neutral-900">Recent activity</h2>
+            <h2 id="dash-recent" class="text-sm font-semibold text-neutral-900">{{ $t('dashboard.recent') }}</h2>
           </header>
           <ul v-if="recent.length" class="divide-y divide-neutral-100 border-t border-neutral-100">
             <li v-for="t in recent" :key="t.id">
@@ -382,10 +409,10 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
             </li>
           </ul>
           <p v-else class="border-t border-neutral-100 px-5 py-8 text-center text-sm text-neutral-400">
-            <template v-if="!loaded">Loading…</template>
+            <template v-if="!loaded">{{ $t('common.loading') }}</template>
             <template v-else>
-              No tasks yet.
-              <button type="button" class="font-medium text-neutral-700 underline-offset-4 hover:underline" @click="creating = true">Add your first task</button>
+              {{ $t('dashboard.noTasks') }}
+              <button type="button" class="font-medium text-neutral-700 underline-offset-4 hover:underline" @click="creating = true">{{ $t('dashboard.addFirst') }}</button>
             </template>
           </p>
         </section>
@@ -395,8 +422,8 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
         <!-- projects -->
         <section :class="card" aria-labelledby="dash-projects">
           <header class="flex items-center justify-between px-5 pt-4 pb-2">
-            <h2 id="dash-projects" class="text-sm font-semibold text-neutral-900">Projects</h2>
-            <RouterLink to="/projects" class="text-xs text-neutral-500 hover:text-neutral-900">All →</RouterLink>
+            <h2 id="dash-projects" class="text-sm font-semibold text-neutral-900">{{ $t('dashboard.projects') }}</h2>
+            <RouterLink to="/projects" class="text-xs text-neutral-500 hover:text-neutral-900">{{ $t('dashboard.all') }}</RouterLink>
           </header>
           <ul v-if="activeProjects.length" class="space-y-1 px-2 pb-3">
             <li v-for="p in activeProjects" :key="p.id">
@@ -409,16 +436,16 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
                   <div class="h-full rounded-full bg-emerald-500 transition-[width] duration-500" :style="{ width: `${progress(p)}%` }" />
                 </div>
                 <p class="mt-1.5 text-xs text-neutral-400">
-                  {{ p.open_tasks ? `${p.open_tasks} open · ` : '' }}{{ p.total_tasks - p.open_tasks }} of {{ p.total_tasks }} closed
+                  {{ p.open_tasks ? $t('dashboard.openOf', { n: p.open_tasks }) : '' }}{{ $t('dashboard.closedOf', { closed: p.total_tasks - p.open_tasks, total: p.total_tasks }) }}
                 </p>
               </RouterLink>
             </li>
           </ul>
           <p v-else class="px-5 pt-2 pb-6 text-sm text-neutral-400">
-            <template v-if="!loaded">Loading…</template>
+            <template v-if="!loaded">{{ $t('common.loading') }}</template>
             <template v-else>
-              No projects with tasks yet.
-              <RouterLink to="/projects" class="font-medium text-neutral-700 underline-offset-4 hover:underline">Create one</RouterLink>
+              {{ $t('dashboard.noProjects') }}
+              <RouterLink to="/projects" class="font-medium text-neutral-700 underline-offset-4 hover:underline">{{ $t('dashboard.createOne') }}</RouterLink>
             </template>
           </p>
         </section>
@@ -426,8 +453,8 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
         <!-- reports: the freelancer's and the owner's -->
         <section v-if="seesMoney" :class="card" aria-labelledby="dash-reports">
           <header class="flex items-center justify-between px-5 pt-4 pb-2">
-            <h2 id="dash-reports" class="text-sm font-semibold text-neutral-900">Reports</h2>
-            <RouterLink to="/reports" class="text-xs text-neutral-500 hover:text-neutral-900">All →</RouterLink>
+            <h2 id="dash-reports" class="text-sm font-semibold text-neutral-900">{{ $t('dashboard.reports') }}</h2>
+            <RouterLink to="/reports" class="text-xs text-neutral-500 hover:text-neutral-900">{{ $t('dashboard.all') }}</RouterLink>
           </header>
           <ul v-if="latestReports.length" class="space-y-1 px-2 pb-3">
             <li v-for="r in latestReports" :key="r.id">
@@ -435,16 +462,16 @@ const card = 'rounded-xl border border-neutral-200 bg-white'
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-medium text-neutral-900">{{ r.title }}</p>
                   <p class="truncate text-xs text-neutral-400">
-                    {{ r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : `${r.item_count} ${r.item_count === 1 ? 'task' : 'tasks'}` }}
+                    {{ r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : $t('dashboard.tasksCount', { n: r.item_count }, r.item_count) }}
                   </p>
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ring-1 ring-inset" :class="REPORT_TONE[r.status]">
-                  {{ r.status === 'draft' && !r.client ? 'personal' : r.status }}
+                  {{ $t(`dashboard.reportStatus.${r.status === 'draft' && !r.client ? 'personal' : r.status}`) }}
                 </span>
               </RouterLink>
             </li>
           </ul>
-          <p v-else class="px-5 pt-2 pb-6 text-sm text-neutral-400">{{ loaded ? 'No reports yet.' : 'Loading…' }}</p>
+          <p v-else class="px-5 pt-2 pb-6 text-sm text-neutral-400">{{ loaded ? $t('dashboard.noReports') : $t('common.loading') }}</p>
         </section>
       </div>
     </div>

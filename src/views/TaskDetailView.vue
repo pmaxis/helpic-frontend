@@ -35,12 +35,12 @@ function goBack() {
     >
       <template #nav>
         <!-- back, then breadcrumbs -->
-        <nav class="flex items-center gap-1.5 text-sm text-neutral-500" aria-label="Breadcrumb">
+        <nav class="flex items-center gap-1.5 text-sm text-neutral-500" :aria-label="$t('taskPage.breadcrumb')">
           <button
             type="button"
             class="-ml-1.5 mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-            aria-label="Back"
-            title="Back"
+            :aria-label="$t('taskPage.back')"
+            :title="$t('taskPage.back')"
             @click="goBack"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
@@ -48,7 +48,7 @@ function goBack() {
               <polyline points="12 19 5 12 12 5" />
             </svg>
           </button>
-          <RouterLink to="/tasks" class="hover:text-neutral-900">Tasks</RouterLink>
+          <RouterLink to="/tasks" class="hover:text-neutral-900">{{ $t('tasks.title') }}</RouterLink>
           <template v-if="task?.project">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-neutral-300" aria-hidden="true">
               <polyline points="9 18 15 12 9 6" />

@@ -29,29 +29,29 @@ function onSubmit() {
   <AuthLayout>
     <AuthCard
       v-if="sentTo"
-      title="Check your email"
-      :subtitle="`If ${sentTo} has a Helpic account, we sent it a link to set a new password. It works for an hour.`"
+      :title="$t('forgot.sentTitle')"
+      :subtitle="$t('forgot.sentSubtitle', { email: sentTo })"
     >
       <p class="text-sm text-neutral-500">
-        Nothing there? Check the spam folder, or
-        <button type="button" class="font-medium text-neutral-900 underline-offset-4 hover:underline" @click="sentTo = ''">try another email</button>.
+        {{ $t('forgot.nothingThere') }}
+        <button type="button" class="font-medium text-neutral-900 underline-offset-4 hover:underline" @click="sentTo = ''">{{ $t('forgot.tryAnother') }}</button>.
       </p>
       <template #footer>
-        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">Back to sign in</RouterLink>
+        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('forgot.back') }}</RouterLink>
       </template>
     </AuthCard>
 
-    <AuthCard v-else title="Forgot your password?" subtitle="Enter your email and we'll send you a link to set a new one.">
+    <AuthCard v-else :title="$t('forgot.title')" :subtitle="$t('forgot.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
-        <BaseInput v-bind="form.field('email')" label="Email" type="email" autocomplete="email" placeholder="you@example.com" size="lg" />
+        <BaseInput v-bind="form.field('email')" :label="$t('login.email')" type="email" autocomplete="email" :placeholder="$t('login.emailPlaceholder')" size="lg" />
         <div class="pt-1">
-          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">Send the link</BaseButton>
+          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">{{ $t('forgot.submit') }}</BaseButton>
         </div>
       </form>
       <template #footer>
-        Remembered it?
-        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">Sign in</RouterLink>
+        {{ $t('forgot.remembered') }}
+        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('login.submit') }}</RouterLink>
       </template>
     </AuthCard>
   </AuthLayout>

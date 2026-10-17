@@ -13,6 +13,7 @@ import SidebarSection from '@/components/navigation/SidebarSection.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import NotificationBell from '@/components/navigation/NotificationBell.vue'
 import { NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
+import { useI18n } from 'vue-i18n'
 
 withDefaults(
   defineProps<{
@@ -52,11 +53,17 @@ function toggleCollapsed() {
   }
 }
 
+const { t } = useI18n()
+
+/** The sidebar for this user's role, in the interface's language. */
 const navSections = computed(() => {
   if (!auth.user) return []
-  const sections = NAV_SECTIONS[auth.user.role]
-  if (!auth.isTeamMember) return sections
-  return sections.map((s) => ({ ...s, items: s.items.filter((i) => !OWNER_ONLY_PATHS.includes(i.to)) }))
+  return NAV_SECTIONS[auth.user.role].map((s) => ({
+    label: s.label ? t(`nav.${s.label}`) : '',
+    items: s.items
+      .filter((i) => !auth.isTeamMember || !OWNER_ONLY_PATHS.includes(i.to))
+      .map((i) => ({ ...i, label: t(`nav.${i.label}`) })),
+  }))
 })
 const displayName = computed(() => auth.user?.name || auth.user?.email || '')
 const initials = computed(() => {
@@ -101,8 +108,8 @@ async function handleLogout() {
     >
       <button
         type="button"
-        title="Toggle sidebar"
-        aria-label="Toggle sidebar"
+:title="$t('sidebar.toggle')"
+        :aria-label="$t('sidebar.toggle')"
         class="absolute top-8 -right-3 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition-colors hover:bg-neutral-100 hover:text-neutral-900 md:flex"
         @click="toggleCollapsed"
       >
@@ -143,7 +150,7 @@ async function handleLogout() {
         <div :class="['flex items-center gap-1 rounded-md', collapsed ? 'flex-col gap-2' : '']">
           <RouterLink
             to="/settings"
-            :title="collapsed ? 'Settings' : undefined"
+            :title="collapsed ? $t('sidebar.settings') : undefined"
             :class="[
               'flex min-w-0 items-center rounded-md text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
               collapsed ? 'justify-center p-2' : 'flex-1 gap-3 px-2 py-2',
@@ -156,13 +163,13 @@ async function handleLogout() {
             </span>
             <span v-show="!collapsed" class="min-w-0 flex-1">
               <span class="block truncate text-sm font-medium text-neutral-900">{{ displayName }}</span>
-              <span class="block truncate text-xs text-neutral-400">{{ auth.user?.name ? auth.user.email : 'Settings' }}</span>
+              <span class="block truncate text-xs text-neutral-400">{{ auth.user?.name ? auth.user.email : $t('sidebar.settings') }}</span>
             </span>
           </RouterLink>
           <NotificationBell />
           <button
             type="button"
-            title="Log out"
+            :title="$t('sidebar.logOut')"
             :disabled="loggingOut"
             class="shrink-0 rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus:outline-none disabled:cursor-not-allowed disabled:text-neutral-300"
             @click="handleLogout"
@@ -182,6 +189,7 @@ async function handleLogout() {
         <button
           type="button"
           class="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus:outline-none"
+          :aria-label="$t('sidebar.openMenu')"
           @click="mobileOpen = true"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
