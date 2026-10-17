@@ -10,7 +10,7 @@ const tone = computed(() => (LABEL_COLORS[props.color] ?? LABEL_COLORS.gray).chi
 
 <template>
   <span
-    class="inline-flex max-w-full items-center truncate rounded-full font-medium ring-1 ring-inset"
+    class="inline-flex max-w-full items-center truncate rounded-md font-medium ring-1 ring-inset"
     :class="[tone, size === 'xs' ? 'px-1.5 py-px text-[10px] leading-4' : 'px-2 py-0.5 text-xs']"
   >
     {{ name }}

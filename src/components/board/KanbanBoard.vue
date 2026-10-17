@@ -405,6 +405,16 @@ async function remove() {
     removing.value = null
   }
 }
+
+/** Labels shown on a card; the rest fold into a "+N" chip. */
+const CARD_LABELS = 2
+
+function foldedLabelNames(t: Task): string {
+  return t.labels
+    .slice(CARD_LABELS)
+    .map((l) => l.name)
+    .join(', ')
+}
 </script>
 
 <template>
@@ -545,15 +555,31 @@ async function remove() {
                     @dragend="onDragEnd"
                   >
                     <RouterLink :to="{ name: 'task-detail', params: { id: t.id } }" class="block p-3" draggable="false">
-                      <p class="text-sm font-medium break-words text-neutral-900" :class="t.can_edit ? 'pr-6' : ''">
+                      <!-- two lines at most; the whole title is on hover and on the task's page -->
+                      <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="t.can_edit ? 'pr-6' : ''" :title="t.title">
                         {{ t.title }}
                       </p>
-                      <div v-if="t.labels.length" class="mt-1.5 flex flex-wrap gap-1">
-                        <LabelChip v-for="l in t.labels" :key="l.id" :name="l.name" :color="l.color" size="xs" />
+                      <!-- the project first, then the labels -->
+                      <div v-if="t.labels.length || (t.project && !hideProject)" class="mt-1.5 flex flex-wrap gap-1">
+                        <span
+                          v-if="t.project && !hideProject"
+                          class="inline-flex max-w-full items-center gap-1 rounded-md bg-neutral-100 px-1.5 py-px text-[10px] leading-4 font-medium text-neutral-600 ring-1 ring-neutral-200 ring-inset"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 shrink-0 text-neutral-400" aria-hidden="true">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          </svg>
+                          <span class="truncate">{{ t.project.name }}</span>
+                        </span>
+                        <LabelChip v-for="l in t.labels.slice(0, CARD_LABELS)" :key="l.id" :name="l.name" :color="l.color" size="xs" />
+                        <span
+                          v-if="t.labels.length > CARD_LABELS"
+                          class="inline-flex items-center rounded-md bg-white px-1.5 py-px text-[10px] leading-4 font-medium text-neutral-500 ring-1 ring-neutral-200 ring-inset"
+                          :title="foldedLabelNames(t)"
+                          :aria-label="$t('board.moreLabels', { names: foldedLabelNames(t) })"
+                        >
+                          +{{ t.labels.length - CARD_LABELS }}
+                        </span>
                       </div>
-                      <p v-if="t.project && !hideProject" class="mt-1.5 truncate text-xs text-neutral-500">
-                        {{ t.project.name }}
-                      </p>
                       <div class="mt-2 flex items-center justify-between gap-2 text-xs text-neutral-500">
                         <!-- the priority on the left, a grey dash when there's none; the due date and people on the right -->
                         <PriorityIcon :priority="t.priority" show-none />
