@@ -6,6 +6,7 @@
  * summary and tasks. Every change re-prints the preview.
  */
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { z } from 'zod'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -13,6 +14,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FormError from '@/components/auth/FormError.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import PdfPreview from '@/components/reports/PdfPreview.vue'
 import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
@@ -22,6 +24,8 @@ import { ApiRequestError } from '@/services/api'
 import { formatDate } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
+import { useForm } from '@/composables/useForm'
+import { LIMITS, optionalText, requiredText } from '@/utils/validation'
 import type { Report, ReportKind } from '@/types/reports'
 
 const reports = useReportsStore()
@@ -77,28 +81,28 @@ function changed(r: Report) {
 
 // --- editing a draft ------------------------------------------------------------------
 
-const form = ref({ title: '', summary: '' })
-const saving = ref(false)
+const form = useForm(
+  z.object({ title: requiredText('Title', LIMITS.reportTitle), summary: optionalText('Summary', LIMITS.reportSummary) }),
+  { title: '', summary: '' },
+)
 
 function syncForm() {
-  if (report.value) form.value = { title: report.value.title, summary: report.value.summary }
+  if (report.value) form.reset({ title: report.value.title, summary: report.value.summary })
 }
 
 const dirty = computed(
-  () => !!report.value && (form.value.title.trim() !== report.value.title || form.value.summary.trim() !== report.value.summary),
+  () =>
+    !!report.value &&
+    (form.values.title.trim() !== report.value.title || form.values.summary.trim() !== report.value.summary),
 )
 
-async function save() {
-  if (!report.value || !form.value.title.trim()) return
-  saving.value = true
-  try {
-    changed(await reports.updateReport(report.value.id, { title: form.value.title.trim(), summary: form.value.summary.trim() }))
+function save() {
+  const r = report.value
+  if (!r) return
+  void form.submit(async (data) => {
+    changed(await reports.updateReport(r.id, data))
     syncForm()
-  } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not save the report')
-  } finally {
-    saving.value = false
-  }
+  })
 }
 
 const switchingKind = ref(false)
@@ -359,11 +363,12 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           </div>
 
           <form class="space-y-4 border-b border-neutral-200 px-5 py-4" novalidate @submit.prevent="save">
-            <BaseInput v-model="form.title" label="Title" :error="form.title.trim() ? '' : 'Title is required'" />
-            <BaseTextarea v-model="form.summary" label="Summary" placeholder="Highlights, what's next… one point per line for a list." :rows="5" />
+            <FormError :message="form.formError" />
+            <BaseInput v-bind="form.field('title')" label="Title" />
+            <BaseTextarea v-bind="form.field('summary')" label="Summary" placeholder="Highlights, what's next… one point per line for a list." :rows="5" />
             <div class="flex justify-end gap-2">
-              <BaseButton v-if="dirty" variant="ghost" size="sm" :block="false" :disabled="saving" @click="syncForm">Reset</BaseButton>
-              <BaseButton type="submit" size="sm" :block="false" :loading="saving" :disabled="saving || !dirty || !form.title.trim()">Save</BaseButton>
+              <BaseButton v-if="dirty" variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="syncForm">Reset</BaseButton>
+              <BaseButton type="submit" size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting || !dirty">Save</BaseButton>
             </div>
           </form>
 

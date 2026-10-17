@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 withDefaults(
   defineProps<{
@@ -8,6 +9,7 @@ withDefaults(
     placeholder?: string
     rows?: number
     error?: string
+    required?: boolean
   }>(),
   { rows: 4 },
 )
@@ -22,7 +24,7 @@ const errorId = computed(() => `${textareaId}-error`)
 
 <template>
   <div>
-    <label :for="textareaId" class="block text-sm font-medium text-neutral-700">{{ label }}</label>
+    <FieldLabel :target="textareaId" :label="label" :required="required" />
     <textarea
       :id="textareaId"
       :value="modelValue"

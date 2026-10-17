@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import SelectInput from './SelectInput.vue'
+import FieldLabel from '@/components/ui/FieldLabel.vue'
 
 defineProps<{
   modelValue: string
@@ -8,6 +9,7 @@ defineProps<{
   options: { value: string; label: string }[]
   placeholder?: string
   error?: string
+  required?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,7 +22,7 @@ const errorId = computed(() => `${selectId}-error`)
 
 <template>
   <div>
-    <label :for="selectId" class="block text-sm font-medium text-neutral-700">{{ label }}</label>
+    <FieldLabel :target="selectId" :label="label" :required="required" />
     <SelectInput
       :id="selectId"
       class="mt-1.5"

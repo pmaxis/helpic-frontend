@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { z } from 'zod'
 import { useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
@@ -15,11 +16,11 @@ import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
 import { toast } from '@/composables/useToasts'
+import { useForm } from '@/composables/useForm'
+import { across, currentPassword, email, LIMITS, newPassword, optionalText, requiredText } from '@/utils/validation'
 import { CURRENCIES } from '@/utils/money'
 import { deviceName, formatDate, parseDevice, timeAgo } from '@/utils/format'
 import type { Session } from '@/types/auth'
-
-const MIN_PASSWORD = 8
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -40,45 +41,18 @@ const tab = computed<Tab>({
   set: (value) => void router.replace({ query: { ...route.query, tab: value === 'profile' ? undefined : value } }),
 })
 
-/** One form's state: values, per-field errors, a form-level error and a busy flag. */
-function useForm<T extends Record<string, string>>(initial: T) {
-  return reactive({
-    values: { ...initial },
-    errors: {} as Record<string, string>,
-    error: '',
-    saving: false,
-  })
-}
-
-async function submit(form: ReturnType<typeof useForm>, action: () => Promise<void>, done: string): Promise<boolean> {
-  form.error = ''
-  if (Object.values(form.errors).some(Boolean)) return false
-  form.saving = true
-  try {
-    await action()
-    toast.success(done)
-    return true
-  } catch (error) {
-    if (error instanceof ApiRequestError) {
-      if (error.fields) Object.assign(form.errors, error.fields)
-      form.error = error.fields ? '' : error.message
-    } else {
-      form.error = 'Something went wrong. Please try again.'
-    }
-    return false
-  } finally {
-    form.saving = false
-  }
-}
-
 // --- name -------------------------------------------------------------------
 
-const nameForm = useForm({ first_name: auth.user?.first_name ?? '', last_name: auth.user?.last_name ?? '' })
+const nameForm = useForm(
+  z.object({ first_name: requiredText('First name', LIMITS.name), last_name: optionalText('Last name', LIMITS.name) }),
+  { first_name: auth.user?.first_name ?? '', last_name: auth.user?.last_name ?? '' },
+)
 
-async function saveName() {
-  const v = nameForm.values
-  nameForm.errors = { first_name: v.first_name.trim() ? '' : 'First name is required' }
-  await submit(nameForm, () => auth.updateName(v.first_name.trim(), v.last_name.trim()), 'Name updated')
+function saveName() {
+  void nameForm.submit(async (data) => {
+    await auth.updateName(data.first_name, data.last_name)
+    toast.success('Name updated')
+  })
 }
 
 // --- currency (freelancers) ---------------------------------------------------
@@ -102,45 +76,41 @@ async function saveCurrency(currency: string) {
 
 // --- email ------------------------------------------------------------------
 
-const emailForm = useForm({ email: auth.user?.email ?? '', current_password: '' })
+const emailForm = useForm(z.object({ email: email(), current_password: currentPassword('Enter your current password') }), {
+  email: auth.user?.email ?? '',
+  current_password: '',
+})
 
-async function saveEmail() {
-  emailForm.errors = {
-    email: emailForm.values.email.trim() ? '' : 'Email is required',
-    current_password: emailForm.values.current_password ? '' : 'Enter your current password',
-  }
-  const ok = await submit(
-    emailForm,
-    () => auth.changeEmail({ email: emailForm.values.email.trim(), current_password: emailForm.values.current_password }),
-    'Email updated',
-  )
-  if (ok) {
-    emailForm.values.email = auth.user?.email ?? ''
-    emailForm.values.current_password = ''
-  }
+function saveEmail() {
+  void emailForm.submit(async (data) => {
+    await auth.changeEmail(data)
+    toast.success('Email updated')
+    emailForm.reset({ email: auth.user?.email ?? '' })
+  })
 }
 
 // --- password ---------------------------------------------------------------
 
-const passwordForm = useForm({ current_password: '', password: '', password_confirmation: '' })
+const passwordForm = useForm(
+  z
+    .object({
+      current_password: currentPassword('Enter your current password'),
+      password: newPassword(),
+      password_confirmation: currentPassword('Please confirm your new password'),
+    })
+    .refine(...across('password_confirmation', (v) => v.password === v.password_confirmation, 'Passwords do not match')),
+  { current_password: '', password: '', password_confirmation: '' },
+)
+/** Bumped to remount the form after a change, hiding any shown passwords. */
 const passwordKey = ref(0)
 
-async function savePassword() {
-  const v = passwordForm.values
-  passwordForm.errors = {
-    current_password: v.current_password ? '' : 'Enter your current password',
-    password: !v.password
-      ? 'Enter a new password'
-      : v.password.length < MIN_PASSWORD
-        ? `Password must be at least ${MIN_PASSWORD} characters`
-        : '',
-    password_confirmation: v.password !== v.password_confirmation ? 'Passwords do not match' : '',
-  }
-  const ok = await submit(passwordForm, () => auth.changePassword({ ...v }), 'Password changed')
-  if (ok) {
-    passwordForm.values = { current_password: '', password: '', password_confirmation: '' }
+function savePassword() {
+  void passwordForm.submit(async (data) => {
+    await auth.changePassword(data)
+    toast.success('Password changed')
+    passwordForm.reset()
     passwordKey.value++
-  }
+  })
 }
 
 // --- sessions ---------------------------------------------------------------
@@ -233,18 +203,17 @@ async function signOutOthers() {
             {{ auth.isClient ? 'Your freelancers see this name.' : 'Your clients see this name.' }}
           </p>
           <form class="mt-4 space-y-4" novalidate @submit.prevent="saveName">
-            <FormError :message="nameForm.error" />
+            <FormError :message="nameForm.formError" />
             <div class="grid gap-4 sm:grid-cols-2">
               <BaseInput
-                v-model="nameForm.values.first_name"
+                v-bind="nameForm.field('first_name')"
                 :label="auth.isClient ? 'First name or company' : 'First name'"
                 autocomplete="given-name"
-                :error="nameForm.errors.first_name"
               />
-              <BaseInput v-model="nameForm.values.last_name" label="Last name" autocomplete="family-name" :error="nameForm.errors.last_name" />
+              <BaseInput v-bind="nameForm.field('last_name')" label="Last name" autocomplete="family-name" />
             </div>
             <div class="flex justify-end">
-              <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.saving" :disabled="nameForm.saving">Save</BaseButton>
+              <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.submitting" :disabled="nameForm.submitting">Save</BaseButton>
             </div>
           </form>
         </section>
@@ -266,16 +235,15 @@ async function signOutOthers() {
       <section v-else-if="tab === 'email'" class="rounded-xl border border-neutral-200 p-5">
         <p class="text-sm text-neutral-500">You sign in with this email.</p>
         <form class="mt-4 space-y-4" novalidate @submit.prevent="saveEmail">
-          <FormError :message="emailForm.error" />
-          <BaseInput v-model="emailForm.values.email" label="Email" type="email" autocomplete="email" :error="emailForm.errors.email" />
+          <FormError :message="emailForm.formError" />
+          <BaseInput v-bind="emailForm.field('email')" label="Email" type="email" autocomplete="email" />
           <PasswordInput
-            v-model="emailForm.values.current_password"
+            v-bind="emailForm.field('current_password')"
             label="Current password"
             autocomplete="current-password"
-            :error="emailForm.errors.current_password"
           />
           <div class="flex justify-end">
-            <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.saving" :disabled="emailForm.saving">Change email</BaseButton>
+            <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">Change email</BaseButton>
           </div>
         </form>
       </section>
@@ -380,28 +348,25 @@ async function signOutOthers() {
       <section v-else class="rounded-xl border border-neutral-200 p-5">
         <p class="text-sm text-neutral-500">Confirm the change with your current password. Your other devices will be signed out.</p>
         <form :key="passwordKey" class="mt-4 space-y-4" novalidate @submit.prevent="savePassword">
-          <FormError :message="passwordForm.error" />
+          <FormError :message="passwordForm.formError" />
           <PasswordInput
-            v-model="passwordForm.values.current_password"
+            v-bind="passwordForm.field('current_password')"
             label="Current password"
             autocomplete="current-password"
-            :error="passwordForm.errors.current_password"
           />
           <PasswordInput
-            v-model="passwordForm.values.password"
+            v-bind="passwordForm.field('password')"
             label="New password"
             autocomplete="new-password"
-            :hint="`At least ${MIN_PASSWORD} characters.`"
-            :error="passwordForm.errors.password"
+            :hint="`At least ${LIMITS.password} characters.`"
           />
           <PasswordInput
-            v-model="passwordForm.values.password_confirmation"
+            v-bind="passwordForm.field('password_confirmation')"
             label="Confirm new password"
             autocomplete="new-password"
-            :error="passwordForm.errors.password_confirmation"
           />
           <div class="flex justify-end">
-            <BaseButton type="submit" size="sm" :block="false" :loading="passwordForm.saving" :disabled="passwordForm.saving">
+            <BaseButton type="submit" size="sm" :block="false" :loading="passwordForm.submitting" :disabled="passwordForm.submitting">
               Change password
             </BaseButton>
           </div>

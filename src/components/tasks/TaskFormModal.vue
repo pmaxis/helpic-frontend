@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { z } from 'zod'
 import Modal from '@/components/ui/Modal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
@@ -10,8 +11,9 @@ import FormError from '@/components/auth/FormError.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
-import { ApiRequestError } from '@/services/api'
 import { priceInput } from '@/utils/money'
+import { useForm } from '@/composables/useForm'
+import { choice, LIMITS, optionalText, price, requiredText } from '@/utils/validation'
 import { PRIORITIES } from '@/constants/tasks'
 import type { Task, TaskInput, TaskPriority } from '@/types/tasks'
 import type { Project } from '@/types/projects'
@@ -45,30 +47,44 @@ const isEdit = computed(() => !!props.task)
 const personField = auth.isClient ? 'freelancer_id' : 'client_id'
 const personLabel = auth.isClient ? 'freelancer' : 'client'
 
-const form = reactive({
+/** A new task from a client goes to a freelancer, unless its project says who. */
+const needsPerson = !isEdit.value && auth.isClient && !props.projectId
+
+const schema = z.object({
   // A client must pick a freelancer; a freelancer's empty choice means a
   // personal task.
-  person_id:
-    props.personId && props.personId !== 'personal'
-      ? props.personId
-      : auth.isClient && props.people?.length === 1
-        ? props.people[0].id
-        : '',
-  project_id: props.projectId ?? props.task?.project?.id ?? '',
-  title: props.task?.title ?? '',
-  description: props.task?.description ?? '',
-  due_on: props.task?.due_on ?? '',
-  price: priceInput(props.task?.price_cents ?? null),
-  priority: (props.task?.priority ?? 'none') as TaskPriority,
+  person_id: needsPerson ? choice(`Choose a ${personLabel}`) : z.string(),
+  project_id: z.string(),
+  title: requiredText('Title', LIMITS.taskTitle),
+  description: optionalText('Description', LIMITS.taskDescription),
+  due_on: z.string(),
+  price: price(),
+  // Always set: the select has no empty option.
+  priority: z.string(),
 })
+const form = useForm(
+  schema,
+  {
+    person_id:
+      props.personId && props.personId !== 'personal'
+        ? props.personId
+        : auth.isClient && props.people?.length === 1
+          ? props.people[0].id
+          : '',
+    project_id: props.projectId ?? props.task?.project?.id ?? '',
+    title: props.task?.title ?? '',
+    description: props.task?.description ?? '',
+    due_on: props.task?.due_on ?? '',
+    price: priceInput(props.task?.price_cents ?? null),
+    priority: props.task?.priority ?? 'none',
+  },
+  { serverFields: { [personField]: 'person_id' } },
+)
 const priorityOptions = PRIORITIES.map((p) => ({ value: p.value, label: p.label }))
 
 /** The freelancer prices the task: on create, or on edit when it's theirs to price. */
 const showPrice = computed(() => (props.task ? props.task.can_set_price : auth.isFreelancer))
 const priceCurrency = computed(() => props.task?.currency ?? auth.user?.currency ?? 'USD')
-const fieldErrors = reactive<Record<string, string>>({})
-const formError = ref('')
-const saving = ref(false)
 
 onMounted(() => {
   if (!projects.loaded) void projects.fetchProjects().catch(() => {})
@@ -87,7 +103,7 @@ const personOptions = computed(() => [
 /** The other side of the task: the edited task's, or the one picked in the form ('' = personal). */
 const pairOther = computed(() => {
   if (props.task) return (auth.isClient ? props.task.freelancer.id : props.task.client?.id) ?? ''
-  return form.person_id
+  return form.values.person_id
 })
 
 /** Projects with the same freelancer and client as the task. */
@@ -102,54 +118,33 @@ const projectOptions = computed(() => [
 
 // Picking someone else drops a project that belongs to another pair.
 watch(
-  () => form.person_id,
+  () => form.values.person_id,
   () => {
-    const p = projects.projects.find((x) => x.id === form.project_id)
-    if (p && !sharesPair(p)) form.project_id = ''
+    const p = projects.projects.find((x) => x.id === form.values.project_id)
+    if (p && !sharesPair(p)) form.values.project_id = ''
   },
 )
 
-async function submit() {
-  for (const k of Object.keys(fieldErrors)) fieldErrors[k] = ''
-  formError.value = ''
-  const needsPerson = !isEdit.value && auth.isClient && !form.project_id
-  if (needsPerson && !form.person_id) fieldErrors[personField] = `Choose a ${personLabel}`
-  if (!form.title.trim()) fieldErrors.title = 'Title is required'
-  if (fieldErrors[personField] || fieldErrors.title) return
-
-  const input: TaskInput = {
-    title: form.title.trim(),
-    description: form.description.trim(),
-    due_on: form.due_on || null,
-  }
-  saving.value = true
-  try {
+function submit() {
+  void form.submit(async (data) => {
+    const priority = data.priority as TaskPriority
+    const input: TaskInput = { title: data.title, description: data.description, due_on: data.due_on || null }
     let task: Task
     if (props.task) {
-      task = await tasks.updateTask(props.task.id, { ...input, project_id: form.project_id })
+      task = await tasks.updateTask(props.task.id, { ...input, project_id: data.project_id })
       // The price has its own endpoint: the freelancer may set it whoever made the task.
-      const price = form.price.trim()
-      if (showPrice.value && price !== priceInput(props.task.price_cents)) task = await tasks.setPrice(task.id, price || null)
+      if (showPrice.value && data.price !== priceInput(props.task.price_cents)) task = await tasks.setPrice(task.id, data.price || null)
       // So has the priority: either side sets it, in any status.
-      if (form.priority !== props.task.priority) task = await tasks.setPriority(task.id, form.priority)
+      if (priority !== props.task.priority) task = await tasks.setPriority(task.id, priority)
     } else {
-      const create: TaskInput = { ...input, status_id: props.statusId, priority: form.priority }
-      if (showPrice.value && form.price.trim()) create.price = form.price.trim()
-      if (form.project_id) create.project_id = form.project_id
-      else if (form.person_id) create[personField] = form.person_id
+      const create: TaskInput = { ...input, status_id: props.statusId, priority }
+      if (showPrice.value && data.price) create.price = data.price
+      if (data.project_id) create.project_id = data.project_id
+      else if (data.person_id) create[personField] = data.person_id
       task = await tasks.createTask(create)
     }
     emit('saved', task)
-  } catch (error) {
-    if (error instanceof ApiRequestError) {
-      if (error.fields) Object.assign(fieldErrors, error.fields)
-      formError.value = error.fields ? '' : error.message
-    } else {
-      formError.value = 'Something went wrong. Please try again.'
-    }
-  } finally {
-    saving.value = false
-  }
+  })
 }
 </script>
 
@@ -160,7 +155,7 @@ async function submit() {
       <p>Ask your freelancer to send you an invitation link.</p>
     </div>
     <form v-else id="task-form" class="space-y-4" novalidate @submit.prevent="submit">
-      <FormError :message="formError" />
+      <FormError :message="form.formError" />
 
       <p v-if="fixedProject" class="text-sm text-neutral-500">
         In <span class="font-medium text-neutral-900">{{ fixedProject.name }}</span>
@@ -171,42 +166,23 @@ async function submit() {
       <template v-else>
         <BaseSelect
           v-if="!isEdit && !statusId && personOptions.length > 1"
-          v-model="form.person_id"
+          v-bind="form.field('person_id')"
           :label="auth.isClient ? 'Freelancer' : 'Client'"
           :placeholder="auth.isClient ? `Choose a ${personLabel}` : undefined"
           :options="personOptions"
-          :error="fieldErrors[personField]"
         />
-        <BaseSelect
-          v-if="projectOptions.length > 1"
-          v-model="form.project_id"
-          label="Project"
-          :options="projectOptions"
-          :error="fieldErrors.project_id"
-        />
-        <p v-if="!isEdit && auth.isFreelancer && !form.person_id" class="text-sm text-neutral-500">
+        <BaseSelect v-if="projectOptions.length > 1" v-bind="form.field('project_id')" label="Project" :options="projectOptions" />
+        <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">
           A personal task — only you see it.
         </p>
       </template>
 
-      <BaseInput v-model="form.title" label="Title" placeholder="What needs to be done?" :error="fieldErrors.title" required />
-      <BaseTextarea
-        v-model="form.description"
-        label="Description"
-        placeholder="Details, links, acceptance criteria…"
-        :rows="6"
-        :error="fieldErrors.description"
-      />
+      <BaseInput v-bind="form.field('title')" label="Title" placeholder="What needs to be done?" />
+      <BaseTextarea v-bind="form.field('description')" label="Description" placeholder="Details, links, acceptance criteria…" :rows="6" />
       <div class="grid gap-4" :class="showPrice ? 'sm:grid-cols-3' : 'sm:grid-cols-2'">
-        <DateInput v-model="form.due_on" label="Due date" placeholder="No due date" :error="fieldErrors.due_on" />
-        <BaseSelect v-model="form.priority" label="Priority" :options="priorityOptions" :error="fieldErrors.priority" />
-        <BaseInput
-          v-if="showPrice"
-          v-model="form.price"
-          :label="`Price, ${priceCurrency}`"
-          placeholder="No price"
-          :error="fieldErrors.price"
-        />
+        <DateInput v-bind="form.field('due_on')" label="Due date" placeholder="No due date" />
+        <BaseSelect v-bind="form.field('priority')" label="Priority" :options="priorityOptions" />
+        <BaseInput v-if="showPrice" v-bind="form.field('price')" :label="`Price, ${priceCurrency}`" placeholder="No price" />
       </div>
     </form>
 
@@ -214,8 +190,8 @@ async function submit() {
       <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">Close</BaseButton>
     </template>
     <template v-else #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @click="emit('close')">Cancel</BaseButton>
-      <BaseButton size="sm" :block="false" :loading="saving" :disabled="saving" @click="submit">
+      <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">Cancel</BaseButton>
+      <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
         {{ isEdit ? 'Save' : 'Create task' }}
       </BaseButton>
     </template>

@@ -5,7 +5,8 @@
  * with the company's freelancers but don't see its reports. A member sees
  * whose team they're on.
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { z } from 'zod'
 import { useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
@@ -13,10 +14,11 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FormError from '@/components/auth/FormError.vue'
-import { ApiRequestError } from '@/services/api'
 import { fetchTeam, inviteToTeam, removeTeamMember, renameTeam, revokeTeamInvite, teamInviteLink } from '@/services/team'
 import { copyText, formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
+import { useForm } from '@/composables/useForm'
+import { email, LIMITS, optionalText } from '@/utils/validation'
 import type { Team, TeamInvite, TeamMember } from '@/types/team'
 
 const route = useRoute()
@@ -41,7 +43,7 @@ const loadError = ref('')
 async function load() {
   try {
     team.value = await fetchTeam()
-    companyName.value = team.value.name
+    nameForm.reset({ name: team.value.name })
   } catch {
     loadError.value = 'Could not load the team.'
   }
@@ -57,58 +59,32 @@ function initials(name: string): string {
 
 // --- the company's name --------------------------------------------------------------
 
-const companyName = ref('')
-const savingName = ref(false)
-const nameDirty = computed(() => !!team.value && companyName.value.trim() !== team.value.name)
+const nameForm = useForm(z.object({ name: optionalText('The name', LIMITS.companyName) }), { name: '' })
+const nameDirty = computed(() => !!team.value && nameForm.values.name.trim() !== team.value.name)
 
-async function saveName() {
+function saveName() {
   if (!nameDirty.value) return
-  savingName.value = true
-  try {
-    team.value = await renameTeam(companyName.value)
-    companyName.value = team.value.name
+  void nameForm.submit(async (data) => {
+    team.value = await renameTeam(data.name)
+    nameForm.reset({ name: team.value.name })
     toast.success('Company name saved')
-  } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : 'Could not save the name')
-  } finally {
-    savingName.value = false
-  }
+  })
 }
 
 // --- inviting -------------------------------------------------------------------------
 
-const inviteForm = reactive({ email: '', name: '' })
-const inviteErrors = reactive<Record<string, string>>({})
-const inviteError = ref('')
-const inviting = ref(false)
+const inviteForm = useForm(z.object({ email: email(), name: optionalText('Name', LIMITS.name) }), { email: '', name: '' })
 /** The link of the invitation just made, shown to copy. */
 const freshLink = ref('')
 
-async function invite() {
-  for (const k of Object.keys(inviteErrors)) inviteErrors[k] = ''
-  inviteError.value = ''
-  if (!inviteForm.email.trim()) {
-    inviteErrors.email = 'Email is required'
-    return
-  }
-  inviting.value = true
-  try {
-    const inv = await inviteToTeam(inviteForm.email.trim(), inviteForm.name.trim())
+function invite() {
+  void inviteForm.submit(async (data) => {
+    const inv = await inviteToTeam(data.email, data.name)
     team.value?.invites?.unshift(inv)
     freshLink.value = teamInviteLink(inv.token)
-    inviteForm.email = ''
-    inviteForm.name = ''
+    inviteForm.reset()
     void copy(freshLink.value)
-  } catch (error) {
-    if (error instanceof ApiRequestError) {
-      if (error.fields) Object.assign(inviteErrors, error.fields)
-      inviteError.value = error.fields ? '' : error.message
-    } else {
-      inviteError.value = 'Something went wrong. Please try again.'
-    }
-  } finally {
-    inviting.value = false
-  }
+  })
 }
 
 async function copy(link: string) {
@@ -200,22 +176,23 @@ async function remove() {
           <p class="text-sm text-neutral-500">
             Bring in your employees and contractors. They see the work with your freelancers and can set tasks; the reports stay yours.
           </p>
-          <form class="mt-4 flex flex-wrap items-end gap-3" novalidate @submit.prevent="saveName">
-            <BaseInput v-model="companyName" label="Company name" placeholder="e.g. Acme Inc" class="min-w-56 flex-1" />
-            <BaseButton type="submit" :block="false" class="h-[38px]" :loading="savingName" :disabled="!nameDirty">Save</BaseButton>
+          <form class="mt-4 flex flex-wrap items-start gap-3" novalidate @submit.prevent="saveName">
+            <BaseInput v-bind="nameForm.field('name')" label="Company name" placeholder="e.g. Acme Inc" class="min-w-56 flex-1" />
+            <BaseButton type="submit" :block="false" class="mt-[26px] h-[38px]" :loading="nameForm.submitting" :disabled="!nameDirty">Save</BaseButton>
           </form>
+          <FormError class="mt-3" :message="nameForm.formError" />
         </section>
 
         <!-- invite -->
         <template v-else-if="tab === 'invite'">
           <section class="rounded-xl border border-neutral-200 p-5">
             <p class="text-sm text-neutral-500">They get a link, set a password and join with a new account.</p>
-            <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" novalidate @submit.prevent="invite">
-              <BaseInput v-model="inviteForm.email" label="Email" type="email" placeholder="name@company.com" :error="inviteErrors.email" />
-              <BaseInput v-model="inviteForm.name" label="Name (optional)" placeholder="Pre-fills their sign-up" :error="inviteErrors.name" />
-              <BaseButton type="submit" :block="false" class="h-[38px]" :loading="inviting">Invite</BaseButton>
+            <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start" novalidate @submit.prevent="invite">
+              <BaseInput v-bind="inviteForm.field('email')" label="Email" type="email" placeholder="name@company.com" />
+              <BaseInput v-bind="inviteForm.field('name')" label="Name" placeholder="Pre-fills their sign-up" />
+              <BaseButton type="submit" :block="false" class="h-[38px] sm:mt-[26px]" :loading="inviteForm.submitting">Invite</BaseButton>
             </form>
-            <FormError class="mt-3" :message="inviteError" />
+            <FormError class="mt-3" :message="inviteForm.formError" />
             <div v-if="freshLink" class="mt-4 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 ring-1 ring-neutral-200 ring-inset">
               <span class="min-w-0 flex-1 truncate font-mono text-xs text-neutral-700">{{ freshLink }}</span>
               <BaseButton variant="ghost" size="sm" :block="false" @click="copy(freshLink)">Copy link</BaseButton>
