@@ -1,0 +1,116 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import NewReportModal from '@/components/reports/NewReportModal.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useReportsStore } from '@/stores/reports'
+import { formatDate } from '@/utils/format'
+import { toast } from '@/composables/useToasts'
+import type { Report } from '@/types/reports'
+
+const auth = useAuthStore()
+const reports = useReportsStore()
+const router = useRouter()
+const creating = ref(false)
+
+onMounted(async () => {
+  try {
+    await reports.fetchReports()
+  } catch {
+    toast.error('Could not load reports')
+  }
+})
+
+function other(r: Report) {
+  return auth.isClient ? r.freelancer : r.client
+}
+
+function period(r: Report): string {
+  return r.from === r.to ? formatDate(r.from) : `${formatDate(r.from)} – ${formatDate(r.to)}`
+}
+
+function onCreated(r: Report) {
+  creating.value = false
+  void router.push({ name: 'report-detail', params: { id: r.id } })
+}
+</script>
+
+<template>
+  <DashboardLayout>
+    <PageHeader title="Reports">
+      <template v-if="auth.isFreelancer" #actions>
+        <BaseButton size="sm" :block="false" @click="creating = true">New report</BaseButton>
+      </template>
+    </PageHeader>
+
+    <div v-if="reports.loaded && !reports.reports.length" class="mt-6">
+      <EmptyState
+        v-if="auth.isFreelancer"
+        title="No reports yet"
+        description="Report the work you finished over a period — send it to a client, or download it as PDF."
+      >
+        <BaseButton size="sm" :block="false" @click="creating = true">New report</BaseButton>
+      </EmptyState>
+      <EmptyState v-else title="No reports yet" description="Reports your freelancers send you show up here." />
+    </div>
+
+    <div v-else-if="reports.reports.length" class="mt-6 overflow-hidden rounded-xl border border-neutral-200">
+      <div
+        class="hidden gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase md:grid md:grid-cols-[minmax(0,1fr)_11rem_12rem_5rem_7rem]"
+        aria-hidden="true"
+      >
+        <span>Report</span>
+        <span>{{ auth.isClient ? 'Freelancer' : 'Client' }}</span>
+        <span>Period</span>
+        <span class="text-right">Tasks</span>
+        <span class="text-right">Status</span>
+      </div>
+      <ul class="divide-y divide-neutral-100">
+        <li v-for="r in reports.reports" :key="r.id">
+          <RouterLink
+            :to="{ name: 'report-detail', params: { id: r.id } }"
+            class="grid grid-cols-1 gap-x-4 gap-y-1.5 px-4 py-3 transition-colors hover:bg-neutral-50 md:grid-cols-[minmax(0,1fr)_11rem_12rem_5rem_7rem] md:items-center"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6M8 13h8M8 17h5" />
+                </svg>
+              </span>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-neutral-900">{{ r.title }}</p>
+                <p v-if="r.projects.length" class="truncate text-xs text-neutral-500">{{ r.projects.map((p) => p.name).join(', ') }}</p>
+              </div>
+            </div>
+            <span class="truncate text-sm" :class="other(r) ? 'text-neutral-700' : 'text-neutral-400'">
+              {{ other(r) ? other(r)?.name || other(r)?.email : 'Personal' }}
+            </span>
+            <span class="text-sm text-neutral-600">{{ period(r) }}</span>
+            <span class="text-sm text-neutral-700 md:text-right">{{ r.item_count }}</span>
+            <span class="md:text-right">
+              <span
+                class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
+                :class="
+                  r.status === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                    : r.status === 'sent'
+                      ? 'bg-sky-50 text-sky-700 ring-sky-600/20'
+                      : 'bg-neutral-100 text-neutral-600 ring-neutral-500/20'
+                "
+              >
+                {{ r.status === 'paid' ? 'Paid' : r.status === 'sent' ? 'Sent' : r.client ? 'Draft' : 'Personal' }}
+              </span>
+            </span>
+          </RouterLink>
+        </li>
+      </ul>
+    </div>
+
+    <NewReportModal v-if="creating" @close="creating = false" @created="onCreated" />
+  </DashboardLayout>
+</template>
