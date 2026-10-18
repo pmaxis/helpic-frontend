@@ -97,11 +97,23 @@ watch(boardWith, () => {
   boardProjects.value = boardProjects.value.filter((id) => projectOptions.value.some((o) => o.value === id))
 })
 
+/** One selected project opens that project's own columns. Several, or all of them, merge. */
+const boardProject = computed(() => {
+  const picked = boardProjects.value.filter((id) => id !== 'none')
+  return picked.length === 1 && boardProjects.value.length === 1 ? picked[0] : ''
+})
+
 async function load() {
   loadError.value = ''
   try {
     if (view.value === 'board') {
-      if (boardWith.value) await board.fetchBoard({ with: boardWith.value, projects: boardProjects.value })
+      if (boardWith.value) {
+        await board.fetchBoard({
+          with: boardWith.value,
+          project: boardProject.value || undefined,
+          projects: boardProject.value ? undefined : boardProjects.value,
+        })
+      }
     } else {
       const statuses = STATUS_FILTERS.find((f) => f.value === filter.value)?.statuses ?? []
       await tasks.fetchTasks({ statuses, with: withId.value })

@@ -4,10 +4,10 @@
  * pair's workflow statuses; dropping a card into a column sets the task's
  * status (native HTML5 drag and drop). Every column belongs to a category, and
  * a card can only go to a column whose category the user's role allows. The
- * freelancer manages the columns — reorders them by dragging the header,
- * renames them by clicking the name, and adds, edits, moves and removes them
- * from the header menu; the client only moves cards. A card's pencil button
- * edits the task, for whoever may.
+ * freelancer, or the project's author, manages the columns: reorders them by
+ * dragging the header, renames them by clicking the name, and adds, edits and
+ * removes them from the header menu. Anyone else only moves cards. A card's
+ * pencil button edits the task, for whoever may.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -20,7 +20,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
 import { ApiRequestError } from '@/services/api'
-import { columnName, STATUS_DOT, statusLabel } from '@/constants/tasks'
+import { columnName, STATUS_DOT } from '@/constants/tasks'
 import { t as tr } from '@/i18n'
 import { formatDate, isOverdue } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
@@ -36,14 +36,14 @@ const auth = useAuthStore()
 const board = useBoardStore()
 
 /**
- * Whether the user can add a task straight into a column. A new task starts
- * as "new", so the column's status must be one the user may move it to: any
- * for a freelancer, only New (or Cancelled) for a client.
+ * Whether the user can add a task straight into a column. The freelancer and
+ * whoever manages this board may use any column. Everyone else only uses a
+ * category the owner opened to participants.
  */
 function canCreateIn(col: BoardColumn): boolean {
   // An all-board lane spans several boards, so it can't say which one a new task is for.
   if (board.merged) return false
-  return auth.isFreelancer || col.category === 'new' || col.category === 'cancelled'
+  return auth.isFreelancer || board.canManage || col.participants_can_move
 }
 
 function open(t: Task) {
@@ -64,10 +64,14 @@ const dragging = ref<Task | null>(null)
 /** Where the dragged card would land: a column and an index in it. */
 const dropAt = ref<{ columnId: string; index: number } | null>(null)
 
-/** A card may go to a column of its own category, or of a category the user may move it to. */
+/** A card may stay in its category, or enter one this person is allowed to. */
 function canDrop(col: BoardColumn): boolean {
-  const t = dragging.value
-  return !!t && (t.status === col.category || t.next_statuses.includes(col.category))
+  const task = dragging.value
+  if (!task) return false
+  if (board.merged) return task.status === col.category || task.next_statuses.includes(col.category)
+  const from = board.columns.find((c) => c.id === task.status_id)
+  if (from && from.category_id === col.category_id) return true
+  return auth.isFreelancer || board.canManage || col.participants_can_move
 }
 
 /** Height of the dragged card, so the drop placeholder takes the same room. */
@@ -335,7 +339,7 @@ async function finishRename(col: BoardColumn) {
   const previous = col.name
   col.name = name
   try {
-    await board.updateColumn(col.id, { name, category: col.category })
+    await board.updateColumn(col.id, { name, category_id: col.category_id })
   } catch (error) {
     col.name = previous
     toast.error(error instanceof ApiRequestError ? error.message : tr('board.renameFailed'))
@@ -376,7 +380,7 @@ const removeDescription = computed(() => {
   const col = removing.value
   if (!col?.tasks?.length) return tr('board.emptyColumn')
   const n = col.tasks.length
-  return tr('board.tasksMove', { n, status: statusLabel(col.category) }, n)
+  return tr('board.tasksMove', { n, status: columnName(col.category_name || col.name) }, n)
 })
 
 function openRemove(col: BoardColumn) {
@@ -462,7 +466,7 @@ function foldedLabelNames(t: Task): string {
               @dragstart="onColumnDragStart($event, col)"
               @dragend="onColumnDragEnd"
             >
-              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="statusLabel(col.category)" />
+              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="columnName(col.category_name || col.name)" />
               <input
                 v-if="renamingId === col.id"
                 ref="renameInput"

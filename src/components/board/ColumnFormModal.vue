@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { z } from 'zod'
 import Modal from '@/components/ui/Modal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -6,12 +7,11 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormError from '@/components/auth/FormError.vue'
 import { useBoardStore } from '@/stores/board'
-import { STATUSES, statusLabel } from '@/constants/tasks'
-import { computed } from 'vue'
+import { columnName } from '@/constants/tasks'
 import { useForm } from '@/composables/useForm'
 import { LIMITS, requiredText } from '@/utils/validation'
+import { t } from '@/i18n'
 import type { BoardColumn } from '@/types/board'
-import type { TaskStatus } from '@/types/tasks'
 
 const props = defineProps<{
   /** Edit this column; without it the modal adds a new one. */
@@ -21,15 +21,20 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const board = useBoardStore()
-// The category is always set: the select has no empty option.
-const schema = z.object({ name: requiredText('thingName', LIMITS.columnName), category: z.string() })
-const form = useForm(schema, { name: props.column?.name ?? '', category: props.column?.category ?? 'in_progress' })
+const fallback =
+  board.categories.find((c) => c.effect === 'open' && !c.allows_delete)?.id ?? board.categories[0]?.id ?? ''
+const schema = z.object({
+  name: requiredText('thingName', LIMITS.columnName),
+  category_id: z.string().min(1, t('columnForm.category')),
+})
+const form = useForm(schema, { name: props.column?.name ?? '', category_id: props.column?.category_id || fallback })
 
-const statusOptions = computed(() => STATUSES.map((s) => ({ value: s, label: statusLabel(s) })))
+const options = computed(() => board.categories.map((c) => ({ value: c.id, label: columnName(c.name) })))
+const chosen = computed(() => board.categories.find((c) => c.id === form.values.category_id))
 
 function submit() {
   void form.submit(async (data) => {
-    const input = { name: data.name, category: data.category as TaskStatus }
+    const input = { name: data.name, category_id: data.category_id }
     if (props.column) await board.updateColumn(props.column.id, input)
     else await board.createColumn(input)
     emit('close')
@@ -42,14 +47,9 @@ function submit() {
     <form class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
       <BaseInput v-bind="form.field('name')" :label="$t('columnForm.name')" :placeholder="$t('columnForm.namePlaceholder')" />
-      <BaseSelect v-bind="form.field('category')" :label="$t('columnForm.category')" :options="statusOptions" />
-      <p class="text-sm text-neutral-500">
-        {{
-          $t('columnForm.explain', {
-            name: form.values.name.trim() || $t('columnForm.thisColumn'),
-            category: statusLabel(form.values.category as TaskStatus),
-          })
-        }}
+      <BaseSelect v-bind="form.field('category_id')" :label="$t('columnForm.category')" :options="options" />
+      <p v-if="chosen" class="text-sm text-neutral-500">
+        {{ $t('columnForm.explain', { category: columnName(chosen.name) }) }}
       </p>
     </form>
 

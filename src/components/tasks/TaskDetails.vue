@@ -80,6 +80,8 @@ const notFound = ref(false)
 const busy = ref(false)
 /** The task's board columns — the statuses it can take. */
 const columns = ref<BoardColumn[]>([])
+/** The viewer manages this board, so they may move a task into any category. */
+const canManageBoard = ref(false)
 const editing = ref(false)
 const confirmDelete = ref(false)
 const deleting = ref(false)
@@ -109,14 +111,22 @@ function isMe(id: string | undefined): boolean {
 }
 
 /**
- * Statuses the viewer may put the task in: its own and the other columns of
- * its category, plus columns of categories their role allows.
+ * Columns the viewer may put the task in: its own category, any category the
+ * owner opened to participants, and every category when they manage the board.
  */
 const statusOptions = computed(() => {
   const t = task.value
   if (!t) return []
+  const current = columns.value.find((c) => c.id === t.status_id)
   return columns.value
-    .filter((c) => c.id === t.status_id || c.category === t.status || t.next_statuses.includes(c.category))
+    .filter(
+      (c) =>
+        c.id === t.status_id ||
+        (!!current && c.category_id === current.category_id) ||
+        canManageBoard.value ||
+        auth.isFreelancer ||
+        c.participants_can_move,
+    )
     .map((c) => ({ value: c.id, label: columnName(c.name) }))
 })
 
@@ -136,8 +146,17 @@ async function load(id: string) {
   if (task.value.can_edit && !projects.loaded) void projects.fetchProjects().catch(() => {})
   const t = task.value
   try {
-    const data = await fetchColumns(boardScope.value)
-    if (task.value?.id === t.id) columns.value = data.columns
+    const scope = t.project ? { project: t.project.id } : boardScope.value
+    let data
+    try {
+      data = await fetchColumns(scope)
+    } catch {
+      data = await fetchColumns(boardScope.value)
+    }
+    if (task.value?.id === t.id) {
+      columns.value = data.columns
+      canManageBoard.value = data.can_manage
+    }
   } catch {
     // Without the columns the status just can't be changed from here.
   }
