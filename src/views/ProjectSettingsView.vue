@@ -11,7 +11,6 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FormError from '@/components/auth/FormError.vue'
 import ProjectPeople from '@/components/projects/ProjectPeople.vue'
-import ProjectCategories from '@/components/projects/ProjectCategories.vue'
 import { useProjectsStore } from '@/stores/projects'
 import { useForm } from '@/composables/useForm'
 import { ApiRequestError } from '@/services/api'
@@ -24,7 +23,7 @@ const projects = useProjectsStore()
 const route = useRoute()
 const router = useRouter()
 
-const TABS = [{ value: 'info' }, { value: 'people' }, { value: 'categories' }] as const
+const TABS = [{ value: 'info' }, { value: 'people' }] as const
 type Tab = (typeof TABS)[number]['value']
 
 /** The open tab lives in the URL (?tab=people) so it can be linked to. */
@@ -183,8 +182,6 @@ async function remove() {
             @loaded="peopleCount = $event"
           />
         </div>
-
-        <ProjectCategories v-if="tab === 'categories'" :key="project.id" :project-id="project.id" />
       </div>
     </template>
 

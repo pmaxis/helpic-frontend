@@ -1,6 +1,6 @@
 import type { Party } from './people'
 
-export type TaskStatus = 'new' | 'in_progress' | 'done' | 'cancelled'
+export type TaskStatus = 'new' | 'in_progress' | 'done'
 
 /** How urgent a task is; either side sets it. */
 export type TaskPriority = 'none' | 'low' | 'medium' | 'high' | 'urgent'
@@ -20,7 +20,7 @@ export interface Task {
   client: Party | null
   /** Null for a task outside any project. */
   project: { id: string; name: string } | null
-  /** The exact workflow status (board column); `status` is its category. */
+  /** The exact workflow status (board column); `status` is its bucket. */
   status_id: string
   status_name: string
   /** The card's place in its column; null until someone orders it. */

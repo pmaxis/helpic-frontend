@@ -73,10 +73,7 @@ function summary(t: Task): string {
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-1.5">
               <PriorityIcon :priority="t.priority" />
-              <p
-                class="min-w-0 truncate text-sm font-medium"
-                :class="t.status === 'cancelled' ? 'text-neutral-400 line-through' : 'text-neutral-900 group-hover:text-neutral-950'"
-              >
+              <p class="min-w-0 truncate text-sm font-medium text-neutral-900 group-hover:text-neutral-950">
                 {{ t.title }}
               </p>
               <span v-if="t.labels.length" class="flex shrink-0 gap-1">

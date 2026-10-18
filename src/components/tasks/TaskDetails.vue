@@ -80,7 +80,7 @@ const notFound = ref(false)
 const busy = ref(false)
 /** The task's board columns — the statuses it can take. */
 const columns = ref<BoardColumn[]>([])
-/** The viewer manages this board, so they may move a task into any category. */
+/** The viewer manages this board, so they may move a task into any status. */
 const canManageBoard = ref(false)
 const editing = ref(false)
 const confirmDelete = ref(false)
@@ -111,8 +111,8 @@ function isMe(id: string | undefined): boolean {
 }
 
 /**
- * Columns the viewer may put the task in: its own category, any category the
- * owner opened to participants, and every category when they manage the board.
+ * Columns the viewer may put the task in: its own bucket, any column that
+ * isn't done, and every column when they manage the board.
  */
 const statusOptions = computed(() => {
   const t = task.value
@@ -122,7 +122,7 @@ const statusOptions = computed(() => {
     .filter(
       (c) =>
         c.id === t.status_id ||
-        (!!current && c.category_id === current.category_id) ||
+        (!!current && c.category === current.category) ||
         canManageBoard.value ||
         auth.isFreelancer ||
         c.participants_can_move,
@@ -395,8 +395,7 @@ function onSaved(t: Task) {
           </div>
           <h1
             v-else
-            class="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight break-words"
-            :class="task.status === 'cancelled' ? 'text-neutral-400 line-through' : 'text-neutral-900'"
+            class="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight break-words text-neutral-900"
           >
             <button
               v-if="task.can_edit"

@@ -28,7 +28,7 @@ export const LABEL_COLORS: Record<string, { chip: string; dot: string }> = {
 }
 export const LABEL_COLOR_NAMES = Object.keys(LABEL_COLORS)
 
-export const STATUSES: TaskStatus[] = ['new', 'in_progress', 'done', 'cancelled']
+export const STATUSES: TaskStatus[] = ['new', 'in_progress', 'done']
 
 /** "New", "In progress", in the interface's language. */
 export function statusLabel(s: TaskStatus): string {
@@ -40,7 +40,6 @@ const DEFAULT_COLUMNS: Record<string, TaskStatus | 'paid'> = {
   New: 'new',
   'In progress': 'in_progress',
   Done: 'done',
-  Cancelled: 'cancelled',
   Paid: 'paid',
 }
 
@@ -57,7 +56,6 @@ export const STATUS_BADGE: Record<TaskStatus, string> = {
   new: 'bg-sky-50 text-sky-700 ring-sky-600/20',
   in_progress: 'bg-amber-50 text-amber-700 ring-amber-600/20',
   done: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  cancelled: 'bg-neutral-100 text-neutral-500 ring-neutral-500/20',
 }
 
 /** Solid colour for a small status dot, e.g. in a board column header. */
@@ -65,23 +63,4 @@ export const STATUS_DOT: Record<TaskStatus, string> = {
   new: 'bg-sky-500',
   in_progress: 'bg-amber-500',
   done: 'bg-emerald-500',
-  cancelled: 'bg-neutral-400',
-}
-
-export interface StatusFilter {
-  value: 'open' | 'done' | 'cancelled' | 'all'
-  statuses: TaskStatus[]
-}
-
-export const STATUS_FILTERS: StatusFilter[] = [
-  { value: 'open', statuses: ['new', 'in_progress'] },
-  { value: 'done', statuses: ['done'] },
-  { value: 'cancelled', statuses: ['cancelled'] },
-  { value: 'all', statuses: [] },
-]
-
-/** "Open", "All", in the interface's language. */
-export function filterLabel(value: string): string {
-  const f = STATUS_FILTERS.find((x) => x.value === value)
-  return f ? t(`statusFilter.${f.value}`) : ''
 }

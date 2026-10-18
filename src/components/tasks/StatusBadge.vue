@@ -3,9 +3,9 @@ import type { TaskStatus } from '@/types/tasks'
 import { columnName, STATUS_BADGE, statusLabel } from '@/constants/tasks'
 
 defineProps<{
-  /** The category, which picks the colour. */
+  /** The bucket, which picks the colour. */
   status: TaskStatus
-  /** The exact status name (board column); falls back to the category's label. */
+  /** The exact status name (board column); falls back to the bucket's label. */
   name?: string
 }>()
 </script>

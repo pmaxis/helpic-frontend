@@ -68,7 +68,6 @@ const en = {
     new: 'New',
     in_progress: 'In progress',
     done: 'Done',
-    cancelled: 'Cancelled',
     // The column paid reports' tasks move to.
     paid: 'Paid',
   },
@@ -78,12 +77,6 @@ const en = {
     medium: 'Medium',
     low: 'Low',
     none: 'No priority',
-  },
-  statusFilter: {
-    open: 'Open',
-    done: 'Done',
-    cancelled: 'Cancelled',
-    all: 'All',
   },
   nav: {
     dashboard: 'Dashboard',
@@ -191,7 +184,6 @@ const uk: typeof en = {
     new: 'Нова',
     in_progress: 'В роботі',
     done: 'Виконано',
-    cancelled: 'Скасовано',
     paid: 'Оплачено',
   },
   priority: {
@@ -200,12 +192,6 @@ const uk: typeof en = {
     medium: 'Середній',
     low: 'Низький',
     none: 'Без пріоритету',
-  },
-  statusFilter: {
-    open: 'Відкриті',
-    done: 'Виконані',
-    cancelled: 'Скасовані',
-    all: 'Усі',
   },
   nav: {
     dashboard: 'Огляд',

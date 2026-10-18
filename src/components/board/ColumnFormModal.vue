@@ -7,11 +7,10 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormError from '@/components/auth/FormError.vue'
 import { useBoardStore } from '@/stores/board'
-import { columnName } from '@/constants/tasks'
 import { useForm } from '@/composables/useForm'
 import { LIMITS, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
-import type { BoardColumn } from '@/types/board'
+import type { BoardColumn, StatusCategory } from '@/types/board'
 
 const props = defineProps<{
   /** Edit this column; without it the modal adds a new one. */
@@ -21,20 +20,24 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const board = useBoardStore()
-const fallback =
-  board.categories.find((c) => c.effect === 'open' && !c.allows_delete)?.id ?? board.categories[0]?.id ?? ''
 const schema = z.object({
   name: requiredText('thingName', LIMITS.columnName),
-  category_id: z.string().min(1, t('columnForm.category')),
+  status_category: z.string().min(1, t('columnForm.category')),
 })
-const form = useForm(schema, { name: props.column?.name ?? '', category_id: props.column?.category_id || fallback })
+const form = useForm(schema, {
+  name: props.column?.name ?? '',
+  status_category: props.column?.status_category || 'in_progress',
+})
 
-const options = computed(() => board.categories.map((c) => ({ value: c.id, label: columnName(c.name) })))
-const chosen = computed(() => board.categories.find((c) => c.id === form.values.category_id))
+const options = computed(() => [
+  { value: 'todo', label: t('columnForm.todo') },
+  { value: 'in_progress', label: t('columnForm.inProgress') },
+  { value: 'done', label: t('columnForm.done') },
+])
 
 function submit() {
   void form.submit(async (data) => {
-    const input = { name: data.name, category_id: data.category_id }
+    const input = { name: data.name, status_category: data.status_category as StatusCategory }
     if (props.column) await board.updateColumn(props.column.id, input)
     else await board.createColumn(input)
     emit('close')
@@ -47,10 +50,7 @@ function submit() {
     <form class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
       <BaseInput v-bind="form.field('name')" :label="$t('columnForm.name')" :placeholder="$t('columnForm.namePlaceholder')" />
-      <BaseSelect v-bind="form.field('category_id')" :label="$t('columnForm.category')" :options="options" />
-      <p v-if="chosen" class="text-sm text-neutral-500">
-        {{ $t('columnForm.explain', { category: columnName(chosen.name) }) }}
-      </p>
+      <BaseSelect v-bind="form.field('status_category')" :label="$t('columnForm.category')" :options="options" />
     </form>
 
     <template #footer>
