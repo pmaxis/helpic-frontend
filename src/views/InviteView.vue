@@ -15,13 +15,14 @@ import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { currentPassword, LIMITS, newPassword, passwordsMatch, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
+import { linkToken } from '@/utils/linkToken'
 import type { InvitationLookup } from '@/types/people'
 
 const auth = useAuthStore()
 const people = usePeopleStore()
 const route = useRoute()
 const router = useRouter()
-const token = String(route.params.token)
+const token = linkToken(route)
 
 const invitation = ref<InvitationLookup | null>(null)
 const invalid = ref('')

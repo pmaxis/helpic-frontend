@@ -31,16 +31,15 @@ export async function removeTeamMember(id: string): Promise<void> {
 }
 
 export async function lookupTeamInvite(token: string): Promise<TeamInviteLookup> {
-  const { data } = await http.get<{ invite: TeamInviteLookup }>(`/team-invites/${token}`)
+  const { data } = await http.post<{ invite: TeamInviteLookup }>('/team-invites/lookup', { token })
   return data.invite
 }
 
 /** Creates the member's account and signs it in. */
-export async function joinTeam(token: string, input: { name: string; password: string; password_confirmation: string }): Promise<User> {
-  const { data } = await http.post<UserResponse>(`/team-invites/${token}/accept`, input)
+export async function joinTeam(
+  token: string,
+  input: { name: string; password: string; password_confirmation: string },
+): Promise<User> {
+  const { data } = await http.post<UserResponse>('/team-invites/accept', { token, ...input })
   return data.user
-}
-
-export function teamInviteLink(token: string): string {
-  return `${window.location.origin}/join/${token}`
 }

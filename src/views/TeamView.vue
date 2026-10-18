@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * A client's company and its people. The owner (the client a freelancer
- * invited) names it, invites people by link as members or contractors,
+ * invited) names it, invites people by email as members or contractors,
  * changes their role and removes them. Both work with the company's
  * freelancers but don't see its reports; a contractor sees only the tasks
  * they set or were added to. Someone on the team sees whose team it is.
@@ -17,8 +17,8 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FormError from '@/components/auth/FormError.vue'
-import { fetchTeam, inviteToTeam, removeTeamMember, renameTeam, revokeTeamInvite, setTeamMemberRole, teamInviteLink } from '@/services/team'
-import { copyText, formatDate } from '@/utils/format'
+import { fetchTeam, inviteToTeam, removeTeamMember, renameTeam, revokeTeamInvite, setTeamMemberRole } from '@/services/team'
+import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { email, LIMITS, optionalText } from '@/utils/validation'
@@ -83,22 +83,14 @@ const inviteForm = useForm(z.object({ email: email(), name: optionalText('name',
   role: 'member' as TeamRole,
 })
 const roleOptions = computed(() => TEAM_ROLES.map((r) => ({ value: r, label: t(`team.roles.${r}`) })))
-/** The link of the invitation just made, shown to copy. */
-const freshLink = ref('')
 
 function invite() {
   void inviteForm.submit(async (data) => {
     const inv = await inviteToTeam(data.email, data.name, data.role)
     team.value?.invites?.unshift(inv)
-    freshLink.value = teamInviteLink(inv.token)
     inviteForm.reset()
     toast.success(t('team.emailed', { email: inv.email }))
   })
-}
-
-async function copy(link: string) {
-  if (await copyText(link)) toast.success(t('team.linkCopied'))
-  else toast.error(t('team.copyFailed'))
 }
 
 // --- roles ------------------------------------------------------------------------------
@@ -132,7 +124,6 @@ async function revoke() {
   try {
     await revokeTeamInvite(inv.id)
     team.value.invites = team.value.invites?.filter((i) => i.id !== inv.id)
-    if (freshLink.value.endsWith(inv.token)) freshLink.value = ''
     toast.success(t('team.revoked'))
   } catch {
     toast.error(t('team.revokeFailed'))
@@ -230,10 +221,6 @@ async function remove() {
             </form>
             <p class="mt-2 text-xs text-neutral-500">{{ $t(`team.roleHints.${inviteForm.values.role}`) }}</p>
             <FormError class="mt-3" :message="inviteForm.formError" />
-            <div v-if="freshLink" class="mt-4 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 ring-1 ring-neutral-200 ring-inset">
-              <span class="min-w-0 flex-1 truncate font-mono text-xs text-neutral-700">{{ freshLink }}</span>
-              <BaseButton variant="ghost" size="sm" :block="false" @click="copy(freshLink)">{{ $t('common.copyLink') }}</BaseButton>
-            </div>
           </section>
 
           <section v-if="team.invites?.length" class="rounded-xl border border-neutral-200" aria-labelledby="team-invites">
@@ -247,10 +234,7 @@ async function remove() {
                     {{ inv.expired ? $t('team.expired') : $t('team.validUntil', { date: formatDate(inv.expires_at) }) }}
                   </p>
                 </div>
-                <div class="flex items-center gap-2">
-                  <BaseButton v-if="!inv.expired" variant="ghost" size="sm" :block="false" @click="copy(teamInviteLink(inv.token))">{{ $t('common.copyLink') }}</BaseButton>
-                  <button type="button" class="rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="revoking = inv">{{ $t('team.revoke') }}</button>
-                </div>
+                <button type="button" class="rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="revoking = inv">{{ $t('team.revoke') }}</button>
               </li>
             </ul>
           </section>

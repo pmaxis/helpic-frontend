@@ -49,7 +49,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: a signed-in user may accept for another account.
-    path: '/invite/:token',
+    // The token is in the fragment (see the email); :token is leftover links.
+    path: '/invite/:token?',
     name: 'invite',
     component: () => import('@/views/InviteView.vue'),
   },
@@ -115,7 +116,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: joining makes a new account and signs it in.
-    path: '/join/:token',
+    // The token is in the fragment (see the email); :token is leftover links.
+    path: '/join/:token?',
     name: 'join-team',
     component: () => import('@/views/JoinTeamView.vue'),
   },

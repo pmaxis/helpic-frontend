@@ -52,16 +52,6 @@ export function isOverdue(dueOn: string | null): boolean {
   return dueOn < iso
 }
 
-/** Copies text to the clipboard; resolves false when the browser refuses. */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    return false
-  }
-}
-
 /** "just now", "5m ago", "3h ago", "2d ago", then the date. */
 export function timeAgo(iso: string): string {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)

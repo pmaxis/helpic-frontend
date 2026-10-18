@@ -17,13 +17,12 @@ export interface TeamMember extends TeamPerson {
   joined_at: string
 }
 
-/** A pending invitation to the company; the token builds the join link. */
+/** A pending invitation to the company. The link goes only to the invited address. */
 export interface TeamInvite {
   id: string
   email: string
   name: string
   role: TeamRole
-  token: string
   expired: boolean
   expires_at: string
   created_at: string
