@@ -3,14 +3,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import TaskList from '@/components/tasks/TaskList.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
-import ProjectFormModal from '@/components/projects/ProjectFormModal.vue'
 import KanbanBoard from '@/components/board/KanbanBoard.vue'
 import ViewToggle from '@/components/ui/ViewToggle.vue'
-import ActionMenu from '@/components/ui/ActionMenu.vue'
+import AvatarStack from '@/components/tasks/AvatarStack.vue'
+import { fetchProjectPeople } from '@/services/projectPeople'
 import { useBoardStore } from '@/stores/board'
 import { useTaskView } from '@/composables/useTaskView'
 import { useProjectsStore } from '@/stores/projects'
@@ -19,7 +18,7 @@ import { ApiRequestError } from '@/services/api'
 import { filterLabel as statusFilterLabel, STATUS_FILTERS } from '@/constants/tasks'
 import { t } from '@/i18n'
 import { toast } from '@/composables/useToasts'
-import type { Project } from '@/types/projects'
+import type { Project, ProjectPerson } from '@/types/projects'
 import type { Task } from '@/types/tasks'
 import type { BoardColumn } from '@/types/board'
 
@@ -32,10 +31,10 @@ const router = useRouter()
 const id = String(route.params.id)
 
 const project = ref<Project | null>(null)
+const participants = ref<ProjectPerson[]>([])
 const notFound = ref(false)
 const filter = ref('open')
 const filterLabel = computed(() => statusFilterLabel(filter.value))
-const editing = ref(false)
 const addingTask = ref(false)
 /** The board column a task is being added from, if any. */
 const newTaskColumn = ref<BoardColumn | null>(null)
@@ -44,13 +43,6 @@ function startTask(column: BoardColumn | null = null) {
   newTaskColumn.value = column
   addingTask.value = true
 }
-const confirmDelete = ref(false)
-const deleting = ref(false)
-
-const projectActions = computed(() => [
-  { label: t('project.edit'), onSelect: () => (editing.value = true) },
-  { label: t('project.delete'), danger: true, onSelect: () => (confirmDelete.value = true) },
-])
 
 async function loadTasks() {
   try {
@@ -71,6 +63,13 @@ onMounted(async () => {
   try {
     project.value = await projects.fetchProject(id)
     if (!projects.loaded) void projects.fetchProjects().catch(() => {})
+    void fetchProjectPeople(id)
+      .then((people) => {
+        participants.value = people.participants
+      })
+      .catch(() => {
+        participants.value = []
+      })
     await loadTasks()
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) notFound.value = true
@@ -78,31 +77,12 @@ onMounted(async () => {
   }
 })
 
-function onSaved(p: Project) {
-  project.value = p
-  editing.value = false
-}
-
 async function onTaskSaved(task: Task) {
   addingTask.value = false
   newTaskColumn.value = null
   // On the board the new card shows up in its column; in the list, open the task.
   if (view.value === 'board') await loadTasks()
   else await router.push({ name: 'task-detail', params: { id: task.id } })
-}
-
-async function remove() {
-  deleting.value = true
-  try {
-    await projects.deleteProject(id)
-    toast.success(t('project.deleted'))
-    await router.replace('/projects')
-  } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : t('project.deleteFailed'))
-  } finally {
-    deleting.value = false
-    confirmDelete.value = false
-  }
 }
 </script>
 
@@ -147,7 +127,19 @@ async function remove() {
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <ViewToggle v-model="view" />
-            <ActionMenu v-if="project.can_edit" :actions="projectActions" :label="$t('project.options')" />
+            <AvatarStack v-if="participants.length" :people="participants" size="md" />
+            <RouterLink
+              v-if="project.can_edit"
+              :to="{ name: 'project-settings', params: { id: project.id } }"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+              :aria-label="$t('project.settings')"
+              :title="$t('project.settings')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </RouterLink>
             <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
           </div>
         </div>
@@ -187,15 +179,7 @@ async function remove() {
       <TaskList v-else class="mt-5" :tasks="tasks.tasks" :loading="tasks.isLoading" hide-project @saved="loadTasks" />
     </template>
 
-    <ProjectFormModal v-if="editing && project" :project="project" @close="editing = false" @saved="onSaved" />
     <TaskFormModal v-if="addingTask" :project-id="id" :status-id="newTaskColumn?.id" :column-name="newTaskColumn?.name" @close="addingTask = false" @saved="onTaskSaved" />
-    <ConfirmDialog
-      v-model:open="confirmDelete"
-      :title="$t('project.confirmDelete')"
-      :description="$t('project.confirmDeleteText')"
-      :loading="deleting"
-      @confirm="remove"
-    />
 
   </DashboardLayout>
 </template>

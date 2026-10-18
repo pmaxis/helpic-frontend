@@ -10,11 +10,16 @@ export interface MenuAction {
   onSelect: () => void
 }
 
-defineProps<{
-  actions: MenuAction[]
-  /** Accessible name of the button, e.g. "Project options". */
-  label: string
-}>()
+withDefaults(
+  defineProps<{
+    actions: MenuAction[]
+    /** Accessible name of the button, e.g. "Project options". */
+    label: string
+    /** sm matches toolbar icons; md matches a default select. */
+    size?: 'sm' | 'md'
+  }>(),
+  { size: 'sm' },
+)
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -53,8 +58,8 @@ function pick(action: MenuAction) {
   <div ref="root" class="relative">
     <button
       type="button"
-      class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900"
-      :class="open ? 'bg-neutral-50 text-neutral-900' : ''"
+      class="inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+      :class="[size === 'md' ? 'h-[38px] w-[38px]' : 'h-8 w-8', open ? 'bg-neutral-50 text-neutral-900' : '']"
       :aria-label="label"
       :aria-expanded="open"
       aria-haspopup="menu"

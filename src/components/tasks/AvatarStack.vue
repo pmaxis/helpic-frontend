@@ -9,7 +9,10 @@ import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Party } from '@/types/people'
 
-const props = withDefaults(defineProps<{ people: Party[]; max?: number }>(), { max: 3 })
+const props = withDefaults(defineProps<{ people: Party[]; max?: number; /** sm matches a task card; md matches a toolbar button. */ size?: 'sm' | 'md' }>(), {
+  max: 3,
+  size: 'sm',
+})
 
 const auth = useAuthStore()
 
@@ -29,21 +32,25 @@ const label = computed(() => props.people.map(name).join(', '))
 </script>
 
 <template>
-  <span v-if="people.length" class="flex shrink-0 items-center -space-x-1.5" role="img" :aria-label="label" :title="label">
+  <span v-if="people.length" class="flex shrink-0 items-center" :class="size === 'md' ? '-space-x-2' : '-space-x-1.5'" role="img" :aria-label="label" :title="label">
     <!-- the first sits on top, so the freelancer's initials are never covered -->
     <span
       v-for="(p, i) in shown"
       :key="p.id"
-      class="relative flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-semibold ring-2 ring-white"
+      class="relative flex items-center justify-center rounded-full font-semibold ring-2 ring-white"
       :style="{ zIndex: shown.length - i }"
-      :class="p.id === auth.user?.id ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'"
+      :class="[
+        size === 'md' ? 'h-8 w-8 text-xs' : 'h-5 w-5 text-[8px]',
+        p.id === auth.user?.id ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700',
+      ]"
       aria-hidden="true"
     >
       {{ initials(p) }}
     </span>
     <span
       v-if="rest > 0"
-      class="flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-100 px-1 text-[9px] font-medium text-neutral-500 ring-2 ring-white"
+      class="flex items-center justify-center rounded-full bg-neutral-100 font-medium text-neutral-500 ring-2 ring-white"
+      :class="size === 'md' ? 'h-8 min-w-8 px-1.5 text-xs' : 'h-5 min-w-5 px-1 text-[9px]'"
       aria-hidden="true"
     >
       +{{ rest }}

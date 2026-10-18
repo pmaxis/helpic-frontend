@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ViewToggle, { type ViewOption } from '@/components/ui/ViewToggle.vue'
+import AvatarStack from '@/components/tasks/AvatarStack.vue'
 import ProjectFormModal from '@/components/projects/ProjectFormModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
@@ -37,25 +38,6 @@ const shown = computed(() => {
   if (!q) return projects.projects
   return projects.projects.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
 })
-
-function other(p: Project) {
-  return auth.isClient ? p.freelancer : p.client
-}
-
-function initials(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean)
-  return (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
-}
-
-/** Who created the project — its owner — among its two sides. */
-function owner(p: Project) {
-  return p.created_by === p.freelancer.id ? p.freelancer : (p.client ?? p.freelancer)
-}
-
-function ownerName(p: Project): string {
-  const o = owner(p)
-  return o.id === auth.user?.id ? t('common.you_capital') : o.name || o.email
-}
 
 onMounted(async () => {
   try {
@@ -139,26 +121,9 @@ function onSaved(project: Project) {
 
             <div class="mt-auto pt-4">
               <p class="text-xs text-neutral-500">{{ $t('projects.openTotal', { open: p.open_tasks, total: p.total_tasks }) }}</p>
-
-              <dl class="mt-3 grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-y-2 border-t border-neutral-100 pt-3 text-sm">
-                <dt class="text-xs text-neutral-400">{{ $t('projects.owner') }}</dt>
-                <dd class="flex min-w-0 items-center gap-2">
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                    {{ initials(owner(p).name || owner(p).email) }}
-                  </span>
-                  <span class="truncate text-neutral-700">{{ ownerName(p) }}</span>
-                </dd>
-                <dt class="text-xs text-neutral-400">{{ auth.isClient ? $t('projects.freelancer') : $t('projects.client') }}</dt>
-                <dd class="flex min-w-0 items-center gap-2">
-                  <template v-if="other(p)">
-                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                      {{ initials(other(p)?.name || other(p)?.email || '?') }}
-                    </span>
-                    <span class="truncate text-neutral-700">{{ other(p)?.name || other(p)?.email }}</span>
-                  </template>
-                  <span v-else class="text-neutral-400">{{ $t('projects.personalProject') }}</span>
-                </dd>
-              </dl>
+              <div class="mt-3 border-t border-neutral-100 pt-3">
+                <AvatarStack :people="p.participants ?? []" size="md" />
+              </div>
             </div>
           </RouterLink>
         </li>
@@ -167,20 +132,19 @@ function onSaved(project: Project) {
       <!-- list -->
       <div v-else class="mt-5 overflow-hidden rounded-xl border border-neutral-200">
         <div
-          class="hidden gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase md:grid md:grid-cols-[minmax(0,1fr)_11rem_11rem_5rem_7rem]"
+          class="hidden gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase md:grid md:grid-cols-[minmax(0,1fr)_9rem_7rem_7rem]"
           aria-hidden="true"
         >
           <span>{{ $t('projects.project') }}</span>
-          <span>{{ $t('projects.owner') }}</span>
-          <span>{{ auth.isClient ? $t('projects.freelancer') : $t('projects.client') }}</span>
-          <span class="text-right">{{ $t('projects.open') }}</span>
+          <span>{{ $t('projects.participants') }}</span>
+          <span>{{ $t('projects.open') }}</span>
           <span class="text-right">{{ $t('projects.updatedColumn') }}</span>
         </div>
         <ul class="divide-y divide-neutral-100">
           <li v-for="p in shown" :key="p.id">
             <RouterLink
               :to="{ name: 'project-detail', params: { id: p.id } }"
-              class="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-neutral-50 md:grid-cols-[minmax(0,1fr)_11rem_11rem_5rem_7rem] md:items-center"
+              class="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-neutral-50 md:grid-cols-[minmax(0,1fr)_9rem_7rem_7rem] md:items-center"
             >
               <div class="flex min-w-0 items-center gap-3">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500" aria-hidden="true">
@@ -194,24 +158,9 @@ function onSaved(project: Project) {
                 </div>
               </div>
 
-              <div class="flex min-w-0 items-center gap-2 text-sm">
-                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                  {{ initials(owner(p).name || owner(p).email) }}
-                </span>
-                <span class="truncate text-neutral-700"><span class="text-neutral-500 md:hidden">{{ $t('projects.ownerColon') }} </span>{{ ownerName(p) }}</span>
-              </div>
+              <AvatarStack class="justify-self-start" :people="p.participants ?? []" size="md" />
 
-              <div class="flex min-w-0 items-center gap-2 text-sm">
-                <template v-if="other(p)">
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                    {{ initials(other(p)?.name || other(p)?.email || '?') }}
-                  </span>
-                  <span class="truncate text-neutral-700">{{ other(p)?.name || other(p)?.email }}</span>
-                </template>
-                <span v-else class="text-neutral-400">{{ $t('projects.personal') }}</span>
-              </div>
-
-              <div class="text-sm text-neutral-700 md:text-right">
+              <div class="text-sm text-neutral-700">
                 <span class="md:hidden text-neutral-500">{{ $t('projects.openColon') }} </span>{{ p.open_tasks }}<span class="text-neutral-400"> / {{ p.total_tasks }}</span>
               </div>
 

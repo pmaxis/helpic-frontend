@@ -5,6 +5,7 @@ export type NotificationKind =
   | 'task_deleted'
   | 'participant_added'
   | 'project_created'
+  | 'project_invited'
   | 'client_joined'
   | 'member_joined'
   | 'report_sent'
