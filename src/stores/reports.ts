@@ -5,41 +5,16 @@ import type { Report, ReportEvent, ReportInput, ReportKind } from '@/types/repor
 interface ReportsState {
   reports: Report[]
   loaded: boolean
-  /** Whether the server can print PDFs (it needs Chromium). */
-  pdfAvailable: boolean
-}
-
-async function fetchPdf(url: string): Promise<ArrayBuffer> {
-  const { data } = await http.get<ArrayBuffer>(url, { responseType: 'arraybuffer', timeout: 60000 })
-  return data
-}
-
-/** Saves a server-rendered PDF under the file name the server suggests. */
-async function downloadPdf(url: string, fallbackName: string): Promise<void> {
-  const resp = await http.get<Blob>(url, { responseType: 'blob', timeout: 60000 })
-  const disposition = String(resp.headers['content-disposition'] ?? '')
-  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
-  const plain = /filename="([^"]+)"/i.exec(disposition)?.[1]
-  const name = utf8 ? decodeURIComponent(utf8) : plain || fallbackName
-  const href = URL.createObjectURL(resp.data)
-  const a = document.createElement('a')
-  a.href = href
-  a.download = name
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(href), 1000)
 }
 
 /** Reports of work done: a freelancer's drafts and sent reports, a client's received ones. */
 export const useReportsStore = defineStore('reports', {
-  state: (): ReportsState => ({ reports: [], loaded: false, pdfAvailable: true }),
+  state: (): ReportsState => ({ reports: [], loaded: false }),
 
   actions: {
     async fetchReports(): Promise<void> {
-      const { data } = await http.get<{ reports: Report[]; pdf_available: boolean }>('/reports')
+      const { data } = await http.get<{ reports: Report[] }>('/reports')
       this.reports = data.reports ?? []
-      this.pdfAvailable = data.pdf_available
       this.loaded = true
     },
 
@@ -87,15 +62,6 @@ export const useReportsStore = defineStore('reports', {
       const { data } = await http.post<{ report: Report }>(`/reports/${id}/send`)
       this.loaded = false
       return data.report
-    },
-
-    /** The report as printed, for the on-page preview. */
-    fetchPdf(id: string): Promise<ArrayBuffer> {
-      return fetchPdf(`/reports/${id}/pdf`)
-    },
-
-    downloadPdf(id: string): Promise<void> {
-      return downloadPdf(`/reports/${id}/pdf?download=1`, 'Work report.pdf')
     },
 
     async deleteReport(id: string): Promise<void> {

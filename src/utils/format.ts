@@ -1,19 +1,47 @@
 import { intlLocale, t } from '@/i18n'
 
-/** Date formatters by Intl locale, made once each. */
+/** Date formatters by Intl locale and style, made once each. */
 const dateFormats = new Map<string, Intl.DateTimeFormat>()
+
+function dateFormat(month: 'short' | 'long'): Intl.DateTimeFormat {
+  const locale = intlLocale()
+  const key = `${locale}:${month}`
+  let fmt = dateFormats.get(key)
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month, year: 'numeric' })
+    dateFormats.set(key, fmt)
+  }
+  return fmt
+}
+
+/** A Date from an ISO timestamp, or from a YYYY-MM-DD date as a local calendar day (not UTC midnight). */
+function toDate(value: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value)
+}
 
 /** "15 Jan 2030" ("15 січ. 2030 р.") from an ISO timestamp or a YYYY-MM-DD date. */
 export function formatDate(value: string): string {
-  // A bare date is a calendar day: parse it as local, not UTC midnight.
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value)
-  const locale = intlLocale()
-  let fmt = dateFormats.get(locale)
-  if (!fmt) {
-    fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' })
-    dateFormats.set(locale, fmt)
-  }
-  return fmt.format(d)
+  return dateFormat('short').format(toDate(value))
+}
+
+/** The month in full in Ukrainian, as a document reads: "15 Jan 2030", "15 січня 2030". */
+function documentFormat(): Intl.DateTimeFormat {
+  return dateFormat(intlLocale() === 'uk-UA' ? 'long' : 'short')
+}
+
+/** Intl's Ukrainian dates end in "р." (year); a document drops it. */
+function dropYearMark(s: string): string {
+  return s.replace(/\s*р\.$/, '')
+}
+
+/** A date for a document: "15 Jan 2030", "15 січня 2030". */
+export function formatDocumentDate(value: string): string {
+  return dropYearMark(documentFormat().format(toDate(value)))
+}
+
+/** A period for a document: "1–31 Oct 2030", "28 вересня – 3 жовтня 2030", or one day. */
+export function formatDocumentPeriod(from: string, to: string): string {
+  return dropYearMark(documentFormat().formatRange(toDate(from), toDate(to)))
 }
 
 /** Whether a YYYY-MM-DD due date is before today. */

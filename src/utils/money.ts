@@ -3,7 +3,7 @@ export const CURRENCIES = ['USD', 'EUR', 'GBP', 'UAH', 'PLN', 'CAD'] as const
 
 const SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', UAH: '₴', PLN: 'zł ', CAD: 'CA$' }
 
-/** "$1,234.50" from cents — the same look as in the PDF report. */
+/** "$1,234.50" from cents. */
 export function formatMoney(cents: number, currency: string): string {
   const amount = (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const symbol = SYMBOLS[currency]

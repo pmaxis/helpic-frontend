@@ -23,6 +23,7 @@ import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
 import { formatDate } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
+import { pdfFileName, renderReportPdf, savePdf } from '@/utils/reportPdf'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { LIMITS, optionalText, requiredText } from '@/utils/validation'
@@ -41,18 +42,14 @@ const notFound = ref(false)
 
 const pdf = ref<ArrayBuffer | null>(null)
 const printing = ref(false)
-/** No Chromium on the server: show the HTML sheet in a sandboxed frame instead. */
-const htmlFallback = ref(false)
-const htmlUrl = computed(() => `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8090/api/v1'}/reports/${id}/html?v=${report.value?.updated_at ?? ''}`)
 
 async function printPreview() {
-  if (htmlFallback.value) return
+  if (!report.value) return
   printing.value = true
   try {
-    pdf.value = await reports.fetchPdf(id)
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 503) htmlFallback.value = true
-    else toast.error(t('report.renderFailed'))
+    pdf.value = await renderReportPdf(report.value)
+  } catch {
+    toast.error(t('report.renderFailed'))
   } finally {
     printing.value = false
   }
@@ -195,7 +192,6 @@ const deleteText = computed(() => {
   return t('report.deletePersonalText')
 })
 const deleting = ref(false)
-const downloading = ref(false)
 
 async function send() {
   if (!report.value) return
@@ -213,14 +209,12 @@ async function send() {
 }
 
 async function download() {
-  if (downloading.value) return
-  downloading.value = true
+  const r = report.value
+  if (!r) return
   try {
-    await reports.downloadPdf(id)
+    savePdf(await renderReportPdf(r), pdfFileName(r.title))
   } catch {
     toast.error(t('report.downloadFailed'))
-  } finally {
-    downloading.value = false
   }
 }
 
@@ -239,12 +233,12 @@ async function remove() {
   }
 }
 
-/** Download for everyone (when the server can print PDFs); delete for the owner of a draft. */
+/** Download for everyone; delete for the owner of a draft. */
 const actions = computed<MenuAction[]>(() => {
   const r = report.value
   const list: MenuAction[] = []
   if (!r) return list
-  if (!htmlFallback.value) list.push({ label: t('report.downloadPdf'), onSelect: () => void download() })
+  list.push({ label: t('report.downloadPdf'), onSelect: () => void download() })
   if (r.can_delete) {
     list.push({ label: isDraft.value ? t('report.deleteDraft') : t('report.deleteReport'), danger: true, onSelect: () => (confirmDelete.value = true) })
   }
@@ -300,14 +294,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
         <!-- grows with the pages, so the card scrolls them with the bottom padding after the last one -->
         <div v-else class="relative px-5 pt-5 pb-5 sm:px-8 sm:pb-8">
           <div class="mx-auto max-w-[210mm]" :class="printing && pdf ? 'opacity-60 transition-opacity' : ''">
-            <iframe
-              v-if="htmlFallback"
-              :src="htmlUrl"
-              sandbox=""
-              :title="$t('report.preview')"
-              class="h-[calc(297mm+48px)] w-full rounded-sm bg-neutral-100 ring-1 ring-neutral-200"
-            />
-            <PdfPreview v-else-if="pdf" :data="pdf" />
+            <PdfPreview v-if="pdf" :data="pdf" />
             <div v-else class="flex aspect-[210/297] items-center justify-center rounded-sm bg-neutral-50 ring-1 ring-neutral-200">
               <span class="text-sm text-neutral-400">{{ $t('report.preparing') }}</span>
             </div>
