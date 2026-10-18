@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { http } from '@/services/api'
-import type { BoardColumn, BoardLabel, BoardResponse, BoardScope, ColumnInput } from '@/types/board'
+import type { BoardCategory, BoardColumn, BoardLabel, BoardResponse, BoardScope, CategoryInput, ColumnInput } from '@/types/board'
 import type { Task } from '@/types/tasks'
 
 type Lane = BoardColumn & { tasks: Task[] }
 
 interface BoardState {
   columns: Lane[]
+  categories: BoardCategory[]
   canManage: boolean
   /** The all board: lanes merged from several boards; no column management, no ordering. */
   merged: boolean
@@ -50,10 +51,11 @@ export async function deleteLabel(id: string): Promise<void> {
 
 /**
  * The Jira-style board a freelancer shares with a client: its columns are the
- * pair's workflow statuses. The freelancer manages the columns; both move cards.
+ * pair's workflow statuses. The freelancer manages the columns, and so does
+ * the author of a project board; both sides move cards.
  */
 export const useBoardStore = defineStore('board', {
-  state: (): BoardState => ({ columns: [], canManage: false, merged: false, scope: {}, isLoading: false }),
+  state: (): BoardState => ({ columns: [], categories: [], canManage: false, merged: false, scope: {}, isLoading: false }),
 
   actions: {
     /** Loads a board; without a scope it reloads the last one. */
@@ -63,6 +65,7 @@ export const useBoardStore = defineStore('board', {
       try {
         const { data } = await http.get<BoardResponse>('/board', { params: params(this.scope) })
         this.columns = (data.columns ?? []).map((c) => ({ ...c, tasks: c.tasks ?? [] }))
+        this.categories = data.categories ?? []
         this.canManage = data.can_manage
         this.merged = !!data.merged
       } finally {
@@ -82,6 +85,21 @@ export const useBoardStore = defineStore('board', {
 
     async deleteColumn(id: string): Promise<void> {
       await http.delete(`/board/columns/${id}`)
+      await this.fetchBoard()
+    },
+
+    async createCategory(input: CategoryInput): Promise<void> {
+      await http.post('/board/categories', { ...input, with: this.scope.with, project_id: this.scope.project })
+      await this.fetchBoard()
+    },
+
+    async updateCategory(id: string, input: CategoryInput): Promise<void> {
+      await http.put(`/board/categories/${id}`, input)
+      await this.fetchBoard()
+    },
+
+    async deleteCategory(id: string): Promise<void> {
+      await http.delete(`/board/categories/${id}`)
       await this.fetchBoard()
     },
 

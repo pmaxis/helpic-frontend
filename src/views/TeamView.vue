@@ -190,10 +190,7 @@ async function remove() {
       <div class="mt-6 space-y-4">
         <!-- company -->
         <section v-if="tab === 'company'" class="rounded-xl border border-neutral-200 p-5">
-          <p class="text-sm text-neutral-500">
-            {{ $t('team.ownerText') }}
-          </p>
-          <form class="mt-4 flex flex-wrap items-start gap-3" novalidate @submit.prevent="saveName">
+          <form class="flex flex-wrap items-start gap-3" novalidate @submit.prevent="saveName">
             <BaseInput v-bind="nameForm.field('name')" :label="$t('team.companyName')" :placeholder="$t('team.companyPlaceholder')" class="min-w-56 flex-1" />
             <BaseButton type="submit" :block="false" class="mt-[26px] h-[38px]" :loading="nameForm.submitting" :disabled="!nameDirty">{{ $t('common.save') }}</BaseButton>
           </form>
@@ -203,9 +200,8 @@ async function remove() {
         <!-- invite -->
         <template v-else-if="tab === 'invite'">
           <section class="rounded-xl border border-neutral-200 p-5">
-            <p class="text-sm text-neutral-500">{{ $t('team.inviteText') }}</p>
             <form
-              class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_11rem_auto] lg:items-start"
+              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_11rem_auto] lg:items-start"
               novalidate
               @submit.prevent="invite"
             >
@@ -219,7 +215,6 @@ async function remove() {
               />
               <BaseButton type="submit" :block="false" class="h-[38px] sm:mt-[26px]" :loading="inviteForm.submitting">{{ $t('team.invite') }}</BaseButton>
             </form>
-            <p class="mt-2 text-xs text-neutral-500">{{ $t(`team.roleHints.${inviteForm.values.role}`) }}</p>
             <FormError class="mt-3" :message="inviteForm.formError" />
           </section>
 
