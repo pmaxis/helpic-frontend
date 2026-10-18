@@ -2,7 +2,6 @@
 const en = {
   authLayout: {
     rights: '© {year} {app}. All rights reserved.',
-    tagline: 'Freelancers and their clients, on the same page',
     about: 'About {app}',
     heroTitle: 'Client work,',
     heroTitle2: 'without the chaos.',
@@ -86,7 +85,18 @@ const en = {
   invite: {
     unavailable: 'Invitation unavailable',
     loadFailed: 'Could not load the invitation. Please try again.',
+    tryAgain: 'Try again',
     goToSignIn: 'Go to sign in',
+    next: {
+      ask: {
+        title: 'Ask for a new link',
+        text: 'Write to the person who invited you. A fresh link arrives by email.',
+      },
+      account: {
+        title: 'Already have an account?',
+        text: 'Sign in. If you already accepted, the shared work is waiting inside.',
+      },
+    },
     title: '{name} invited you',
     subtitleExisting: 'Enter your password to accept. You will be able to set tasks for this freelancer too.',
     subtitleNew: 'Set a password to create your client account and start setting tasks.',
@@ -115,7 +125,6 @@ const en = {
 const uk: typeof en = {
   authLayout: {
     rights: '© {year} {app}. Усі права захищено.',
-    tagline: 'Фрилансери та їхні клієнти — на одній сторінці',
     about: 'Про {app}',
     heroTitle: 'Робота з клієнтами',
     heroTitle2: 'без хаосу.',
@@ -199,7 +208,18 @@ const uk: typeof en = {
   invite: {
     unavailable: 'Запрошення недоступне',
     loadFailed: 'Не вдалося завантажити запрошення. Спробуйте ще раз.',
+    tryAgain: 'Спробувати ще раз',
     goToSignIn: 'Перейти до входу',
+    next: {
+      ask: {
+        title: 'Попросіть нове посилання',
+        text: 'Напишіть тому, хто вас запросив. Свіже посилання прийде на пошту.',
+      },
+      account: {
+        title: 'Вже є акаунт?',
+        text: 'Увійдіть. Якщо запрошення вже прийнято, спільна робота чекає всередині.',
+      },
+    },
     title: '{name} запрошує вас',
     subtitleExisting: 'Введіть пароль, щоб прийняти запрошення. Ви зможете ставити задачі й цьому фрилансеру.',
     subtitleNew: 'Задайте пароль, щоб створити акаунт клієнта й почати ставити задачі.',

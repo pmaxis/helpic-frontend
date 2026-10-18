@@ -33,9 +33,8 @@ const FEATURES = ['invite', 'tasks', 'projects', 'personal'] as const
       <div class="flex flex-1 items-center justify-center py-10">
         <slot />
       </div>
-      <footer class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-400">
+      <footer class="text-xs text-neutral-400">
         <p>{{ $t('authLayout.rights', { year, app: APP_NAME }) }}</p>
-        <p>{{ $t('authLayout.tagline') }}</p>
       </footer>
     </div>
 
