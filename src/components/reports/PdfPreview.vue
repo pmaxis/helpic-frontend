@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { t } from '@/i18n'
-// Draws the pages of the server-rendered PDF with pdf.js, so the page shows
-// the exact file that will be downloaded — same fonts, wrapping and page breaks.
+// Draws the pages of a report's PDF with pdf.js, so the page shows the exact
+// file that gets downloaded — same fonts, wrapping and page breaks.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'

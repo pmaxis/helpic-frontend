@@ -135,6 +135,23 @@ const en = {
     page: 'Page {n}',
     pageOf: 'Page {n} of {total}',
   },
+  /** The words printed in a report's PDF. */
+  reportPdf: {
+    eyebrow: 'Work report',
+    draft: 'Draft',
+    completedCount: '{n} task completed | {n} tasks completed',
+    summary: 'Summary',
+    tasks: 'Completed tasks',
+    task: 'Task',
+    project: 'Project',
+    completed: 'Completed',
+    price: 'Price',
+    total: 'Total',
+    noTasks: 'No tasks were completed in this period.',
+    prepared: 'Prepared {date}',
+    sent: 'sent {date}',
+    paid: 'paid {date}',
+  },
 }
 
 const uk: typeof en = {
@@ -271,6 +288,22 @@ const uk: typeof en = {
     pages: 'Сторінки',
     page: 'Сторінка {n}',
     pageOf: 'Сторінка {n} з {total}',
+  },
+  reportPdf: {
+    eyebrow: 'Звіт про роботу',
+    draft: 'Чернетка',
+    completedCount: 'Виконано: {n} задача | Виконано: {n} задачі | Виконано: {n} задач',
+    summary: 'Підсумок',
+    tasks: 'Виконані задачі',
+    task: 'Задача',
+    project: 'Проєкт',
+    completed: 'Виконано',
+    price: 'Ціна',
+    total: 'Разом',
+    noTasks: 'За цей період не виконано жодної задачі.',
+    prepared: 'Підготовлено {date}',
+    sent: 'надіслано {date}',
+    paid: 'оплачено {date}',
   },
 }
 
