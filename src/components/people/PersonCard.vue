@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
 import { formatDate } from '@/utils/format'
 import type { Link } from '@/types/people'
 
@@ -12,10 +11,7 @@ function initials(name: string): string {
 </script>
 
 <template>
-  <RouterLink
-    :to="{ name: 'tasks', query: { with: person.id } }"
-    class="group flex h-full flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-xs transition-all hover:border-neutral-300 hover:shadow-sm"
-  >
+  <article class="flex h-full flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
     <div class="flex items-start gap-3">
       <span
         class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-700 ring-1 ring-neutral-200"
@@ -27,18 +23,6 @@ function initials(name: string): string {
         <p class="truncate font-semibold text-neutral-900">{{ person.name || person.email }}</p>
         <p v-if="person.name" class="truncate text-sm text-neutral-500">{{ person.email }}</p>
       </div>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="mt-1 h-4 w-4 shrink-0 text-neutral-300 transition-colors group-hover:text-neutral-900"
-        aria-hidden="true"
-      >
-        <path d="m9 18 6-6-6-6" />
-      </svg>
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">
@@ -50,5 +34,5 @@ function initials(name: string): string {
       </span>
       <p class="shrink-0 text-xs text-neutral-400">{{ $t('people.linked', { date: formatDate(person.linked_at) }) }}</p>
     </div>
-  </RouterLink>
+  </article>
 </template>

@@ -6,7 +6,6 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
-import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import TaskList from '@/components/tasks/TaskList.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import KanbanBoard from '@/components/board/KanbanBoard.vue'
@@ -32,7 +31,6 @@ const router = useRouter()
 
 const filter = ref(typeof route.query.status === 'string' ? route.query.status : 'open')
 const filterLabel = computed(() => statusFilterLabel(filter.value))
-const withId = ref(typeof route.query.with === 'string' ? route.query.with : '')
 const showForm = ref(false)
 /** The board column a task is being added from, if any. */
 const newTaskColumn = ref<BoardColumn | null>(null)
@@ -45,100 +43,65 @@ const loadError = ref('')
 
 /** The people on the other side: a freelancer's clients or a client's freelancers. */
 const counterparts = computed(() => (auth.isClient ? people.freelancers : people.clients))
-const counterpartOptions = computed(() => [
-  { value: '', label: auth.isClient ? t('tasks.allFreelancers') : t('tasks.allTasks') },
-  ...(auth.isFreelancer ? [{ value: 'personal', label: t('common.personal') }] : []),
-  ...counterparts.value.map((p) => ({ value: p.id, label: p.name || p.email })),
-])
-/** A freelancer filters between personal tasks and any client; a client needs two freelancers. */
-const showCounterpartFilter = computed(() => counterparts.value.length > (auth.isClient ? 1 : 0))
-
-/**
- * A board belongs to one freelancer–client pair (or a freelancer's personal
- * work). A freelancer also has the all board — every task, the pairs' columns
- * merged by name — which is their default; a client opens their first
- * freelancer's board.
- */
-const boardOptions = computed(() => [
-  // A freelancer's every task on one board, the boards' columns merged by name.
-  ...(auth.isFreelancer ? [{ value: 'all', label: t('tasks.allBoards') }, { value: 'personal', label: t('common.personal') }] : []),
-  ...counterparts.value.map((p) => ({ value: p.id, label: p.name || p.email })),
-])
-
-const boardWith = computed(() => {
-  if (boardOptions.value.some((o) => o.value === withId.value)) return withId.value
-  return boardOptions.value[0]?.value ?? ''
-})
-
-/** Picking a board: "All boards" is the freelancer's default, so it leaves no ?with= behind. */
-function pickBoard(value: string) {
-  withId.value = value === 'all' ? '' : value
-}
 
 // --- the board's project filter ---------------------------------------------------
 
 const projects = useProjectsStore()
-/** Picked project IDs; "none" keeps the tasks outside any project. Empty shows them all. */
-const boardProjects = ref<string[]>([])
+/** The one project whose tasks and columns are on screen. */
+const projectId = ref('')
 
-/** The projects on the open board: every one on the all board, else the pair's. */
-const projectOptions = computed(() => {
-  const w = boardWith.value
-  const own = projects.projects.filter((p) => {
-    if (w === 'all') return true
-    if (auth.isClient) return p.freelancer.id === w
-    return w === 'personal' ? !p.client : p.client?.id === w
-  })
-  return [...own.map((p) => ({ value: p.id, label: p.name })), { value: 'none', label: t('common.noProject') }]
-})
+const projectOptions = computed(() => projects.projects.map((p) => ({ value: p.id, label: p.name })))
 
-// A filter for another board's projects means nothing here.
-watch(boardWith, () => {
-  boardProjects.value = boardProjects.value.filter((id) => projectOptions.value.some((o) => o.value === id))
-})
-
-/** One selected project opens that project's own columns. Several, or all of them, merge. */
-const boardProject = computed(() => {
-  const picked = boardProjects.value.filter((id) => id !== 'none')
-  return picked.length === 1 && boardProjects.value.length === 1 ? picked[0] : ''
-})
+/** Keeps the open board on a project that still exists. */
+function pickProject() {
+  if (!projects.projects.some((p) => p.id === projectId.value)) {
+    projectId.value = projects.projects[0]?.id ?? ''
+  }
+}
 
 async function load() {
   loadError.value = ''
   try {
     if (view.value === 'board') {
-      if (boardWith.value) {
-        await board.fetchBoard({
-          with: boardWith.value,
-          project: boardProject.value || undefined,
-          projects: boardProject.value ? undefined : boardProjects.value,
-        })
-      }
+      // A client with nobody to work with has no board yet.
+      if (auth.isClient && !people.freelancers.length) return
+      if (!projectId.value) return
+      await board.fetchBoard({ project: projectId.value })
     } else {
       const statuses = STATUS_FILTERS.find((f) => f.value === filter.value)?.statuses ?? []
-      await tasks.fetchTasks({ statuses, with: withId.value })
+      await tasks.fetchTasks({ statuses, project: projectId.value || undefined })
     }
   } catch {
     loadError.value = t('tasks.loadFailed')
   }
 }
 
-watch([filter, withId], () => {
+watch(filter, () => {
   void router.replace({
-    query: { ...route.query, status: filter.value !== 'open' ? filter.value : undefined, with: withId.value || undefined },
+    query: { ...route.query, status: filter.value !== 'open' ? filter.value : undefined, with: undefined },
   })
 })
-watch([filter, boardWith, view, boardProjects], () => void load())
+watch([filter, view, projectId], () => void load())
 
 onMounted(async () => {
-  if (!projects.loaded) void projects.fetchProjects().catch(() => {})
+  try {
+    if (!projects.loaded) await projects.fetchProjects()
+  } catch {
+    // The board stays empty until the projects load.
+  }
   try {
     if (auth.isClient) await people.fetchFreelancers()
     else await people.fetchClients()
   } catch {
-    // The filters just stay empty.
+    // The new-task list just stays empty.
   }
-  void load()
+  if (route.query.with) {
+    void router.replace({ query: { ...route.query, with: undefined } })
+  }
+  const before = projectId.value
+  pickProject()
+  // Picking the first project reloads through the watch. Otherwise load once.
+  if (projectId.value === before) void load()
 })
 
 function onSaved(task: Task) {
@@ -170,36 +133,15 @@ function onSaved(task: Task) {
               {{ statusFilterLabel(f.value) }}
             </button>
           </div>
-          <SelectInput
-            v-if="showCounterpartFilter"
-            v-model="withId"
-            :options="counterpartOptions"
-            :aria-label="auth.isClient ? $t('tasks.freelancer') : $t('tasks.client')"
-            size="sm"
-            class="w-48"
-          />
         </template>
-        <template v-else>
-          <MultiSelectInput
-            v-if="projectOptions.length > 1"
-            v-model="boardProjects"
-            :label="$t('tasks.projects')"
-            hide-label
-            :placeholder="$t('tasks.allProjects')"
-            :options="projectOptions"
-            size="sm"
-            class="w-48"
-          />
-          <SelectInput
-            v-if="boardOptions.length > 1"
-            :model-value="boardWith"
-            :options="boardOptions"
-            :aria-label="$t('tasks.boardAria')"
-            size="sm"
-            class="w-48"
-            @update:model-value="pickBoard"
-          />
-        </template>
+        <SelectInput
+          v-if="projects.projects.length"
+          v-model="projectId"
+          :options="projectOptions"
+          :aria-label="$t('tasks.projects')"
+          size="sm"
+          class="w-48"
+        />
         <ViewToggle v-model="view" />
         <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </template>
@@ -208,13 +150,21 @@ function onSaved(task: Task) {
     <p v-if="loadError" class="mt-6 text-sm text-red-600">{{ loadError }}</p>
 
     <template v-else-if="view === 'board'">
-      <div v-if="!boardWith && people.freelancersLoaded" class="mt-6">
+      <div v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length" class="mt-6">
         <EmptyState
           :title="$t('tasks.noFreelancersTitle')"
           :description="$t('tasks.noFreelancersBoard')"
         />
       </div>
-      <KanbanBoard v-else-if="boardWith" class="mt-5" @new-task="startTask" />
+      <div v-else-if="projects.loaded && !projectId" class="mt-6">
+        <EmptyState
+          :title="$t('projects.noneYet')"
+          :description="auth.isClient ? $t('projects.noneYetClient') : $t('projects.noneYetFreelancer')"
+        >
+          <RouterLink to="/projects" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('projects.title') }}</RouterLink>
+        </EmptyState>
+      </div>
+      <KanbanBoard v-else-if="projectId" class="mt-5" @new-task="startTask" />
     </template>
 
     <div v-else-if="!tasks.isLoading && !tasks.tasks.length" class="mt-6">
@@ -257,7 +207,7 @@ function onSaved(task: Task) {
     <TaskFormModal
       v-if="showForm"
       :people="counterparts"
-      :person-id="(view === 'board' ? (boardWith === 'all' ? '' : boardWith) : withId) || undefined"
+      :project-id="projectId || undefined"
       :status-id="newTaskColumn?.id"
       :column-name="newTaskColumn?.name"
       @close="showForm = false"
