@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { z } from 'zod'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
+import InviteUnavailable from '@/components/auth/InviteUnavailable.vue'
 import FormError from '@/components/auth/FormError.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -26,6 +27,8 @@ const token = linkToken(route)
 
 const invitation = ref<InvitationLookup | null>(null)
 const invalid = ref('')
+/** A 404 means the link itself is dead; anything else is a failed lookup. */
+const linkGone = ref(false)
 /** An existing account only signs in; a new one needs a name and a confirmed password. */
 const schema = computed(() =>
   invitation.value?.account_exists
@@ -45,10 +48,12 @@ onMounted(async () => {
     invitation.value = await people.lookupInvitation(token)
     form.values.name = invitation.value.name
   } catch (error) {
-    invalid.value =
-      error instanceof ApiRequestError && error.status === 404
-        ? error.message
-        : t('invite.loadFailed')
+    if (error instanceof ApiRequestError && error.status === 404) {
+      linkGone.value = true
+      invalid.value = error.message
+    } else {
+      invalid.value = t('invite.loadFailed')
+    }
   }
 })
 
@@ -70,11 +75,7 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard v-if="invalid" :title="$t('invite.unavailable')" :subtitle="invalid">
-      <template #footer>
-        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('invite.goToSignIn') }}</RouterLink>
-      </template>
-    </AuthCard>
+    <InviteUnavailable v-if="invalid" :message="invalid" :gone="linkGone" />
 
     <AuthCard
       v-else-if="invitation"
