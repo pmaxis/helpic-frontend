@@ -6,17 +6,18 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
+import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import TaskList from '@/components/tasks/TaskList.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import KanbanBoard from '@/components/board/KanbanBoard.vue'
 import ViewToggle from '@/components/ui/ViewToggle.vue'
 import { useBoardStore } from '@/stores/board'
 import { useTaskView } from '@/composables/useTaskView'
+import { useStatusFilter } from '@/composables/useStatusFilter'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { usePeopleStore } from '@/stores/people'
 import { useProjectsStore } from '@/stores/projects'
-import { filterLabel as statusFilterLabel, STATUS_FILTERS } from '@/constants/tasks'
 import { t } from '@/i18n'
 import type { Task } from '@/types/tasks'
 import type { BoardColumn } from '@/types/board'
@@ -29,8 +30,6 @@ const people = usePeopleStore()
 const route = useRoute()
 const router = useRouter()
 
-const filter = ref(typeof route.query.status === 'string' ? route.query.status : 'open')
-const filterLabel = computed(() => statusFilterLabel(filter.value))
 const showForm = ref(false)
 /** The board column a task is being added from, if any. */
 const newTaskColumn = ref<BoardColumn | null>(null)
@@ -49,6 +48,8 @@ const counterparts = computed(() => (auth.isClient ? people.freelancers : people
 const projects = useProjectsStore()
 /** The one project whose tasks and columns are on screen. */
 const projectId = ref('')
+const statuses = useStatusFilter(projectId)
+const shown = computed(() => statuses.visible(tasks.tasks))
 
 const projectOptions = computed(() => projects.projects.map((p) => ({ value: p.id, label: p.name })))
 
@@ -68,20 +69,20 @@ async function load() {
       if (!projectId.value) return
       await board.fetchBoard({ project: projectId.value })
     } else {
-      const statuses = STATUS_FILTERS.find((f) => f.value === filter.value)?.statuses ?? []
-      await tasks.fetchTasks({ statuses, project: projectId.value || undefined })
+      await Promise.all([tasks.fetchTasks({ project: projectId.value || undefined }), statuses.load().catch(() => {})])
+      // The dashboard links here with ?status=done to open that bucket.
+      const bucket = route.query.status
+      if (bucket === 'new' || bucket === 'in_progress' || bucket === 'done') {
+        statuses.selectBucket(bucket)
+        void router.replace({ query: { ...route.query, status: undefined, with: undefined } })
+      }
     }
   } catch {
     loadError.value = t('tasks.loadFailed')
   }
 }
 
-watch(filter, () => {
-  void router.replace({
-    query: { ...route.query, status: filter.value !== 'open' ? filter.value : undefined, with: undefined },
-  })
-})
-watch([filter, view, projectId], () => void load())
+watch([view, projectId], () => void load())
 
 onMounted(async () => {
   try {
@@ -118,22 +119,16 @@ function onSaved(task: Task) {
     <PageHeader :title="$t('tasks.title')">
       <template #actions>
         <!-- the filters, then the view and the new task -->
-        <template v-if="view === 'list'">
-          <!-- framed like the view toggle, 32px like the buttons beside it -->
-          <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('tasks.statusAria')">
-            <button
-              v-for="f in STATUS_FILTERS"
-              :key="f.value"
-              type="button"
-              class="inline-flex h-full items-center rounded-md px-2.5 font-medium transition-colors"
-              :class="filter === f.value ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
-              :aria-pressed="filter === f.value"
-              @click="filter = f.value"
-            >
-              {{ statusFilterLabel(f.value) }}
-            </button>
-          </div>
-        </template>
+        <MultiSelectInput
+          v-if="view === 'list'"
+          v-model="statuses.selected"
+          :label="$t('tasks.statusAria')"
+          :placeholder="$t('tasks.allStatuses')"
+          :options="statuses.options"
+          hide-label
+          size="sm"
+          class="w-48 shrink-0"
+        />
         <SelectInput
           v-if="projects.projects.length"
           v-model="projectId"
@@ -167,20 +162,19 @@ function onSaved(task: Task) {
       <KanbanBoard v-else-if="projectId" class="mt-5" @new-task="startTask" />
     </template>
 
-    <div v-else-if="!tasks.isLoading && !tasks.tasks.length" class="mt-6">
+    <div v-else-if="!tasks.isLoading && !shown.length" class="mt-6">
       <EmptyState
         v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length"
         :title="$t('tasks.noFreelancersTitle')"
         :description="$t('tasks.noFreelancersTasks')"
       />
-      <!-- a filter that hides tasks says so, rather than looking like there are none -->
       <EmptyState
-        v-else-if="filter !== 'all'"
-        :title="$t('tasks.noFiltered', { filter: filterLabel.toLowerCase() })"
-        :description="filter === 'open' ? $t('tasks.allDoneOrCancelled') : $t('tasks.nothingMatches')"
+        v-else-if="statuses.selected.length"
+        :title="$t('tasks.noStatusMatch')"
+        :description="$t('tasks.nothingMatches')"
       >
         <div class="flex items-center gap-4">
-          <BaseButton size="sm" variant="ghost" :block="false" @click="filter = 'all'">{{ $t('tasks.showAll') }}</BaseButton>
+          <BaseButton size="sm" variant="ghost" :block="false" @click="statuses.selected = []">{{ $t('tasks.showAll') }}</BaseButton>
           <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
         </div>
       </EmptyState>
@@ -202,7 +196,7 @@ function onSaved(task: Task) {
       </EmptyState>
     </div>
 
-    <TaskList v-else class="mt-5" :tasks="tasks.tasks" :loading="tasks.isLoading" />
+    <TaskList v-else class="mt-5" :tasks="shown" :loading="tasks.isLoading" />
 
     <TaskFormModal
       v-if="showForm"

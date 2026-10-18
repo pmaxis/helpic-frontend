@@ -2,8 +2,8 @@
 /**
  * The Jira-style board a freelancer shares with a client. Its columns are the
  * pair's workflow statuses; dropping a card into a column sets the task's
- * status (native HTML5 drag and drop). Every column belongs to a category, and
- * a card can only go to a column whose category the user's role allows. The
+ * status (native HTML5 drag and drop). A card can only go to a column the
+ * user's role allows. The
  * freelancer, or the project's author, manages the columns: reorders them by
  * dragging the header, renames them by clicking the name, and adds, edits and
  * removes them from the header menu. Anyone else only moves cards. A card's
@@ -38,7 +38,7 @@ const board = useBoardStore()
 /**
  * Whether the user can add a task straight into a column. The freelancer and
  * whoever manages this board may use any column. Everyone else only uses a
- * category the owner opened to participants.
+ * column that isn't done.
  */
 function canCreateIn(col: BoardColumn): boolean {
   // An all-board lane spans several boards, so it can't say which one a new task is for.
@@ -64,13 +64,13 @@ const dragging = ref<Task | null>(null)
 /** Where the dragged card would land: a column and an index in it. */
 const dropAt = ref<{ columnId: string; index: number } | null>(null)
 
-/** A card may stay in its category, or enter one this person is allowed to. */
+/** A card may stay in its bucket, or enter a column this person is allowed to. */
 function canDrop(col: BoardColumn): boolean {
   const task = dragging.value
   if (!task) return false
   if (board.merged) return task.status === col.category || task.next_statuses.includes(col.category)
   const from = board.columns.find((c) => c.id === task.status_id)
-  if (from && from.category_id === col.category_id) return true
+  if (from && from.category === col.category) return true
   return auth.isFreelancer || board.canManage || col.participants_can_move
 }
 
@@ -339,7 +339,7 @@ async function finishRename(col: BoardColumn) {
   const previous = col.name
   col.name = name
   try {
-    await board.updateColumn(col.id, { name, category_id: col.category_id })
+    await board.updateColumn(col.id, { name })
   } catch (error) {
     col.name = previous
     toast.error(error instanceof ApiRequestError ? error.message : tr('board.renameFailed'))
@@ -379,8 +379,8 @@ function openEdit(col: BoardColumn) {
 const removeDescription = computed(() => {
   const col = removing.value
   if (!col?.tasks?.length) return tr('board.emptyColumn')
-  const n = col.tasks.length
-  return tr('board.tasksMove', { n, status: columnName(col.category_name || col.name) }, n)
+  const key = col.status_category === 'in_progress' ? 'inProgress' : col.status_category === 'todo' ? 'todo' : 'done'
+  return tr('board.tasksMove', { n: col.tasks.length, status: tr(`columnForm.${key}`) }, col.tasks.length)
 })
 
 function openRemove(col: BoardColumn) {
@@ -466,7 +466,7 @@ function foldedLabelNames(t: Task): string {
               @dragstart="onColumnDragStart($event, col)"
               @dragend="onColumnDragEnd"
             >
-              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="columnName(col.category_name || col.name)" />
+              <span class="h-2 w-2 shrink-0 rounded-full" :class="STATUS_DOT[col.category]" :title="columnName(col.name)" />
               <input
                 v-if="renamingId === col.id"
                 ref="renameInput"
