@@ -8,8 +8,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import InviteModal from '@/components/people/InviteModal.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
-import { invitationLink, usePeopleStore } from '@/stores/people'
-import { copyText, formatDate } from '@/utils/format'
+import { usePeopleStore } from '@/stores/people'
+import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
 import type { Invitation } from '@/types/people'
@@ -38,11 +38,6 @@ onMounted(async () => {
     loaded.value = true
   }
 })
-
-async function copy(inv: Invitation) {
-  if (await copyText(invitationLink(inv.token))) toast.success(t('clients.linkCopied'))
-  else toast.error(t('clients.copyFailed'))
-}
 
 async function revoke() {
   if (!revoking.value) return
@@ -108,7 +103,6 @@ async function revoke() {
               </p>
             </div>
             <div class="flex shrink-0 gap-2">
-              <BaseButton v-if="!inv.expired" variant="ghost" size="sm" :block="false" @click="copy(inv)">{{ $t('common.copyLink') }}</BaseButton>
               <BaseButton variant="ghost" size="sm" :block="false" @click="revoking = inv">{{ inv.expired ? $t('clients.remove') : $t('clients.revoke') }}</BaseButton>
             </div>
           </li>

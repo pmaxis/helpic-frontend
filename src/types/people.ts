@@ -11,12 +11,11 @@ export interface Link extends Party {
   open_tasks: number
 }
 
-/** A freelancer's pending invitation. */
+/** A freelancer's pending invitation. The link goes only to the invited address. */
 export interface Invitation {
   id: string
   email: string
   name: string
-  token: string
   expired: boolean
   expires_at: string
   created_at: string

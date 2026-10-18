@@ -52,19 +52,14 @@ export const usePeopleStore = defineStore('people', {
     },
 
     async lookupInvitation(token: string): Promise<InvitationLookup> {
-      const { data } = await http.get<{ invitation: InvitationLookup }>(`/invites/${token}`)
+      const { data } = await http.post<{ invitation: InvitationLookup }>('/invites/lookup', { token })
       return data.invitation
     },
 
     /** Accepts an invitation; the backend signs the client in and returns them. */
     async acceptInvitation(token: string, payload: AcceptInvitationPayload): Promise<User> {
-      const { data } = await http.post<UserResponse>(`/invites/${token}/accept`, payload)
+      const { data } = await http.post<UserResponse>('/invites/accept', { token, ...payload })
       return data.user
     },
   },
 })
-
-/** The shareable link for an invitation token. */
-export function invitationLink(token: string): string {
-  return `${window.location.origin}/invite/${token}`
-}
