@@ -31,7 +31,6 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: the link is the proof, and it signs the browser in.
-    // The token is in the fragment (see the email); :token is leftover links.
     path: '/confirm-signup/:token?',
     name: 'confirm-signup',
     component: () => import('@/views/ConfirmSignupView.vue'),
@@ -44,21 +43,18 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: the link is the proof, whoever is signed in here.
-    // The token is in the fragment (see the email); :token is leftover links.
     path: '/reset-password/:token?',
     name: 'reset-password',
     component: () => import('@/views/ResetPasswordView.vue'),
   },
   {
     // Open to everyone: the new email may be opened on another device.
-    // The token is in the fragment (see the email); :token is leftover links.
     path: '/confirm-email/:token?',
     name: 'confirm-email',
     component: () => import('@/views/ConfirmEmailView.vue'),
   },
   {
     // Open to everyone: a signed-in user may accept for another account.
-    // The token is in the fragment (see the email); :token is leftover links.
     path: '/invite/:token?',
     name: 'invite',
     component: () => import('@/views/InviteView.vue'),
@@ -131,7 +127,6 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: joining makes a new account and signs it in.
-    // The token is in the fragment (see the email); :token is leftover links.
     path: '/join/:token?',
     name: 'join-team',
     component: () => import('@/views/JoinTeamView.vue'),

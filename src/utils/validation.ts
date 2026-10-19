@@ -62,12 +62,15 @@ export function currentPassword(message: Message = () => t('validation.passwordR
   return z.string().min(1, { error: message })
 }
 
-/** A new password: long enough. */
+/** A new password: long enough, and both a letter and a number. */
 export function newPassword() {
   return z
     .string()
     .min(1, { error: () => t('validation.passwordRequired') })
     .min(LIMITS.password, { error: () => t('validation.passwordTooShort', { n: LIMITS.password }) })
+    .refine((value) => /\p{L}/u.test(value) && /\p{N}/u.test(value), {
+      error: () => t('validation.passwordTooSimple'),
+    })
 }
 
 /** Something picked from a list. */
