@@ -5,12 +5,13 @@ import Modal from '@/components/ui/Modal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormError from '@/components/auth/FormError.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
 import { useForm } from '@/composables/useForm'
-import { choice, LIMITS, optionalText, requiredText } from '@/utils/validation'
+import { LIMITS, optionalText, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
 import type { Project, ProjectInput } from '@/types/projects'
 import type { Link } from '@/types/people'
@@ -30,22 +31,25 @@ const emit = defineEmits<{
 const auth = useAuthStore()
 const projects = useProjectsStore()
 const isEdit = computed(() => !!props.project)
-const personField = auth.isClient ? 'freelancer_id' : 'client_id'
-
-/** A client starts a project with a freelancer; a freelancer's empty choice is a personal project. */
+/** A client starts a project with one or more freelancers; a freelancer's empty choice is a personal project. */
 const schema = z.object({
-  person_id: !isEdit.value && auth.isClient ? choice(() => t('validation.chooseFreelancer')) : z.string(),
+  freelancer_ids:
+    !isEdit.value && auth.isClient
+      ? z.array(z.string()).min(1, { error: () => t('validation.chooseFreelancer') })
+      : z.array(z.string()),
+  person_id: z.string(),
   name: requiredText('thingName', LIMITS.projectName),
   description: optionalText('description', LIMITS.projectDescription),
 })
 const form = useForm(
   schema,
   {
-    person_id: auth.isClient && props.people?.length === 1 ? props.people[0].id : '',
+    freelancer_ids: auth.isClient && props.people?.length === 1 ? [props.people[0].id] : [],
+    person_id: '',
     name: props.project?.name ?? '',
     description: props.project?.description ?? '',
   },
-  { serverFields: { [personField]: 'person_id' } },
+  { serverFields: { freelancer_id: 'freelancer_ids', freelancer_ids: 'freelancer_ids', client_id: 'person_id' } },
 )
 
 /** A client can only start a project with a freelancer they work with. */
@@ -60,7 +64,13 @@ function submit() {
     const input: ProjectInput = { name: data.name, description: data.description }
     const project = props.project
       ? await projects.updateProject(props.project.id, input)
-      : await projects.createProject(data.person_id ? { ...input, [personField]: data.person_id } : input)
+      : await projects.createProject(
+          auth.isClient
+            ? { ...input, freelancer_ids: data.freelancer_ids }
+            : data.person_id
+              ? { ...input, client_id: data.person_id }
+              : input,
+        )
     emit('saved', project)
   })
 }
@@ -74,11 +84,17 @@ function submit() {
     </div>
     <form v-else class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
+      <MultiSelectInput
+        v-if="!isEdit && auth.isClient && (people?.length ?? 0) > 1"
+        v-bind="form.field('freelancer_ids')"
+        :label="$t('projectForm.freelancer')"
+        :placeholder="$t('validation.chooseFreelancer')"
+        :options="personOptions"
+      />
       <BaseSelect
-        v-if="!isEdit && personOptions.length > 1"
+        v-else-if="!isEdit && auth.isFreelancer && personOptions.length > 1"
         v-bind="form.field('person_id')"
-        :label="auth.isClient ? $t('projectForm.freelancer') : $t('projectForm.client')"
-        :placeholder="auth.isClient ? $t('validation.chooseFreelancer') : undefined"
+        :label="$t('projectForm.client')"
         :options="personOptions"
       />
       <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">

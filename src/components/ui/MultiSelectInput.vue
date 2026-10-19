@@ -24,6 +24,8 @@ const props = defineProps<{
   hideLabel?: boolean
   /** "sm" is 32px tall, to line up with small buttons in a toolbar. */
   size?: 'md' | 'sm'
+  /** Picked values that stay picked. */
+  locked?: string[]
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>()
@@ -43,11 +45,25 @@ const display = computed(() => {
   return t('ui.selected', { n: picked.value.length })
 })
 
+function isLocked(value: string): boolean {
+  return !!props.locked?.includes(value)
+}
+
 function toggle(value: string) {
+  if (isLocked(value)) return
   const next = props.modelValue.includes(value) ? props.modelValue.filter((v) => v !== value) : [...props.modelValue, value]
   // Keep the options' order, whatever order they were picked in.
   emit('update:modelValue', props.options.map((o) => o.value).filter((v) => next.includes(v)))
 }
+
+function clear() {
+  emit(
+    'update:modelValue',
+    props.options.map((o) => o.value).filter((v) => props.modelValue.includes(v) && isLocked(v)),
+  )
+}
+
+const canClear = computed(() => props.modelValue.some((v) => !isLocked(v)))
 
 function position() {
   const rect = trigger.value?.getBoundingClientRect()
@@ -144,6 +160,7 @@ onBeforeUnmount(stopListening)
               role="checkbox"
               :aria-checked="modelValue.includes(o.value)"
               class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-neutral-800 hover:bg-neutral-100"
+              :class="isLocked(o.value) ? 'cursor-default' : ''"
               @click="toggle(o.value)"
             >
               <span
@@ -159,8 +176,8 @@ onBeforeUnmount(stopListening)
             </button>
           </li>
         </ul>
-        <div v-if="modelValue.length" class="border-t border-neutral-100 p-1">
-          <button type="button" class="w-full rounded-md px-2.5 py-1.5 text-left text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="emit('update:modelValue', [])">
+        <div v-if="canClear" class="border-t border-neutral-100 p-1">
+          <button type="button" class="w-full rounded-md px-2.5 py-1.5 text-left text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="clear">
             {{ placeholder }}
           </button>
         </div>

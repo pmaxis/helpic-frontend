@@ -1,16 +1,14 @@
 <script setup lang="ts">
 /**
- * Who from the client's side is on a task, as a row of the details list: a
- * multi-select of the client and their team. A contractor sees a task only
- * once they're on it. Anyone who sees the task may change who is on it,
- * except a contractor on a task they didn't set. The freelancer and whoever
- * set the task have rows of their own and always stay on it, so they're not
- * offered here.
+ * Who is on a task, as one multi-select. The author stays picked. The
+ * freelancer can be swapped for another one who can take the task, or taken
+ * off. The rest are the client's team: a contractor sees a task only once
+ * they're on it.
  */
 import { computed, ref, watch } from 'vue'
 import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import { useAuthStore } from '@/stores/auth'
-import { addTaskParticipant, fetchTaskPeople, removeTaskParticipant } from '@/services/taskPeople'
+import { addTaskParticipant, assignTaskFreelancer, fetchTaskPeople, removeTaskParticipant } from '@/services/taskPeople'
 import { ApiRequestError } from '@/services/api'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
@@ -24,41 +22,60 @@ const emit = defineEmits<{
 
 const auth = useAuthStore()
 
-/** The client's side, minus whoever set the task. */
 const people = ref<TaskPerson[]>([])
 /** Who is picked, kept here so quick clicks don't wait for the server. */
 const picked = ref<string[]>([])
 
+const authorId = computed(() => props.task.created_by)
+const freelancerIds = computed(() => new Set(people.value.filter((p) => p.role === 'freelancer').map((p) => p.id)))
+
 async function loadPeople() {
   try {
-    people.value = (await fetchTaskPeople(props.task.id)).filter((p) => p.id !== props.task.created_by)
+    people.value = props.task.client ? await fetchTaskPeople(props.task.id) : []
   } catch {
     people.value = []
   }
-  picked.value = people.value.filter((p) => p.on_task).map((p) => p.id)
+  if (!props.task.client && props.task.freelancer) {
+    people.value = [{ ...props.task.freelancer, role: 'freelancer', on_task: true }]
+  }
+  const ids = new Set(people.value.filter((p) => p.on_task || p.id === authorId.value).map((p) => p.id))
+  ids.add(authorId.value)
+  picked.value = people.value.map((p) => p.id).filter((id) => ids.has(id))
 }
-watch(() => [props.task.id, props.task.participants.length], loadPeople, { immediate: true })
+watch(() => [props.task.id, props.task.freelancer?.id, props.task.client?.id, props.task.participants.length], loadPeople, { immediate: true })
 
 const canChange = computed(
-  () => !auth.isContractor || props.task.created_by === auth.user?.id || props.task.freelancer.id === auth.user?.id,
+  () => !auth.isContractor || props.task.created_by === auth.user?.id || props.task.freelancer?.id === auth.user?.id,
 )
 
-const options = computed(() =>
-  people.value.map((p) => ({
-    value: p.id,
-    label: p.id === auth.user?.id ? `${p.name || p.email} (${t('common.you')})` : `${p.name || p.email} · ${t(`taskPeople.roles.${p.role}`)}`,
-  })),
-)
+function personLabel(p: { id: string; name: string; email: string; role: TaskPerson['role'] }): string {
+  const name = p.id === auth.user?.id ? `${p.name || p.email} (${t('common.you')})` : p.name || p.email
+  return `${name} · ${t(`taskPeople.roles.${p.role}`)}`
+}
 
-/** The ones on the task, for a viewer who can't change them. */
+const options = computed(() => people.value.map((p) => ({ value: p.id, label: personLabel(p) })))
 const onTask = computed(() => people.value.filter((p) => picked.value.includes(p.id)))
 
 async function update(next: string[]) {
+  const withAuthor = [...new Set([authorId.value, ...next])]
   const before = picked.value
-  picked.value = next
-  const added = next.filter((id) => !before.includes(id))
-  const removed = before.filter((id) => !next.includes(id))
+  const beforeAssignee = props.task.freelancer?.id ?? ''
+  const checked = withAuthor.filter((id) => freelancerIds.value.has(id))
+  const addedAssignee = checked.find((id) => id !== beforeAssignee && !before.includes(id))
+  let assignee = beforeAssignee
+  if (addedAssignee) assignee = addedAssignee
+  else if (beforeAssignee && !withAuthor.includes(beforeAssignee)) assignee = ''
+
+  const nextPicked = withAuthor.filter((id) => !freelancerIds.value.has(id) || id === assignee || id === authorId.value)
+  if (assignee && people.value.some((p) => p.id === assignee) && !nextPicked.includes(assignee)) nextPicked.push(assignee)
+  if (nextPicked.length === before.length && nextPicked.every((id) => before.includes(id)) && assignee === beforeAssignee) return
+  picked.value = people.value.map((p) => p.id).filter((id) => nextPicked.includes(id))
+
+  const team = (ids: string[]) => ids.filter((id) => !freelancerIds.value.has(id) && id !== authorId.value)
+  const added = team(nextPicked).filter((id) => !before.includes(id))
+  const removed = team(before).filter((id) => !nextPicked.includes(id))
   try {
+    if (assignee !== beforeAssignee) await assignTaskFreelancer(props.task.id, assignee)
     for (const id of added) await addTaskParticipant(props.task.id, id)
     for (const id of removed) await removeTaskParticipant(props.task.id, id)
   } catch (error) {
@@ -69,7 +86,7 @@ async function update(next: string[]) {
 </script>
 
 <template>
-  <dt :class="canChange ? 'text-neutral-500' : 'self-start text-neutral-500'">{{ $t('taskPeople.title') }}</dt>
+  <dt class="text-neutral-500">{{ $t('taskPeople.title') }}</dt>
   <dd class="min-w-0">
     <MultiSelectInput
       v-if="canChange"
@@ -78,11 +95,12 @@ async function update(next: string[]) {
       hide-label
       size="sm"
       :options="options"
+      :locked="[authorId]"
       :placeholder="$t('taskPeople.nobody')"
       @update:model-value="update"
     />
     <template v-else>
-      <p v-for="p in onTask" :key="p.id" class="truncate text-neutral-800">{{ p.name || p.email }}</p>
+      <p v-for="p in onTask" :key="p.id" class="truncate text-neutral-800">{{ personLabel(p) }}</p>
       <span v-if="!onTask.length" class="text-neutral-400">{{ $t('taskPeople.nobody') }}</span>
     </template>
   </dd>

@@ -15,7 +15,8 @@ export interface TaskLabel {
 
 export interface Task {
   id: string
-  freelancer: Party
+  /** Null while nobody is assigned to the task. */
+  freelancer: Party | null
   /** Null for a freelancer's personal task. */
   client: Party | null
   /** Null for a task outside any project. */
@@ -75,7 +76,7 @@ export interface TaskInput {
 
 /** Someone on a task's client side who can be on it: the client, or a member or contractor of their company. */
 export interface TaskPerson extends Party {
-  role: 'owner' | 'member' | 'contractor'
+  role: 'freelancer' | 'owner' | 'member' | 'contractor'
   /** Already a participant. */
   on_task: boolean
 }

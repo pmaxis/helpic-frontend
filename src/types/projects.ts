@@ -10,8 +10,8 @@ export interface Project {
   description: string
   open_tasks: number
   total_tasks: number
-  /** People on the project, the author first. */
-  participants: Party[]
+  /** People on the project, the author first. Role says which side they are. */
+  participants: Array<Party & { role?: ProjectPerson['role'] }>
   /** Only the creator edits and deletes a project, and invites its participants. */
   can_edit: boolean
   created_at: string
@@ -27,8 +27,10 @@ export interface ProjectPerson {
 }
 
 export interface ProjectInput {
-  /** Set by a client creating a project. */
+  /** One freelancer, kept for callers that name a single one. */
   freelancer_id?: string
+  /** The freelancers a client starts the project with. */
+  freelancer_ids?: string[]
   /** Set by a freelancer creating a project for a client; omitted for a personal one. */
   client_id?: string
   name: string
