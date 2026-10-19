@@ -1,14 +1,16 @@
 # --- base ---------------------------------------------------------------
 FROM node:22-alpine AS base
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 # --- dev (used by docker compose) -------------------------------------------
 FROM base AS dev
 COPY . .
 EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"]
 
 # --- build ----------------------------------------------------------------
 FROM base AS build
@@ -16,7 +18,7 @@ FROM base AS build
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # --- production (static files served by nginx) ----------------------------
 FROM nginx:1.27-alpine AS production

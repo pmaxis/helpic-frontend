@@ -3,4 +3,5 @@ dist
 .vite
 .git
 npm-debug.log*
+pnpm-debug.log*
 .env

@@ -19,7 +19,7 @@ Open http://localhost:5180. The source is bind-mounted, so changes hot-reload.
 
 Production-like build (nginx): `make prod` → http://localhost:8091.
 
-Without Docker: `npm install && npm run dev` (set `VITE_PROXY_TARGET=http://localhost:8090` or leave it unset).
+Without Docker: `pnpm install && pnpm dev` (set `VITE_PROXY_TARGET=http://localhost:8090` or leave it unset).
 
 ## Configuration
 
