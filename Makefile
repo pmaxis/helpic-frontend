@@ -26,4 +26,4 @@ prod: ## Build and serve the production bundle via nginx
 	$(COMPOSE) --profile prod up -d --build frontend-prod
 
 test: ## Type-check and build
-	npm ci && npm run build
+	pnpm install --frozen-lockfile && pnpm run build
