@@ -1,19 +1,22 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { z } from 'zod'
-import { useRouter, RouterLink } from 'vue-router'
+import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useForm } from '@/composables/useForm'
 import { currentPassword, email, LIMITS, newPassword, passwordsMatch, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
+import AuthOutcome from '@/components/auth/AuthOutcome.vue'
 import FormError from '@/components/auth/FormError.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
 
 const auth = useAuthStore()
-const router = useRouter()
+const { t: tr } = useI18n()
 
 const schema = z
   .object({
@@ -25,20 +28,33 @@ const schema = z
   .refine(...passwordsMatch())
 
 const form = useForm(schema, { name: '', email: '', password: '', password_confirmation: '' })
+/** The address the confirmation link went to, once sent. */
+const sentTo = ref('')
+const sentSteps = computed(() => [
+  { icon: 'mail' as const, title: tr('register.next.inbox.title'), text: tr('register.next.inbox.text') },
+  { icon: 'enter' as const, title: tr('register.next.open.title'), text: tr('register.next.open.text') },
+])
 
 function onSubmit() {
   void form.submit(async (data) => {
     await auth.register(data)
-    // Auto sign-in after successful registration.
-    await auth.login({ email: data.email, password: data.password })
-    await router.replace('/dashboard')
+    sentTo.value = data.email
   })
 }
 </script>
 
 <template>
   <AuthLayout>
-    <AuthCard :title="$t('register.title')" :subtitle="$t('register.subtitle')">
+    <AuthOutcome
+      v-if="sentTo"
+      :title="tr('register.sentTitle')"
+      :subtitle="tr('register.sentSubtitle', { email: sentTo })"
+      :steps="sentSteps"
+      action-to="/login"
+      :action-label="tr('forgot.back')"
+    />
+
+    <AuthCard v-else :title="$t('register.title')" :subtitle="$t('register.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
 

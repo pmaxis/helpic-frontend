@@ -30,6 +30,13 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    // Open to everyone: the link is the proof, and it signs the browser in.
+    // The token is in the fragment (see the email); :token is leftover links.
+    path: '/confirm-signup/:token?',
+    name: 'confirm-signup',
+    component: () => import('@/views/ConfirmSignupView.vue'),
+  },
+  {
     path: '/forgot-password',
     name: 'forgot-password',
     component: () => import('@/views/ForgotPasswordView.vue'),
