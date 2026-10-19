@@ -18,7 +18,7 @@ services:
       - .:/app
       - /app/node_modules
     ports:
-      - "${FRONTEND_PORT:-5180}:5173"
+      - "127.0.0.1:${FRONTEND_PORT:-5180}:5173"
 
   # Production-like build: `docker compose --profile prod up --build frontend-prod`
   frontend-prod:
@@ -27,6 +27,9 @@ services:
       context: .
       target: production
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8090/api/v1}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    environment:
+      # Where the browser calls the API. Empty means same origin, /api/v1.
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8090/api/v1}
     ports:
-      - "${FRONTEND_PROD_PORT:-8091}:80"
+      - "127.0.0.1:${FRONTEND_PROD_PORT:-8091}:80"

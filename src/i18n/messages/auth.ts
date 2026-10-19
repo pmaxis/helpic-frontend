@@ -58,8 +58,17 @@ const en = {
     remembered: 'Remembered it?',
     sentTitle: 'Check your email',
     sentSubtitle: 'If {email} has a Helpic account, we sent it a link to set a new password. It works for an hour.',
-    nothingThere: 'Nothing there? Check the spam folder, or',
-    tryAnother: 'try another email',
+    tryAnother: 'Try another email',
+    next: {
+      inbox: {
+        title: 'Check your inbox',
+        text: 'The link works for an hour. Look in spam if it isn’t there.',
+      },
+      other: {
+        title: 'Wrong address?',
+        text: 'Send the link to another email.',
+      },
+    },
     back: 'Back to sign in',
   },
   reset: {
@@ -80,7 +89,27 @@ const en = {
     failed: "Couldn't confirm the email",
     failedGeneric: 'Could not confirm the email. Please try again.',
     backToSettings: 'Back to settings',
-    signIn: 'Sign in',
+    next: {
+      send: {
+        title: 'Send a new link',
+        text: 'Sign in and change the email again in Settings. A fresh link arrives by email.',
+        textSignedIn: 'Change the email again in Settings. A fresh link arrives by email.',
+      },
+      already: {
+        title: 'Already confirmed?',
+        text: 'Sign in. If this address is already yours, nothing else is needed.',
+      },
+      keep: {
+        title: 'Keep the current address',
+        text: 'The address you sign in with stays until a new one is confirmed.',
+      },
+    },
+    done: {
+      title: 'Sign in with it',
+      text: 'Use this address and your password.',
+      signedInTitle: "You're signed in",
+      signedInText: 'This address is on your account.',
+    },
   },
   invite: {
     unavailable: 'Invitation unavailable',
@@ -181,8 +210,17 @@ const uk: typeof en = {
     remembered: 'Згадали?',
     sentTitle: 'Перевірте пошту',
     sentSubtitle: 'Якщо {email} має акаунт Helpic, ми надіслали на неї посилання для нового пароля. Воно діє годину.',
-    nothingThere: 'Листа немає? Перевірте спам або',
-    tryAnother: 'спробуйте іншу пошту',
+    tryAnother: 'Спробувати іншу пошту',
+    next: {
+      inbox: {
+        title: 'Перевірте вхідні',
+        text: 'Посилання діє годину. Якщо листа немає, загляньте в спам.',
+      },
+      other: {
+        title: 'Не та адреса?',
+        text: 'Надішліть посилання на іншу пошту.',
+      },
+    },
     back: 'Назад до входу',
   },
   reset: {
@@ -203,7 +241,27 @@ const uk: typeof en = {
     failed: 'Не вдалося підтвердити пошту',
     failedGeneric: 'Не вдалося підтвердити пошту. Спробуйте ще раз.',
     backToSettings: 'Назад до налаштувань',
-    signIn: 'Увійти',
+    next: {
+      send: {
+        title: 'Надішліть нове посилання',
+        text: 'Увійдіть і змініть пошту ще раз у Налаштуваннях. Свіже посилання прийде на пошту.',
+        textSignedIn: 'Змініть пошту ще раз у Налаштуваннях. Свіже посилання прийде на пошту.',
+      },
+      already: {
+        title: 'Вже підтверджено?',
+        text: 'Увійдіть. Якщо ця адреса вже ваша, більше нічого не потрібно.',
+      },
+      keep: {
+        title: 'Залишити поточну адресу',
+        text: 'Адреса, з якою ви входите, лишається, доки нову не підтверджено.',
+      },
+    },
+    done: {
+      title: 'Увійдіть з нею',
+      text: 'Використайте цю адресу і свій пароль.',
+      signedInTitle: 'Ви вже в системі',
+      signedInText: 'Ця адреса тепер у вашому акаунті.',
+    },
   },
   invite: {
     unavailable: 'Запрошення недоступне',

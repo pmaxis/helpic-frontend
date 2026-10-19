@@ -37,13 +37,15 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Open to everyone: the link is the proof, whoever is signed in here.
-    path: '/reset-password/:token',
+    // The token is in the fragment (see the email); :token is leftover links.
+    path: '/reset-password/:token?',
     name: 'reset-password',
     component: () => import('@/views/ResetPasswordView.vue'),
   },
   {
     // Open to everyone: the new email may be opened on another device.
-    path: '/confirm-email/:token',
+    // The token is in the fragment (see the email); :token is leftover links.
+    path: '/confirm-email/:token?',
     name: 'confirm-email',
     component: () => import('@/views/ConfirmEmailView.vue'),
   },

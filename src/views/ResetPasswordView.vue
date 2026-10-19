@@ -13,11 +13,12 @@ import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
 import { currentPassword, LIMITS, newPassword, passwordsMatch } from '@/utils/validation'
 import { t } from '@/i18n'
+import { linkToken } from '@/utils/linkToken'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const token = String(route.params.token)
+const token = linkToken(route)
 
 const schema = z
   .object({ password: newPassword(), password_confirmation: currentPassword(() => t('validation.confirmPassword')) })
