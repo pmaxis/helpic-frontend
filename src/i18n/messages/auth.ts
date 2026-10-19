@@ -50,6 +50,40 @@ const en = {
     submit: 'Create account',
     haveAccount: 'Already have an account?',
     signIn: 'Sign in',
+    sentTitle: 'Check your email',
+    sentSubtitle: 'We sent {email} a link to confirm it. The account is created when you open the link. It works for 24 hours.',
+    next: {
+      inbox: {
+        title: 'Open the link',
+        text: 'It confirms this address. Look in spam if the email isn’t there.',
+      },
+      open: {
+        title: 'Then you’re in',
+        text: 'Opening the link creates the account and signs you in.',
+      },
+    },
+  },
+  confirmSignup: {
+    confirming: 'Confirming your email…',
+    title: 'Email confirmed',
+    subtitle: 'The account for {email} is ready.',
+    failed: "Couldn't confirm the email",
+    failedGeneric: 'This link has expired or was already used. Sign up again to get a new one.',
+    next: {
+      again: {
+        title: 'Get a new link',
+        text: 'Sign up again with the same address. The new email replaces the old link.',
+      },
+      signIn: {
+        title: 'Already confirmed?',
+        text: 'Sign in with the password you chose.',
+      },
+    },
+    done: {
+      title: "You're signed in",
+      text: 'Your tasks and projects are on the dashboard.',
+    },
+    goToDashboard: 'Go to the dashboard',
   },
   forgot: {
     title: 'Forgot your password?',
@@ -202,6 +236,40 @@ const uk: typeof en = {
     submit: 'Створити акаунт',
     haveAccount: 'Вже маєте акаунт?',
     signIn: 'Увійдіть',
+    sentTitle: 'Перевірте пошту',
+    sentSubtitle: 'Ми надіслали на {email} посилання для підтвердження. Акаунт з’явиться, коли ви його відкриєте. Посилання діє 24 години.',
+    next: {
+      inbox: {
+        title: 'Відкрийте посилання',
+        text: 'Воно підтверджує цю адресу. Якщо листа немає, загляньте в спам.',
+      },
+      open: {
+        title: 'І ви в системі',
+        text: 'Відкриття посилання створює акаунт і входить у нього.',
+      },
+    },
+  },
+  confirmSignup: {
+    confirming: 'Підтверджуємо пошту…',
+    title: 'Пошту підтверджено',
+    subtitle: 'Акаунт для {email} готовий.',
+    failed: 'Не вдалося підтвердити пошту',
+    failedGeneric: 'Посилання прострочене або вже використане. Зареєструйтесь ще раз, щоб отримати нове.',
+    next: {
+      again: {
+        title: 'Отримайте нове посилання',
+        text: 'Зареєструйтесь ще раз з тією самою адресою. Новий лист замінює старе посилання.',
+      },
+      signIn: {
+        title: 'Вже підтверджено?',
+        text: 'Увійдіть із паролем, який ви обрали.',
+      },
+    },
+    done: {
+      title: 'Ви в системі',
+      text: 'Задачі й проєкти — на панелі.',
+    },
+    goToDashboard: 'До панелі',
   },
   forgot: {
     title: 'Забули пароль?',

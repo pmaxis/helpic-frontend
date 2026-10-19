@@ -82,11 +82,19 @@ export const useAuthStore = defineStore('auth', {
     async register(payload: RegisterPayload): Promise<void> {
       this.isLoading = true
       try {
-        // Registration does not create a session; the user logs in afterwards.
-        await http.post<UserResponse>('/auth/register', payload)
+        // Emails a confirmation link. The account does not exist until it's opened.
+        await http.post<{ email: string }>('/auth/register', payload)
       } finally {
         this.isLoading = false
       }
+    },
+
+    /** Opens a sign-up link: creates the account and signs this browser in. */
+    async confirmSignup(token: string): Promise<User> {
+      const { data } = await http.post<UserResponse>('/auth/signups/confirm', { token })
+      this.user = follow(data.user)
+      this.isInitialized = true
+      return data.user
     },
 
     async logout(): Promise<void> {
