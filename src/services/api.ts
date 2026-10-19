@@ -2,7 +2,16 @@ import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig 
 import type { ApiError } from '@/types/auth'
 import { currentLocale, t } from '@/i18n'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8090/api/v1'
+/** The API root. A running container can set it in /config.js; a build can bake it; otherwise the site and the API share an origin. */
+function apiBaseURL(): string {
+  const runtime = window.__HELpic_CONFIG__?.apiBaseUrl?.trim()
+  if (runtime) return runtime.replace(/\/$/, '')
+  const baked = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (baked) return baked.replace(/\/$/, '')
+  return '/api/v1'
+}
+
+const baseURL = apiBaseURL()
 
 /**
  * Single axios instance for the whole app. Every request sends cookies

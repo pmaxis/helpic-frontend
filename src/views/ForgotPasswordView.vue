@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /** Asks for a reset link. The answer doesn't say whether the email has an account. */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
+import AuthOutcome from '@/components/auth/AuthOutcome.vue'
 import FormError from '@/components/auth/FormError.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -13,9 +15,14 @@ import { useForm } from '@/composables/useForm'
 import { email } from '@/utils/validation'
 
 const route = useRoute()
+const { t } = useI18n()
 const form = useForm(z.object({ email: email() }), { email: typeof route.query.email === 'string' ? route.query.email : '' })
 /** The address the link went to, once sent. */
 const sentTo = ref('')
+const sentSteps = computed(() => [
+  { icon: 'mail' as const, title: t('forgot.next.inbox.title'), text: t('forgot.next.inbox.text') },
+  { icon: 'enter' as const, title: t('forgot.next.other.title'), text: t('forgot.next.other.text') },
+])
 
 function onSubmit() {
   void form.submit(async (data) => {
@@ -27,19 +34,18 @@ function onSubmit() {
 
 <template>
   <AuthLayout>
-    <AuthCard
+    <AuthOutcome
       v-if="sentTo"
-      :title="$t('forgot.sentTitle')"
-      :subtitle="$t('forgot.sentSubtitle', { email: sentTo })"
+      :title="t('forgot.sentTitle')"
+      :subtitle="t('forgot.sentSubtitle', { email: sentTo })"
+      :steps="sentSteps"
+      action-to="/login"
+      :action-label="t('forgot.back')"
     >
-      <p class="text-sm text-neutral-500">
-        {{ $t('forgot.nothingThere') }}
-        <button type="button" class="font-medium text-neutral-900 underline-offset-4 hover:underline" @click="sentTo = ''">{{ $t('forgot.tryAnother') }}</button>.
-      </p>
-      <template #footer>
-        <RouterLink to="/login" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('forgot.back') }}</RouterLink>
-      </template>
-    </AuthCard>
+      <button type="button" class="mt-3 w-full text-center text-sm font-medium text-neutral-900 underline-offset-4 hover:underline" @click="sentTo = ''">
+        {{ t('forgot.tryAnother') }}
+      </button>
+    </AuthOutcome>
 
     <AuthCard v-else :title="$t('forgot.title')" :subtitle="$t('forgot.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">

@@ -91,7 +91,8 @@ async function saveCurrency(currency: string) {
     await auth.setCurrency(currency)
     toast.success(t('settings.profile.currencyChanged', { currency }))
   } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : t('settings.profile.currencyFailed'))
+    const field = error instanceof ApiRequestError ? error.fields?.currency : undefined
+    toast.error(field ?? (error instanceof ApiRequestError ? error.message : t('settings.profile.currencyFailed')))
   } finally {
     savingCurrency.value = false
   }
@@ -248,14 +249,16 @@ async function signOutOthers() {
             :class="savingLocale ? 'pointer-events-none opacity-60' : ''"
             @update:model-value="saveLocale"
           />
-          <BaseSelect
-            v-if="auth.isFreelancer"
-            :model-value="auth.user?.currency ?? 'USD'"
-            :label="$t('settings.profile.currency')"
-            :options="currencyOptions"
-            :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
-            @update:model-value="saveCurrency"
-          />
+          <div v-if="auth.isFreelancer">
+            <BaseSelect
+              :model-value="auth.user?.currency ?? 'USD'"
+              :label="$t('settings.profile.currency')"
+              :options="currencyOptions"
+              :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
+              @update:model-value="saveCurrency"
+            />
+            <p class="mt-1.5 text-xs leading-relaxed text-neutral-500">{{ $t('settings.profile.currencyHint') }}</p>
+          </div>
         </section>
       </template>
 

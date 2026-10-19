@@ -7,3 +7,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+interface HelpicConfig {
+  apiBaseUrl?: string
+}
+
+interface Window {
+  __HELpic_CONFIG__?: HelpicConfig
+}
