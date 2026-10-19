@@ -45,6 +45,7 @@ export const useProjectsStore = defineStore('projects', {
     replace(project: Project): void {
       const i = this.projects.findIndex((p) => p.id === project.id)
       if (i >= 0) this.projects[i] = project
+      else this.projects.push(project)
     },
   },
 })

@@ -127,7 +127,8 @@ function dueChip(t: Task): { text: string; tone: string } | null {
 function where(t: Task): string {
   if (t.project) return t.project.name
   const other = auth.isClient ? t.freelancer : t.client
-  return other ? other.name || other.email : tr('dashboard.personal')
+  if (other) return other.name || other.email
+  return t.client ? '' : tr('dashboard.personal')
 }
 
 const recent = computed(() => [...tasks.tasks].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6))

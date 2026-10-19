@@ -5,7 +5,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseSelect from '@/components/ui/BaseSelect.vue'
+import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { inviteToProject, fetchProjectPeople, removeProjectParticipant } from '@/services/projectPeople'
 import { ApiRequestError } from '@/services/api'
@@ -28,7 +28,7 @@ const emit = defineEmits<{
 
 const participants = ref<ProjectPerson[]>([])
 const candidates = ref<ProjectPerson[]>([])
-const personId = ref('')
+const personIds = ref<string[]>([])
 const sending = ref(false)
 const removing = ref<ProjectPerson | null>(null)
 const removeBusy = ref(false)
@@ -43,9 +43,7 @@ async function load() {
     const people = await fetchProjectPeople(props.projectId)
     participants.value = people.participants
     candidates.value = people.candidates
-    if (!people.candidates.some((p) => p.id === personId.value)) {
-      personId.value = people.candidates[0]?.id ?? ''
-    }
+    personIds.value = personIds.value.filter((id) => people.candidates.some((p) => p.id === id))
     emit('loaded', people.participants.length)
   } catch {
     participants.value = []
@@ -63,13 +61,13 @@ const options = computed(() =>
 )
 
 async function send() {
-  if (!personId.value) return
+  if (!personIds.value.length) return
   sending.value = true
   try {
-    const people = await inviteToProject(props.projectId, personId.value)
+    const people = await inviteToProject(props.projectId, personIds.value)
     participants.value = people.participants
     candidates.value = people.candidates
-    personId.value = people.candidates[0]?.id ?? ''
+    personIds.value = []
     emit('loaded', people.participants.length)
     toast.success(t('project.invited'))
   } catch (error) {
@@ -86,7 +84,7 @@ async function remove() {
     const people = await removeProjectParticipant(props.projectId, removing.value.id)
     participants.value = people.participants
     candidates.value = people.candidates
-    personId.value = people.candidates[0]?.id ?? ''
+    personIds.value = []
     emit('loaded', people.participants.length)
     toast.success(t('project.removed'))
   } catch (error) {
@@ -105,8 +103,14 @@ async function remove() {
       {{ personal ? $t('project.personalPeople') : $t('project.inviteText') }}
     </p>
     <form v-if="canInvite && candidates.length" class="mt-4 flex flex-wrap items-end gap-3" @submit.prevent="send">
-      <BaseSelect v-model="personId" :label="$t('project.person')" :options="options" class="min-w-56 flex-1" />
-      <BaseButton type="submit" :block="false" class="h-[38px]" :loading="sending" :disabled="!personId || sending">
+      <MultiSelectInput
+        v-model="personIds"
+        :label="$t('project.person')"
+        :placeholder="$t('project.choosePeople')"
+        :options="options"
+        class="min-w-56 flex-1"
+      />
+      <BaseButton type="submit" :block="false" class="h-[38px]" :loading="sending" :disabled="!personIds.length || sending">
         {{ $t('project.invite') }}
       </BaseButton>
     </form>

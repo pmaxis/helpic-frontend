@@ -36,7 +36,7 @@ const en = {
   taskPeople: {
     title: 'Participants',
     nobody: 'Nobody else',
-    roles: { owner: 'client', member: 'member', contractor: 'contractor' },
+    roles: { freelancer: 'freelancer', owner: 'client', member: 'member', contractor: 'contractor' },
     failed: 'Could not change who is on the task',
   },
   task: {
@@ -93,6 +93,7 @@ const en = {
     askInvite: 'Ask your freelancer to send you an invitation link.',
     in: 'In',
     with: 'with {name}',
+    noFreelancer: "This project has no freelancer yet. Invite one from its participants.",
     for: 'for {name}',
     personalSuffix: 'personal',
     freelancer: 'Freelancer',
@@ -247,7 +248,7 @@ const uk: typeof en = {
   taskPeople: {
     title: 'Учасники',
     nobody: 'Нікого більше',
-    roles: { owner: 'клієнт', member: 'співробітник', contractor: 'підрядник' },
+    roles: { freelancer: 'фрилансер', owner: 'клієнт', member: 'співробітник', contractor: 'підрядник' },
     failed: 'Не вдалося змінити учасників',
   },
   task: {
@@ -304,6 +305,7 @@ const uk: typeof en = {
     askInvite: 'Попросіть фрилансера надіслати вам запрошення.',
     in: 'У',
     with: 'з {name}',
+    noFreelancer: 'У цьому проєкті ще немає фрилансера. Запросіть його до учасників.',
     for: 'для {name}',
     personalSuffix: 'особисте',
     freelancer: 'Фрилансер',

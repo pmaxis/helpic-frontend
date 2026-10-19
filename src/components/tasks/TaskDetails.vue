@@ -172,7 +172,7 @@ watch(
 const boardScope = computed<BoardScope>(() => {
   const t = task.value
   if (!t) return {}
-  return { with: auth.isClient ? t.freelancer.id : (t.client?.id ?? 'personal') }
+  return { with: auth.isClient ? (t.freelancer?.id ?? '') : (t.client?.id ?? 'personal') }
 })
 
 const priorityOptions = computed(() => priorityChoices())
@@ -353,7 +353,7 @@ function saveProject(projectId: string) {
 const projectOptions = computed(() => {
   const t = task.value
   if (!t) return []
-  const pair = projects.projects.filter((p) => p.freelancer.id === t.freelancer.id && (p.client?.id ?? '') === (t.client?.id ?? ''))
+  const pair = projects.projects.filter((p) => p.freelancer.id === t.freelancer?.id && (p.client?.id ?? '') === (t.client?.id ?? ''))
   return [{ value: '', label: tr('task.none') }, ...pair.map((p) => ({ value: p.id, label: p.name }))]
 })
 
@@ -625,28 +625,7 @@ function onSaved(t: Task) {
         <section class="px-5 py-4" :aria-label="$t('task.groups.people')">
           <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.people') }}</h3>
           <dl class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">
-            <dt class="text-neutral-500">{{ $t('task.freelancer') }}</dt>
-            <dd class="flex min-w-0 items-center gap-2">
-              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                {{ initials(task.freelancer.name || task.freelancer.email) }}
-              </span>
-              <span class="truncate text-neutral-800">{{ task.freelancer.name || task.freelancer.email }}</span>
-              <span v-if="isMe(task.freelancer.id)" class="shrink-0 text-xs text-neutral-400">{{ $t('common.you') }}</span>
-            </dd>
-
-            <dt class="text-neutral-500">{{ $t('task.client') }}</dt>
-            <dd class="flex min-w-0 items-center gap-2">
-              <template v-if="task.client">
-                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-600" aria-hidden="true">
-                  {{ initials(task.client.name || task.client.email) }}
-                </span>
-                <span class="truncate text-neutral-800">{{ task.client.name || task.client.email }}</span>
-                <span v-if="isMe(task.client.id)" class="shrink-0 text-xs text-neutral-400">{{ $t('common.you') }}</span>
-              </template>
-              <span v-else class="text-neutral-400">{{ $t('task.personal') }}</span>
-            </dd>
-
-            <TaskPeople v-if="task.client" :task="task" @changed="reloadTask" />
+            <TaskPeople :task="task" @changed="reloadTask" />
 
             <dt class="text-neutral-500">{{ $t('task.createdBy') }}</dt>
             <dd class="flex min-w-0 items-center gap-2">

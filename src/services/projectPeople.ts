@@ -12,8 +12,8 @@ export async function fetchProjectPeople(projectId: string): Promise<ProjectPeop
   return { participants: data.participants ?? [], candidates: data.candidates ?? [] }
 }
 
-export async function inviteToProject(projectId: string, userId: string): Promise<ProjectPeople> {
-  const { data } = await http.post<ProjectPeople>(`/projects/${projectId}/participants`, { user_id: userId })
+export async function inviteToProject(projectId: string, userIds: string[]): Promise<ProjectPeople> {
+  const { data } = await http.post<ProjectPeople>(`/projects/${projectId}/participants`, { user_ids: userIds })
   return { participants: data.participants ?? [], candidates: data.candidates ?? [] }
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { z } from 'zod'
 import Modal from '@/components/ui/Modal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -52,17 +52,34 @@ const choosePerson = () => (auth.isClient ? t('validation.chooseFreelancer') : t
 /** A new task from a client goes to a freelancer, unless its project says who. */
 const needsPerson = !isEdit.value && auth.isClient && !props.projectId
 
-const schema = z.object({
-  // A client must pick a freelancer; a freelancer's empty choice means a
-  // personal task.
-  person_id: needsPerson ? choice(choosePerson) : z.string(),
-  project_id: z.string(),
-  title: requiredText('title', LIMITS.taskTitle),
-  description: optionalText('description', LIMITS.taskDescription),
-  due_on: z.string(),
-  price: price(),
-  // Always set: the select has no empty option.
-  priority: z.string(),
+/** The project a new task is being filed into, once one is chosen. */
+const pickedProjectId = ref(props.projectId ?? '')
+
+function projectById(id: string): Project | undefined {
+  return id ? projects.projects.find((p) => p.id === id) : undefined
+}
+
+/** Freelancers who are on a project. A task in it can go only to one of them. */
+function freelancerParticipants(p: Project | undefined): { id: string; name: string }[] {
+  return (p?.participants ?? [])
+    .filter((person) => person.role === 'freelancer')
+    .map((person) => ({ id: person.id, name: person.name || person.email }))
+}
+
+const schema = computed(() => {
+  const several = freelancerParticipants(projectById(pickedProjectId.value)).length > 1
+  return z.object({
+    // A client must pick a freelancer; a freelancer's empty choice means a
+    // personal task. A project with several freelancers asks which one.
+    person_id: needsPerson || several ? choice(choosePerson) : z.string(),
+    project_id: z.string(),
+    title: requiredText('title', LIMITS.taskTitle),
+    description: optionalText('description', LIMITS.taskDescription),
+    due_on: z.string(),
+    price: price(),
+    // Always set: the select has no empty option.
+    priority: z.string(),
+  })
 })
 const form = useForm(
   schema,
@@ -93,24 +110,33 @@ onMounted(() => {
 })
 
 /** The project the task is being created in, when the caller fixed it. */
-const fixedProject = computed(() => (props.projectId ? projects.projects.find((p) => p.id === props.projectId) : undefined))
+const fixedProject = computed(() => projectById(props.projectId ?? ''))
+
+const projectFreelancers = computed(() => freelancerParticipants(projectById(pickedProjectId.value)))
+const showFreelancerSelect = computed(() => !isEdit.value && auth.isClient && projectFreelancers.value.length > 1)
 
 /** A client can only create a task for a freelancer they work with. */
 const nobody = computed(() => !isEdit.value && !props.projectId && auth.isClient && !props.people?.length)
-const personOptions = computed(() => [
-  ...(auth.isFreelancer ? [{ value: '', label: t('taskForm.personalOption') }] : []),
-  ...(props.people ?? []).map((p) => ({ value: p.id, label: p.name || p.email })),
-])
+const personOptions = computed(() => {
+  if (showFreelancerSelect.value) return projectFreelancers.value.map((p) => ({ value: p.id, label: p.name }))
+  return [
+    ...(auth.isFreelancer ? [{ value: '', label: t('taskForm.personalOption') }] : []),
+    ...(props.people ?? []).map((p) => ({ value: p.id, label: p.name || p.email })),
+  ]
+})
 
 /** The other side of the task: the edited task's, or the one picked in the form ('' = personal). */
 const pairOther = computed(() => {
-  if (props.task) return (auth.isClient ? props.task.freelancer.id : props.task.client?.id) ?? ''
+  if (props.task) return (auth.isClient ? props.task.freelancer?.id : props.task.client?.id) ?? ''
   return form.values.person_id
 })
 
 /** Projects with the same freelancer and client as the task. */
 function sharesPair(p: Project): boolean {
-  return auth.isClient ? p.freelancer.id === pairOther.value : (p.client?.id ?? '') === pairOther.value
+  if (!auth.isClient) return (p.client?.id ?? '') === pairOther.value
+  const id = pairOther.value
+  if (!id) return false
+  return p.participants?.some((person) => person.role === 'freelancer' && person.id === id) || p.freelancer.id === id
 }
 
 const projectOptions = computed(() => [
@@ -118,13 +144,27 @@ const projectOptions = computed(() => [
   ...projects.projects.filter(sharesPair).map((p) => ({ value: p.id, label: p.name })),
 ])
 
-// Picking someone else drops a project that belongs to another pair.
+// Picking someone else drops a project they aren't on.
 watch(
   () => form.values.person_id,
   () => {
+    if (!form.values.person_id) return
     const p = projects.projects.find((x) => x.id === form.values.project_id)
     if (p && !sharesPair(p)) form.values.project_id = ''
   },
+)
+
+// A project with one freelancer names them; several ask for a choice.
+watch(
+  [() => form.values.project_id, () => projects.projects],
+  () => {
+    pickedProjectId.value = props.projectId || form.values.project_id
+    if (isEdit.value || !auth.isClient || !pickedProjectId.value) return
+    const freelancers = freelancerParticipants(projectById(pickedProjectId.value))
+    if (freelancers.length === 1) form.values.person_id = freelancers[0].id
+    else if (!freelancers.some((f) => f.id === form.values.person_id)) form.values.person_id = ''
+  },
+  { immediate: true },
 )
 
 function submit() {
@@ -141,8 +181,10 @@ function submit() {
     } else {
       const create: TaskInput = { ...input, status_id: props.statusId, priority }
       if (showPrice.value && data.price) create.price = data.price
-      if (data.project_id) create.project_id = data.project_id
-      else if (data.person_id) create[personField] = data.person_id
+      if (data.project_id) {
+        create.project_id = data.project_id
+        if (auth.isClient && data.person_id) create.freelancer_id = data.person_id
+      } else if (data.person_id) create[personField] = data.person_id
       task = await tasks.createTask(create)
     }
     emit('saved', task)
@@ -165,13 +207,23 @@ function submit() {
 
       <p v-if="fixedProject" class="text-sm text-neutral-500">
         {{ $t('taskForm.in') }} <span class="font-medium text-neutral-900">{{ fixedProject.name }}</span>
-        <template v-if="auth.isClient"> · {{ $t('taskForm.with', { name: fixedProject.freelancer.name || fixedProject.freelancer.email }) }}</template>
-        <template v-else-if="fixedProject.client"> · {{ $t('taskForm.for', { name: fixedProject.client.name || fixedProject.client.email }) }}</template>
-        <template v-else> · {{ $t('taskForm.personalSuffix') }}</template>
+        <template v-if="auth.isClient && projectFreelancers.length === 1"> · {{ $t('taskForm.with', { name: projectFreelancers[0].name }) }}</template>
+        <template v-else-if="!auth.isClient && fixedProject.client"> · {{ $t('taskForm.for', { name: fixedProject.client.name || fixedProject.client.email }) }}</template>
+        <template v-else-if="!auth.isClient && !fixedProject.client"> · {{ $t('taskForm.personalSuffix') }}</template>
       </p>
-      <template v-else>
+      <p v-if="fixedProject && auth.isClient && !isEdit && !projectFreelancers.length" class="text-sm text-neutral-600">
+        {{ $t('taskForm.noFreelancer') }}
+      </p>
+      <BaseSelect
+        v-if="showFreelancerSelect"
+        v-bind="form.field('person_id')"
+        :label="$t('taskForm.freelancer')"
+        :placeholder="choosePerson()"
+        :options="personOptions"
+      />
+      <template v-if="!fixedProject">
         <BaseSelect
-          v-if="!isEdit && !statusId && personOptions.length > 1"
+          v-if="!isEdit && !statusId && !showFreelancerSelect && personOptions.length > 1"
           v-bind="form.field('person_id')"
           :label="auth.isClient ? $t('taskForm.freelancer') : $t('taskForm.client')"
           :placeholder="auth.isClient ? choosePerson() : undefined"
