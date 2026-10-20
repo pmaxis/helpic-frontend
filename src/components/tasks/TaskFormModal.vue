@@ -67,10 +67,12 @@ function freelancerParticipants(p: Project | undefined): { id: string; name: str
 }
 
 const schema = computed(() => {
-  const several = freelancerParticipants(projectById(pickedProjectId.value)).length > 1
+  // Only a client picks which freelancer a task in a shared project is for.
+  // The freelancer creating it is that freelancer.
+  const several = auth.isClient && freelancerParticipants(projectById(pickedProjectId.value)).length > 1
   return z.object({
     // A client must pick a freelancer; a freelancer's empty choice means a
-    // personal task. A project with several freelancers asks which one.
+    // personal task. A project with several freelancers asks the client which one.
     person_id: needsPerson || several ? choice(choosePerson) : z.string(),
     project_id: z.string(),
     title: requiredText('title', LIMITS.taskTitle),
