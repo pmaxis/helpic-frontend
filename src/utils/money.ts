@@ -3,9 +3,10 @@ export const CURRENCIES = ['USD', 'EUR', 'GBP', 'UAH', 'PLN', 'CAD'] as const
 
 const SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', UAH: '₴', PLN: 'zł ', CAD: 'CA$' }
 
-/** "$1,234.50" from cents. */
-export function formatMoney(cents: number, currency: string): string {
-  const amount = (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** "$1,234.50" from cents; with whole, "$1,234" when there are no cents to show. */
+export function formatMoney(cents: number, currency: string, { whole = false } = {}): string {
+  const digits = whole && cents % 100 === 0 ? 0 : 2
+  const amount = (cents / 100).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
   const symbol = SYMBOLS[currency]
   return symbol ? symbol + amount : `${amount} ${currency}`
 }
