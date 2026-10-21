@@ -3,18 +3,22 @@ import type { Task } from '@/types/tasks'
 
 export interface ArchivePage {
   tasks: Task[]
-  /** The cursor of the next page; absent on the last one. */
-  next?: string
+  /** Which page this is, from 1. */
+  page: number
+  /** How many tasks a page holds. */
+  limit: number
+  /** How many there are in all. */
+  total: number
 }
 
-/** A page of the archive, the most recently archived first. */
-export async function fetchArchive(params: { with?: string; project?: string; before?: string } = {}): Promise<ArchivePage> {
+/** A numbered page of the archive, the most recently archived first. */
+export async function fetchArchive(params: { with?: string; project?: string; page?: number } = {}): Promise<ArchivePage> {
   const { data } = await http.get<ArchivePage>('/archive', {
     params: {
       with: params.with || undefined,
       project: params.project || undefined,
-      before: params.before || undefined,
+      page: params.page && params.page > 1 ? params.page : undefined,
     },
   })
-  return { tasks: data.tasks ?? [], next: data.next }
+  return { tasks: data.tasks ?? [], page: data.page, limit: data.limit, total: data.total }
 }
