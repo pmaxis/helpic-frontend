@@ -31,15 +31,16 @@ import TaskPeople from '@/components/tasks/TaskPeople.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
+import { useTimerStore } from '@/stores/timer'
 import { fetchColumns } from '@/stores/board'
 import { ApiRequestError } from '@/services/api'
 import { columnName, priorityOptions as priorityChoices, STATUS_DOT } from '@/constants/tasks'
 import { useI18n } from 'vue-i18n'
-import { formatDate, isOverdue } from '@/utils/format'
+import { formatClock, formatDate, formatDuration, isOverdue } from '@/utils/format'
 import { formatMoney, priceInput } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
 import type { BoardColumn } from '@/types/board'
-import type { Task, TaskInput, TaskPriority } from '@/types/tasks'
+import type { Task, TaskBilling, TaskInput, TaskPriority } from '@/types/tasks'
 import type { BoardScope } from '@/types/board'
 
 const props = defineProps<{ taskId: string }>()
@@ -78,6 +79,7 @@ const { t: tr } = useI18n()
 const auth = useAuthStore()
 const tasks = useTasksStore()
 const projects = useProjectsStore()
+const timer = useTimerStore()
 
 const task = ref<Task | null>(null)
 const notFound = ref(false)
@@ -370,6 +372,61 @@ async function commitPrice() {
   }
 }
 
+// --- billing by the hour, and the timer ----------------------------------------
+
+/** Fixed or hourly, the freelancer's call; switching to fixed keeps the hours' price as the price. */
+async function setBilling(billing: TaskBilling) {
+  const t = task.value
+  if (!t || saving.value || billing === t.billing) return
+  saving.value = true
+  try {
+    task.value = await tasks.setPrice(t.id, billing === 'fixed' ? priceInput(t.price_cents) || null : null, billing)
+    emit('changed', task.value)
+  } catch (error) {
+    const message = error instanceof ApiRequestError ? (Object.values(error.fields ?? {})[0] ?? error.message) : ''
+    toast.error(message || tr('timelog.billingFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+/** "1h 30m × $40/h": what an hourly price is made of. */
+const hourlyBreakdown = computed(() => {
+  const t = task.value
+  if (!t || t.hourly_rate_cents === null) return ''
+  return tr('timelog.breakdown', {
+    time: formatDuration(t.tracked_seconds ?? 0),
+    rate: tr('timelog.perHour', { amount: formatMoney(t.hourly_rate_cents, t.currency, { whole: true }) }),
+  })
+})
+
+/** The timer runs on this task. */
+const timing = computed(() => !!task.value && timer.running?.task_id === task.value.id)
+const timerBusy = ref(false)
+
+async function toggleTimer() {
+  const t = task.value
+  if (!t || timerBusy.value) return
+  timerBusy.value = true
+  try {
+    if (timing.value) await timer.stop()
+    else await timer.start(t.id)
+  } catch (error) {
+    const message = error instanceof ApiRequestError ? error.message : ''
+    toast.error(message || tr(timing.value ? 'timelog.stopFailed' : 'timelog.startFailed'))
+  } finally {
+    timerBusy.value = false
+  }
+}
+
+// The timer started or stopped on this task, here or in the sidebar: its time and price moved.
+watch(
+  () => timer.version,
+  () => {
+    if (task.value && timer.touched.includes(task.value.id)) void reloadTask()
+  },
+)
+
 function saveDueOn(value: string) {
   if (task.value && value !== (task.value.due_on ?? '')) void save({ due_on: value || null })
 }
@@ -519,7 +576,15 @@ function onSaved(t: Task) {
         </section>
 
         <TaskAttachments :task-id="task.id" :readonly="archived" />
-        <TaskActivity :task-id="task.id" :version="task.updated_at" :readonly="archived" />
+        <TaskActivity
+          :task-id="task.id"
+          :version="task.updated_at"
+          :readonly="archived"
+          :show-time="task.can_see_price && (task.can_track_time || task.tracked_seconds !== null)"
+          :can-track="task.can_track_time"
+          :billed="task.billed"
+          @time-changed="reloadTask"
+        />
       </template>
     </article>
 
@@ -649,10 +714,44 @@ function onSaved(t: Task) {
               <span v-else class="text-neutral-400">{{ $t('task.none') }}</span>
             </dd>
 
+            <!-- fixed or by the hour: the freelancer picks; the client sees the hours in the price -->
+            <template v-if="task.can_set_price">
+              <dt class="text-neutral-500">{{ $t('timelog.billing') }}</dt>
+              <dd class="min-w-0">
+                <div class="inline-flex rounded-md bg-neutral-100 p-0.5 text-xs font-medium" role="group" :aria-label="$t('timelog.billing')">
+                  <button
+                    v-for="b in (['fixed', 'hourly'] as const)"
+                    :key="b"
+                    type="button"
+                    :aria-pressed="task.billing === b"
+                    :disabled="saving"
+                    class="rounded px-2.5 py-1 transition-colors"
+                    :class="task.billing === b ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900'"
+                    @click="setBilling(b)"
+                  >
+                    {{ $t(`timelog.${b}`) }}
+                  </button>
+                </div>
+              </dd>
+            </template>
+
             <!-- a price nobody can set and nobody set (a client's own task, say) isn't shown -->
             <template v-if="task.can_see_price && (task.can_set_price || task.price_cents !== null)">
-              <dt class="text-neutral-500">{{ $t('task.price') }}</dt>
-              <dd class="min-w-0">
+              <dt class="self-start pt-1 text-neutral-500">{{ $t('task.price') }}</dt>
+              <dd v-if="task.billing === 'hourly'" class="min-w-0 py-1">
+                <span :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'">
+                  {{ task.price_cents === null ? $t('task.none') : formatMoney(task.price_cents, task.currency) }}
+                </span>
+                <span v-if="hourlyBreakdown" class="mt-0.5 block text-xs text-neutral-500">{{ hourlyBreakdown }}</span>
+                <RouterLink
+                  v-else-if="task.can_set_price"
+                  :to="{ name: 'settings' }"
+                  class="mt-0.5 block text-xs text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline"
+                >
+                  {{ $t('timelog.noRate') }} · {{ $t('timelog.setRate') }}
+                </RouterLink>
+              </dd>
+              <dd v-else class="min-w-0">
                 <input
                   v-if="editingPrice"
                   ref="priceField"
@@ -680,6 +779,31 @@ function onSaved(t: Task) {
                 <span v-else :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'">
                   {{ task.price_cents === null ? $t('task.none') : formatMoney(task.price_cents, task.currency) }}
                 </span>
+              </dd>
+            </template>
+
+            <!-- the time written on it, and the freelancer's timer -->
+            <template v-if="task.can_see_price && (task.can_track_time || task.tracked_seconds !== null)">
+              <dt class="text-neutral-500">{{ $t('timelog.time') }}</dt>
+              <dd class="flex min-w-0 items-center justify-between gap-2">
+                <span v-if="timing" class="font-medium tabular-nums text-neutral-800">
+                  {{ formatClock(timer.elapsed + (task.tracked_seconds ?? 0) - (timer.running?.seconds ?? 0)) }}
+                </span>
+                <span v-else :class="task.tracked_seconds === null ? 'text-neutral-400' : 'font-medium text-neutral-800'">
+                  {{ task.tracked_seconds === null ? $t('timelog.noTime') : formatDuration(task.tracked_seconds) }}
+                </span>
+                <button
+                  v-if="task.can_track_time"
+                  type="button"
+                  :disabled="timerBusy"
+                  class="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-60"
+                  :class="timing ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'text-neutral-600 ring-1 ring-neutral-300 ring-inset hover:bg-neutral-50 hover:text-neutral-900'"
+                  @click="toggleTimer"
+                >
+                  <svg v-if="timing" viewBox="0 0 24 24" fill="currentColor" class="h-3 w-3" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+                  <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-3 w-3" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
+                  {{ timing ? $t('timelog.stop') : $t('timelog.start') }}
+                </button>
               </dd>
             </template>
           </dl>

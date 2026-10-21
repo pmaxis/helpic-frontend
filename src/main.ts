@@ -5,6 +5,7 @@ import router from './router'
 import { onUnauthorized } from './services/api'
 import { useAuthStore } from './stores/auth'
 import { useNotificationsStore } from './stores/notifications'
+import { useTimerStore } from './stores/timer'
 import { toast } from './composables/useToasts'
 import { initTheme } from './composables/useTheme'
 import { i18n, t } from './i18n'
@@ -23,6 +24,7 @@ initTheme()
 onUnauthorized(() => {
   useAuthStore().handleSessionExpired()
   useNotificationsStore().stopPolling()
+  useTimerStore().reset()
   if (router.currentRoute.value.meta.requiresAuth) {
     toast.info(t('errors.sessionExpired'))
     void router.replace({ name: 'login' })

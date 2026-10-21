@@ -22,7 +22,7 @@ import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatDuration } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import { pdfFileName, renderReportPdf, savePdf } from '@/utils/reportPdf'
 import { toast } from '@/composables/useToasts'
@@ -380,7 +380,9 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
                 <div class="group flex items-start gap-2">
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm text-neutral-800">{{ it.title }}</p>
-                    <p class="text-xs text-neutral-400">{{ formatDate(it.completed_on) }}{{ it.project_name ? ` · ${it.project_name}` : '' }}</p>
+                    <p class="text-xs text-neutral-400">
+                      {{ formatDate(it.completed_on) }}{{ it.project_name ? ` · ${it.project_name}` : '' }}{{ it.seconds !== null ? ` · ${formatDuration(it.seconds)}` : '' }}
+                    </p>
                   </div>
                   <span v-if="it.price_cents !== null" class="shrink-0 pt-px text-sm text-neutral-800 tabular-nums">
                     {{ formatMoney(it.price_cents, report.currency) }}

@@ -136,6 +136,12 @@ export const useAuthStore = defineStore('auth', {
       this.user = follow(data.user)
     },
 
+    /** Sets what a freelancer charges for an hour ("40", "37.50"), or clears it with null. */
+    async setHourlyRate(rate: string | null): Promise<void> {
+      const { data } = await http.put<UserResponse>('/me/rate', { rate })
+      this.user = follow(data.user)
+    },
+
     async changePassword(payload: ChangePasswordPayload): Promise<void> {
       await http.put<UserResponse>('/me/password', payload)
     },

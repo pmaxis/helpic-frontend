@@ -137,6 +137,10 @@ function tasksTable(s: ReportSheet): ContentTable {
   }
   header.push(th(s.labels.completed, 'right'))
   widths.push(72)
+  if (s.showTime) {
+    header.push(th(s.labels.time, 'right'))
+    widths.push(60 - CELL_PAD)
+  }
   if (s.showPrice) {
     header.push(th(s.labels.price, 'right'))
     widths.push(84 - CELL_PAD)
@@ -146,25 +150,27 @@ function tasksTable(s: ReportSheet): ContentTable {
     const row: TableCell[] = [{ text: `${i + 1}.`, color: INK_3 }, taskCell(it)]
     if (s.showProject) row.push({ text: it.projectName || '—', color: INK_2 })
     row.push({ text: it.completed, color: INK_2, alignment: 'right', noWrap: true })
+    if (s.showTime) row.push({ text: it.time || '—', color: it.time ? INK_2 : INK_3, alignment: 'right', noWrap: true })
     if (s.showPrice) {
       row.push(it.price ? { text: it.price, font: 'InterMedium', color: INK, alignment: 'right', noWrap: true } : { text: '—', color: INK_3, alignment: 'right' })
     }
     return row
   })
 
-  // Padding sits inside a column's share: after the task and project, before the price.
+  // Padding sits inside a column's share: after the task and project, before the time and the price.
   const padRight = new Set(s.showProject ? [1, 2] : [1])
   const priceColumn = s.showPrice ? widths.length - 1 : -1
+  const timeColumn = s.showTime ? widths.length - (s.showPrice ? 2 : 1) : -1
   const layout: CustomTableLayout = {
     hLineWidth: (i, node) => (i === 0 ? 0 : i === 1 ? 0.75 : i <= node.table.body.length ? 0.5 : 0),
     hLineColor: (i) => (i === 1 ? RULE : ROW_RULE),
     vLineWidth: () => 0,
-    paddingLeft: (i) => (i === priceColumn ? CELL_PAD : 0),
+    paddingLeft: (i) => (i === priceColumn || i === timeColumn ? CELL_PAD : 0),
     paddingRight: (i) => (padRight.has(i) ? CELL_PAD : 0),
     paddingTop: (i) => (i === 0 ? 0 : 5),
     paddingBottom: (i) => (i === 0 ? 4 : 5),
   }
-  const taskWidth = CONTENT_WIDTH - widths.reduce<number>((sum, w) => sum + (typeof w === 'number' ? w : 0), 0) - CELL_PAD * 2
+  const taskWidth = CONTENT_WIDTH - widths.reduce<number>((sum, w) => sum + (typeof w === 'number' ? w : 0), 0) - CELL_PAD * (s.showTime ? 3 : 2)
   return { table: { headerRows: 1, dontBreakRows: rowsFitPage(s.items, taskWidth), widths, body: [header, ...rows] }, layout }
 }
 

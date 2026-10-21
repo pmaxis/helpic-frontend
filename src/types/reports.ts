@@ -14,6 +14,8 @@ export interface ReportItem {
   completed_on: string
   /** Null for a task without a price. Live while a draft, frozen once sent. */
   price_cents: number | null
+  /** The time a task billed by the hour took; null for a fixed price. */
+  seconds: number | null
   /** What was done in the task, shown in a detailed report. Starts as the task's description. */
   notes: string
 }

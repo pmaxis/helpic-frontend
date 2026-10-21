@@ -6,6 +6,7 @@ export type TaskEventKind =
   | 'project'
   | 'status'
   | 'price'
+  | 'billing'
   | 'priority'
   | 'labels'
   | 'attachment_added'
