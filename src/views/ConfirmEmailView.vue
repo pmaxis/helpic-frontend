@@ -18,7 +18,7 @@ const { t: tr } = useI18n()
 const confirmed = ref('')
 const failed = ref('')
 
-const home = computed(() => (auth.isAuthenticated ? '/settings?tab=email' : '/login'))
+const home = computed(() => (auth.isAuthenticated ? '/settings?tab=security' : '/login'))
 const homeLabel = computed(() => (auth.isAuthenticated ? tr('confirmEmail.backToSettings') : tr('invite.goToSignIn')))
 
 const failedSteps = computed(() =>

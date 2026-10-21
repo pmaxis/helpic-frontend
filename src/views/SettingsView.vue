@@ -6,7 +6,6 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseSelect from '@/components/ui/BaseSelect.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
 import FormError from '@/components/auth/FormError.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -14,6 +13,9 @@ import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import TelegramSettings from '@/components/account/TelegramSettings.vue'
 import EmailNotificationsSettings from '@/components/account/EmailNotificationsSettings.vue'
 import ConfirmPasswordModal from '@/components/account/ConfirmPasswordModal.vue'
+import SettingsGroup from '@/components/account/SettingsGroup.vue'
+import SettingsRow from '@/components/account/SettingsRow.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
@@ -30,26 +32,43 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const TABS = [
-  { value: 'profile' },
-  { value: 'email' },
-  { value: 'password' },
-  { value: 'notifications' },
-  { value: 'sessions' },
-] as const
+/** Three groups: who you are, how and where you sign in, and what you hear about. */
+const TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }] as const
 type Tab = (typeof TABS)[number]['value']
 
-/** The open tab lives in the URL (?tab=email) so it survives a reload and can be linked to. */
+/** The old tabs, still in links (an email confirmation goes to ?tab=email), now live under security. */
+const MOVED: Record<string, Tab> = { email: 'security', password: 'security', sessions: 'security' }
+
+/** The open tab lives in the URL (?tab=security) so it survives a reload and can be linked to. */
 const tab = computed<Tab>({
-  get: () => TABS.find((t) => t.value === route.query.tab)?.value ?? 'profile',
+  get: () => {
+    const q = String(route.query.tab ?? '')
+    return TABS.find((t) => t.value === q)?.value ?? MOVED[q] ?? 'profile'
+  },
   set: (value) => void router.replace({ query: { ...route.query, tab: value === 'profile' ? undefined : value } }),
+})
+
+// --- who you are -------------------------------------------------------------
+
+/** The account's role, and for a team member the company. */
+const roleText = computed(() => {
+  const u = auth.user
+  if (!u) return ''
+  if (auth.isFreelancer) return t('project.roles.freelancer')
+  if (u.member_of) return `${t(`project.roles.${u.member_of.role}`)} · ${u.member_of.name}`
+  return t('project.roles.owner')
 })
 
 // --- name -------------------------------------------------------------------
 
-const nameForm = useForm(
-  z.object({ first_name: requiredText('firstName', LIMITS.name), last_name: optionalText('lastName', LIMITS.name) }),
-  { first_name: auth.user?.first_name ?? '', last_name: auth.user?.last_name ?? '' },
+const nameForm = useForm(z.object({ first_name: requiredText('firstName', LIMITS.name), last_name: optionalText('lastName', LIMITS.name) }), {
+  first_name: auth.user?.first_name ?? '',
+  last_name: auth.user?.last_name ?? '',
+})
+
+/** The name has edits to save: only then is there a Save button. */
+const nameDirty = computed(
+  () => nameForm.values.first_name.trim() !== (auth.user?.first_name ?? '') || nameForm.values.last_name.trim() !== (auth.user?.last_name ?? ''),
 )
 
 function saveName() {
@@ -102,7 +121,16 @@ async function saveCurrency(currency: string) {
 // --- email ------------------------------------------------------------------
 
 // Both changes ask for the current password in a modal once their own fields
-// are fine; the modal sends them.
+// are fine; the modal sends them. Each opens from its row, one at a time.
+
+const editing = ref<'email' | 'password' | null>(null)
+
+function edit(what: 'email' | 'password') {
+  emailForm.reset({ email: auth.user?.email ?? '' })
+  passwordForm.reset()
+  passwordKey.value++
+  editing.value = what
+}
 
 const emailForm = useForm(z.object({ email: email() }), { email: auth.user?.email ?? '' })
 
@@ -123,6 +151,7 @@ async function changeEmail(password: string) {
 
 function emailChanged() {
   emailToConfirm.value = ''
+  editing.value = null
   emailForm.reset({ email: auth.user?.email ?? '' })
 }
 
@@ -159,6 +188,7 @@ async function changePassword(password: string) {
 
 function passwordChanged() {
   confirmingPassword.value = false
+  editing.value = null
   toast.success(t('settings.password.changed'))
   passwordForm.reset()
   passwordKey.value++
@@ -201,7 +231,7 @@ async function loadSessions() {
 watch(
   tab,
   (value) => {
-    if (value === 'sessions') void loadSessions()
+    if (value === 'security') void loadSessions()
   },
   { immediate: true },
 )
@@ -238,148 +268,231 @@ async function signOutOthers() {
   <DashboardLayout>
     <PageHeader :title="$t('settings.title')" />
 
-    <nav class="mt-5 flex gap-6 border-b border-neutral-200" :aria-label="$t('settings.sections')">
+    <nav class="mt-5 flex gap-6 overflow-x-auto border-b border-neutral-200" :aria-label="$t('settings.sections')">
       <button
-        v-for="t in TABS"
-        :key="t.value"
+        v-for="item in TABS"
+        :key="item.value"
         type="button"
-        class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
-        :class="tab === t.value ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-900'"
-        :aria-current="tab === t.value ? 'page' : undefined"
-        @click="tab = t.value"
+        class="-mb-px shrink-0 border-b-2 pb-2.5 text-sm font-medium whitespace-nowrap transition-colors"
+        :class="tab === item.value ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-900'"
+        :aria-current="tab === item.value ? 'page' : undefined"
+        @click="tab = item.value"
       >
-        {{ $t(`settings.tabs.${t.value}`) }}
+        {{ $t(`settings.tabs.${item.value}`) }}
       </button>
     </nav>
 
     <div class="mt-6">
-      <template v-if="tab === 'profile'">
-        <section class="rounded-xl border border-neutral-200 p-5">
-          <form class="space-y-4" novalidate @submit.prevent="saveName">
-            <FormError :message="nameForm.formError" />
-            <div class="grid gap-4 sm:grid-cols-2">
-              <BaseInput
-                v-bind="nameForm.field('first_name')"
-                :label="auth.isClient ? $t('settings.profile.firstNameOrCompany') : $t('settings.profile.firstName')"
-                autocomplete="given-name"
+      <div class="min-w-0 space-y-8">
+        <template v-if="tab === 'profile'">
+          <SettingsGroup :title="$t('settings.groups.profile')" :description="$t('settings.groups.profileText')">
+            <SettingsRow :label="$t('settings.groups.name')" :hint="auth.isClient ? $t('settings.groups.nameTextClient') : $t('settings.groups.nameText')">
+              <template #below>
+                <form class="space-y-4" novalidate @submit.prevent="saveName">
+                  <FormError :message="nameForm.formError" />
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <BaseInput
+                      v-bind="nameForm.field('first_name')"
+                      :label="auth.isClient ? $t('settings.profile.firstNameOrCompany') : $t('settings.profile.firstName')"
+                      autocomplete="given-name"
+                    />
+                    <BaseInput v-bind="nameForm.field('last_name')" :label="$t('settings.profile.lastName')" autocomplete="family-name" />
+                  </div>
+                  <div v-if="nameDirty || nameForm.submitting" class="flex justify-end gap-2">
+                    <BaseButton
+                      variant="ghost"
+                      size="sm"
+                      :block="false"
+                      :disabled="nameForm.submitting"
+                      @click="nameForm.reset({ first_name: auth.user?.first_name ?? '', last_name: auth.user?.last_name ?? '' })"
+                    >
+                      {{ $t('common.cancel') }}
+                    </BaseButton>
+                    <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.submitting" :disabled="nameForm.submitting">{{
+                      $t('common.save')
+                    }}</BaseButton>
+                  </div>
+                </form>
+              </template>
+            </SettingsRow>
+
+            <SettingsRow :label="$t('settings.groups.account')" :hint="$t('settings.groups.accountText')">
+              <span class="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">{{ roleText }}</span>
+            </SettingsRow>
+          </SettingsGroup>
+
+          <SettingsGroup :title="$t('settings.groups.preferences')">
+            <SettingsRow :label="$t('common.language')" :hint="$t('settings.groups.languageText')">
+              <SelectInput
+                class="w-44"
+                :class="savingLocale ? 'pointer-events-none opacity-60' : ''"
+                :model-value="locale"
+                :options="localeOptions"
+                :aria-label="$t('common.language')"
+                @update:model-value="saveLocale"
               />
-              <BaseInput v-bind="nameForm.field('last_name')" :label="$t('settings.profile.lastName')" autocomplete="family-name" />
-            </div>
-            <div class="flex justify-end">
-              <BaseButton type="submit" size="sm" :block="false" :loading="nameForm.submitting" :disabled="nameForm.submitting">{{ $t('common.save') }}</BaseButton>
-            </div>
-          </form>
-        </section>
+            </SettingsRow>
+            <SettingsRow v-if="auth.isFreelancer" :label="$t('settings.profile.currency')" :hint="$t('settings.groups.currencyText')">
+              <SelectInput
+                class="w-44"
+                :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
+                :model-value="auth.user?.currency ?? 'USD'"
+                :options="currencyOptions"
+                :aria-label="$t('settings.profile.currency')"
+                @update:model-value="saveCurrency"
+              />
+            </SettingsRow>
+          </SettingsGroup>
+        </template>
 
-        <section class="mt-4 grid gap-4 rounded-xl border border-neutral-200 p-5 sm:grid-cols-2">
-          <BaseSelect
-            :model-value="locale"
-            :label="$t('common.language')"
-            :options="localeOptions"
-            :class="savingLocale ? 'pointer-events-none opacity-60' : ''"
-            @update:model-value="saveLocale"
+        <template v-else-if="tab === 'security'">
+          <SettingsGroup :title="$t('settings.groups.signIn')" :description="$t('settings.groups.signInText')">
+            <!-- email -->
+            <SettingsRow :label="$t('settings.email.email')" :hint="editing === 'email' ? $t('settings.email.text') : auth.user?.email">
+              <BaseButton v-if="editing !== 'email'" variant="ghost" size="sm" :block="false" @click="edit('email')">{{
+                $t('settings.groups.change')
+              }}</BaseButton>
+              <template v-if="pendingEmail || editing === 'email'" #below>
+                <div
+                  v-if="pendingEmail"
+                  class="flex items-start gap-3 rounded-lg bg-sky-50 px-3.5 py-3 text-sm text-sky-900 ring-1 ring-sky-600/15 ring-inset"
+                  :class="editing === 'email' ? 'mb-4' : ''"
+                  role="status"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="mt-0.5 h-4 w-4 shrink-0 text-sky-600"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="m3 7 9 6 9-6" />
+                  </svg>
+                  <i18n-t keypath="settings.email.pending" tag="p" scope="global">
+                    <template #email>
+                      <span class="font-medium">{{ pendingEmail }}</span>
+                    </template>
+                    <template #current>{{ auth.user?.email }}</template>
+                  </i18n-t>
+                </div>
+                <form v-if="editing === 'email'" class="space-y-4" novalidate @submit.prevent="saveEmail">
+                  <FormError :message="emailForm.formError" />
+                  <BaseInput v-bind="emailForm.field('email')" :label="$t('settings.groups.newEmail')" type="email" autocomplete="email" />
+                  <div class="flex justify-end gap-2">
+                    <BaseButton variant="ghost" size="sm" :block="false" :disabled="emailForm.submitting" @click="editing = null">{{
+                      $t('common.cancel')
+                    }}</BaseButton>
+                    <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">
+                      {{ $t('settings.email.change') }}
+                    </BaseButton>
+                  </div>
+                </form>
+              </template>
+            </SettingsRow>
+
+            <!-- password -->
+            <SettingsRow
+              :label="$t('settings.password.title')"
+              :hint="editing === 'password' ? $t('settings.password.text') : $t('settings.groups.passwordHint')"
+            >
+              <BaseButton v-if="editing !== 'password'" variant="ghost" size="sm" :block="false" @click="edit('password')">{{
+                $t('settings.groups.change')
+              }}</BaseButton>
+              <template v-if="editing === 'password'" #below>
+                <form :key="passwordKey" class="space-y-4" novalidate @submit.prevent="savePassword">
+                  <FormError :message="passwordForm.formError" />
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <PasswordInput
+                      v-bind="passwordForm.field('password')"
+                      :label="$t('settings.password.new')"
+                      autocomplete="new-password"
+                      :hint="$t('validation.passwordHint', { n: LIMITS.password })"
+                    />
+                    <PasswordInput v-bind="passwordForm.field('password_confirmation')" :label="$t('settings.password.confirm')" autocomplete="new-password" />
+                  </div>
+                  <div class="flex justify-end gap-2">
+                    <BaseButton variant="ghost" size="sm" :block="false" :disabled="passwordForm.submitting" @click="editing = null">{{
+                      $t('common.cancel')
+                    }}</BaseButton>
+                    <BaseButton type="submit" size="sm" :block="false" :loading="passwordForm.submitting" :disabled="passwordForm.submitting">
+                      {{ $t('settings.password.change') }}
+                    </BaseButton>
+                  </div>
+                </form>
+              </template>
+            </SettingsRow>
+          </SettingsGroup>
+
+          <ConfirmPasswordModal
+            v-if="emailToConfirm"
+            :title="$t('settings.confirmPassword.title')"
+            :description="$t('settings.confirmPassword.email', { email: emailToConfirm })"
+            :confirm-label="$t('settings.email.change')"
+            :action="changeEmail"
+            @close="emailToConfirm = ''"
+            @done="emailChanged"
+            @failed="emailRefused"
           />
-          <div v-if="auth.isFreelancer">
-            <BaseSelect
-              :model-value="auth.user?.currency ?? 'USD'"
-              :label="$t('settings.profile.currency')"
-              :options="currencyOptions"
-              :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
-              @update:model-value="saveCurrency"
-            />
-          </div>
-        </section>
-      </template>
+          <ConfirmPasswordModal
+            v-if="confirmingPassword"
+            :title="$t('settings.confirmPassword.title')"
+            :description="$t('settings.confirmPassword.password')"
+            :confirm-label="$t('settings.password.change')"
+            :action="changePassword"
+            @close="confirmingPassword = false"
+            @done="passwordChanged"
+            @failed="passwordRefused"
+          />
 
-      <section v-else-if="tab === 'email'" class="rounded-xl border border-neutral-200 p-5">
-        <p class="text-sm text-neutral-500">{{ $t('settings.email.text') }}</p>
-        <div
-          v-if="pendingEmail"
-          class="mt-4 flex items-start gap-3 rounded-lg bg-sky-50 px-3.5 py-3 text-sm text-sky-900 ring-1 ring-sky-600/15 ring-inset"
-          role="status"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 h-4 w-4 shrink-0 text-sky-600" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="m3 7 9 6 9-6" />
-          </svg>
-          <i18n-t keypath="settings.email.pending" tag="p" scope="global">
-            <template #email><span class="font-medium">{{ pendingEmail }}</span></template>
-            <template #current>{{ auth.user?.email }}</template>
-          </i18n-t>
-        </div>
-        <form class="mt-4 space-y-4" novalidate @submit.prevent="saveEmail">
-          <FormError :message="emailForm.formError" />
-          <BaseInput v-bind="emailForm.field('email')" :label="$t('settings.email.email')" type="email" autocomplete="email" />
-          <div class="flex justify-end">
-            <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">{{ $t('settings.email.change') }}</BaseButton>
-          </div>
-        </form>
-        <ConfirmPasswordModal
-          v-if="emailToConfirm"
-          :title="$t('settings.confirmPassword.title')"
-          :description="$t('settings.confirmPassword.email', { email: emailToConfirm })"
-          :confirm-label="$t('settings.email.change')"
-          :action="changeEmail"
-          @close="emailToConfirm = ''"
-          @done="emailChanged"
-          @failed="emailRefused"
-        />
-      </section>
-
-      <div v-else-if="tab === 'notifications'" class="space-y-4">
-        <EmailNotificationsSettings />
-        <TelegramSettings />
-      </div>
-
-      <template v-else-if="tab === 'sessions'">
-        <div v-if="!sessionsLoaded" class="space-y-4" aria-busy="true">
-          <div class="h-[88px] animate-pulse rounded-xl bg-neutral-100" />
-          <div class="h-44 animate-pulse rounded-xl bg-neutral-100" />
-        </div>
-
-        <template v-else>
-          <!-- the device looking at the page -->
-          <section v-if="currentSession" class="rounded-xl border border-neutral-200 p-5">
-            <p class="text-xs font-medium tracking-wide text-neutral-400 uppercase">{{ $t('settings.sessions.thisDevice') }}</p>
-            <div class="mt-3 flex items-center gap-4">
-              <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-white">
-                <DeviceIcon :kind="parseDevice(currentSession.user_agent).kind" class="h-[18px] w-[18px]" />
-                <span class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-neutral-900">{{ deviceName(currentSession.user_agent) }}</p>
-                <p class="truncate text-xs text-neutral-500">
-                  <span class="font-medium text-emerald-600">{{ $t('settings.sessions.activeNow') }}</span>
-                  <template v-if="currentSession.ip"> · {{ currentSession.ip }}</template>
-                  · {{ $t('settings.sessions.signedIn', { date: formatDate(currentSession.created_at) }) }}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <!-- everywhere else -->
-          <section class="mt-4 rounded-xl border border-neutral-200">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-3.5">
+          <section>
+            <div class="flex items-end justify-between gap-3">
               <div>
-                <h2 class="text-sm font-semibold text-neutral-900">
-                  {{ $t('settings.sessions.otherDevices') }}
-                  <span v-if="otherSessions.length" class="ml-1 font-normal text-neutral-400">{{ otherSessions.length }}</span>
-                </h2>
-                <p class="mt-0.5 text-xs text-neutral-500">{{ $t('settings.sessions.otherText') }}</p>
+                <h2 class="text-base font-semibold text-neutral-900">{{ $t('settings.groups.devices') }}</h2>
+                <p class="mt-0.5 text-sm text-neutral-500">{{ $t('settings.groups.devicesText') }}</p>
               </div>
-              <BaseButton v-if="otherSessions.length > 1" variant="danger" size="sm" :block="false" @click="confirmEndOthers = true">
+              <BaseButton
+                v-if="otherSessions.length > 1"
+                variant="ghost"
+                size="sm"
+                :block="false"
+                class="text-red-600 hover:text-red-700"
+                @click="confirmEndOthers = true"
+              >
                 {{ $t('settings.sessions.signOutAll') }}
               </BaseButton>
             </div>
 
-            <ul v-if="otherSessions.length" class="divide-y divide-neutral-100">
-              <li v-for="s in otherSessions" :key="s.id" class="flex items-center gap-3 px-5 py-3">
+            <div v-if="!sessionsLoaded" class="mt-3 h-40 animate-pulse rounded-xl bg-neutral-100" aria-busy="true" />
+
+            <ul v-else class="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
+              <!-- the device looking at the page -->
+              <li v-if="currentSession" class="flex items-center gap-3 px-5 py-4">
+                <span class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-900 text-white">
+                  <DeviceIcon :kind="parseDevice(currentSession.user_agent).kind" class="h-[18px] w-[18px]" />
+                  <span class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-neutral-900">{{ deviceName(currentSession.user_agent) }}</p>
+                  <p class="truncate text-xs text-neutral-500">
+                    <span class="font-medium text-emerald-600">{{ $t('settings.sessions.activeNow') }}</span>
+                    <template v-if="currentSession.ip"> · {{ currentSession.ip }}</template>
+                    · {{ $t('settings.sessions.signedIn', { date: formatDate(currentSession.created_at) }) }}
+                  </p>
+                </div>
+                <span class="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">{{
+                  $t('settings.sessions.thisDevice')
+                }}</span>
+              </li>
+
+              <!-- everywhere else -->
+              <li v-for="s in otherSessions" :key="s.id" class="flex items-center gap-3 px-5 py-4">
                 <span class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
                   <DeviceIcon :kind="parseDevice(s.user_agent).kind" class="h-5 w-5" />
-                  <span
-                    v-if="isRecent(s)"
-                    class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white"
-                  />
+                  <span v-if="isRecent(s)" class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </span>
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm text-neutral-900">{{ deviceName(s.user_agent) }}</p>
@@ -399,65 +512,45 @@ async function signOutOthers() {
                   {{ endingId === s.id ? $t('settings.sessions.signingOut') : $t('settings.sessions.signOut') }}
                 </button>
               </li>
-            </ul>
 
-            <div v-else class="flex items-center gap-3 px-5 py-5">
-              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+              <li v-if="!otherSessions.length" class="flex items-center gap-3 px-5 py-4 text-sm text-neutral-500">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5 shrink-0 text-emerald-600"
+                  aria-hidden="true"
+                >
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <path d="m9 12 2 2 4-4" />
                 </svg>
-              </span>
-              <div>
-                <p class="text-sm text-neutral-900">{{ $t('settings.sessions.onlyHere') }}</p>
-                <p class="text-xs text-neutral-500">{{ $t('settings.sessions.onlyHereText') }}</p>
-              </div>
-            </div>
+                {{ $t('settings.sessions.onlyHere') }} {{ $t('settings.sessions.onlyHereText') }}
+              </li>
+            </ul>
+
+            <ConfirmDialog
+              v-model:open="confirmEndOthers"
+              :title="$t('settings.sessions.confirmOthers')"
+              :description="$t('settings.sessions.confirmOthersText', { n: otherSessions.length }, otherSessions.length)"
+              :confirm-label="$t('settings.sessions.signOut')"
+              :loading="endingOthers"
+              @confirm="signOutOthers"
+            />
           </section>
         </template>
 
-        <ConfirmDialog
-          v-model:open="confirmEndOthers"
-          :title="$t('settings.sessions.confirmOthers')"
-          :description="$t('settings.sessions.confirmOthersText', { n: otherSessions.length }, otherSessions.length)"
-          :confirm-label="$t('settings.sessions.signOut')"
-          :loading="endingOthers"
-          @confirm="signOutOthers"
-        />
-      </template>
-
-      <section v-else class="rounded-xl border border-neutral-200 p-5">
-        <p class="text-sm text-neutral-500">{{ $t('settings.password.text') }}</p>
-        <form :key="passwordKey" class="mt-4 space-y-4" novalidate @submit.prevent="savePassword">
-          <FormError :message="passwordForm.formError" />
-          <PasswordInput
-            v-bind="passwordForm.field('password')"
-            :label="$t('settings.password.new')"
-            autocomplete="new-password"
-            :hint="$t('validation.passwordHint', { n: LIMITS.password })"
-          />
-          <PasswordInput
-            v-bind="passwordForm.field('password_confirmation')"
-            :label="$t('settings.password.confirm')"
-            autocomplete="new-password"
-          />
-          <div class="flex justify-end">
-            <BaseButton type="submit" size="sm" :block="false" :loading="passwordForm.submitting" :disabled="passwordForm.submitting">
-              {{ $t('settings.password.change') }}
-            </BaseButton>
+        <section v-else>
+          <h2 class="text-base font-semibold text-neutral-900">{{ $t('settings.groups.channels') }}</h2>
+          <p class="mt-0.5 text-sm text-neutral-500">{{ $t('settings.groups.channelsText') }}</p>
+          <div class="mt-3 space-y-3">
+            <EmailNotificationsSettings />
+            <TelegramSettings />
           </div>
-        </form>
-        <ConfirmPasswordModal
-          v-if="confirmingPassword"
-          :title="$t('settings.confirmPassword.title')"
-          :description="$t('settings.confirmPassword.password')"
-          :confirm-label="$t('settings.password.change')"
-          :action="changePassword"
-          @close="confirmingPassword = false"
-          @done="passwordChanged"
-          @failed="passwordRefused"
-        />
-      </section>
+        </section>
+      </div>
     </div>
   </DashboardLayout>
 </template>
