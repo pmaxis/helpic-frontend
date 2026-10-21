@@ -55,7 +55,7 @@ const en = {
     next: {
       inbox: {
         title: 'Open the link',
-        text: 'It confirms this address. Look in spam if the email isn’t there.',
+        text: 'It confirms this address. Look in spam if the email isn’t there. If the address already has an account, the email says so instead.',
       },
       open: {
         title: 'Then you’re in',
@@ -241,7 +241,7 @@ const uk: typeof en = {
     next: {
       inbox: {
         title: 'Відкрийте посилання',
-        text: 'Воно підтверджує цю адресу. Якщо листа немає, загляньте в спам.',
+        text: 'Воно підтверджує цю адресу. Якщо листа немає, загляньте в спам. Якщо з цією адресою вже є акаунт, лист про це й скаже.',
       },
       open: {
         title: 'І ви в системі',

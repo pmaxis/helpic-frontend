@@ -22,9 +22,13 @@ RUN pnpm run build
 
 # --- production (static files served by nginx) ----------------------------
 FROM nginx:1.27-alpine AS production
+# The API address baked into the build, if any: the CSP has to allow it.
+ARG VITE_API_BASE_URL=
+ENV BAKED_API_BASE_URL=$VITE_API_BASE_URL
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY nginx-security.conf /etc/nginx/security.conf
+# The entrypoint writes security.conf from this, with the API's origin.
+COPY nginx-security.conf /etc/nginx/security.conf.template
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 EXPOSE 80
 ENTRYPOINT ["sh", "/docker-entrypoint.sh"]

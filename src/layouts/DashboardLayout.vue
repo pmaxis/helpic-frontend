@@ -133,7 +133,7 @@ async function handleLogout() {
       </div>
 
       <nav class="flex flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-3 py-4">
-        <SidebarSection v-for="section in navSections" :key="section.label || 'top'" :label="section.label" :collapsed="collapsed">
+        <SidebarSection v-for="(section, i) in navSections" :key="section.label || `unlabeled-${i}`" :label="section.label" :collapsed="collapsed">
           <SidebarItem
             v-for="item in section.items"
             :key="item.to"

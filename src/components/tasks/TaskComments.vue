@@ -15,7 +15,11 @@ import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
 import type { Comment } from '@/types/comments'
 
-const props = defineProps<{ taskId: string }>()
+const props = defineProps<{
+  taskId: string
+  /** An archived task's discussion: read, never added to or changed. */
+  readonly?: boolean
+}>()
 const emit = defineEmits<{ count: [n: number] }>()
 
 const auth = useAuthStore()
@@ -164,7 +168,7 @@ async function remove() {
             <span class="text-sm font-medium text-neutral-900">{{ authorName(c) }}</span>
             <time class="text-xs text-neutral-400" :datetime="c.created_at" :title="formatDate(c.created_at)">{{ timeAgo(c.created_at) }}</time>
             <span v-if="c.edited" class="text-xs text-neutral-400" :title="$t('comments.editedOn', { date: formatDate(c.updated_at) })">· {{ $t('comments.edited') }}</span>
-            <span v-if="c.can_edit && editingId !== c.id" class="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <span v-if="c.can_edit && !readonly && editingId !== c.id" class="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
               <button type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="startEdit(c)">{{ $t('common.edit') }}</button>
               <button type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="removing = c">{{ $t('common.delete') }}</button>
             </span>
@@ -193,10 +197,11 @@ async function remove() {
         </div>
       </li>
     </ol>
-    <p v-else-if="loaded" class="mt-3 text-sm text-neutral-400">{{ $t('comments.empty') }}</p>
+    <p v-else-if="loaded && !readonly" class="mt-3 text-sm text-neutral-400">{{ $t('comments.empty') }}</p>
 
     <!-- write -->
-    <form class="mt-4 flex gap-3" novalidate @submit.prevent="send">
+    <p v-if="readonly" class="mt-4 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-500">{{ $t('comments.closed') }}</p>
+    <form v-else class="mt-4 flex gap-3" novalidate @submit.prevent="send">
       <span
         class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white"
         aria-hidden="true"

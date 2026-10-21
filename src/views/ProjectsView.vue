@@ -4,6 +4,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import ProjectIllustration from '@/components/illustrations/ProjectIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ViewToggle, { type ViewOption } from '@/components/ui/ViewToggle.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
@@ -54,7 +55,8 @@ function onSaved(project: Project) {
 </script>
 
 <template>
-  <DashboardLayout>
+  <!-- with no projects the page is filled, so the empty state sits in the middle -->
+  <DashboardLayout :fill="projects.loaded && !projects.projects.length">
     <PageHeader :title="$t('projects.title')">
       <template #actions>
         <!-- search -->
@@ -86,12 +88,18 @@ function onSaved(project: Project) {
       </template>
     </PageHeader>
 
-    <div v-if="projects.loaded && !projects.projects.length" class="mt-6">
+    <div v-if="projects.loaded && !projects.projects.length" class="mt-6 flex min-h-0 flex-1 flex-col">
       <EmptyState
+        class="flex-1 justify-center"
         :title="$t('projects.noneYet')"
         :description="auth.isClient ? $t('projects.noneYetClient') : $t('projects.noneYetFreelancer')"
       >
-        <BaseButton v-if="!auth.isContractor" size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
+        <template #illustration>
+          <ProjectIllustration />
+        </template>
+        <template v-if="!auth.isContractor" #default>
+          <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('projects.new') }}</BaseButton>
+        </template>
       </EmptyState>
     </div>
 

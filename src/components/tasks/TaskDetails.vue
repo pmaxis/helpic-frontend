@@ -7,6 +7,9 @@
  * Whoever may edit the task changes it in place: a click on the title or the
  * description turns it into a field, and the due date and project are pickers
  * in the details. "Edit task" in the "⋯" menu opens the whole form.
+ *
+ * An archived task is closed: it's shown as it was, and nothing on it —
+ * status, priority, labels, people, comments, files — changes any more.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -14,6 +17,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import DateInput from '@/components/ui/DateInput.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import StatusBadge from '@/components/tasks/StatusBadge.vue'
@@ -85,6 +89,11 @@ const canManageBoard = ref(false)
 const editing = ref(false)
 const confirmDelete = ref(false)
 const deleting = ref(false)
+const confirmArchive = ref(false)
+const archiving = ref(false)
+
+/** Closed for good: paid, or put away by its owner. */
+const archived = computed(() => !!task.value?.archived_at)
 
 const open = computed(() => task.value?.status === 'new' || task.value?.status === 'in_progress')
 
@@ -93,6 +102,7 @@ const taskActions = computed(() => {
   const actions: MenuAction[] = []
   const task_ = task.value
   if (task_?.can_edit) actions.push({ label: tr('task.edit'), onSelect: () => (editing.value = true) })
+  if (task_?.can_archive) actions.push({ label: tr('task.archive'), onSelect: () => (confirmArchive.value = true) })
   if (task_?.can_delete) actions.push({ label: tr('task.delete'), danger: true, onSelect: () => (confirmDelete.value = true) })
   return actions
 })
@@ -116,7 +126,7 @@ function isMe(id: string | undefined): boolean {
  */
 const statusOptions = computed(() => {
   const t = task.value
-  if (!t) return []
+  if (!t || t.archived_at) return []
   const current = columns.value.find((c) => c.id === t.status_id)
   return columns.value
     .filter(
@@ -145,6 +155,8 @@ async function load(id: string) {
   emit('loaded', task.value)
   if (task.value.can_edit && !projects.loaded) void projects.fetchProjects().catch(() => {})
   const t = task.value
+  // An archived task stays in its status: there's nothing to pick from.
+  if (t.archived_at) return
   try {
     const scope = t.project ? { project: t.project.id } : boardScope.value
     let data
@@ -168,11 +180,12 @@ watch(
   { immediate: true },
 )
 
-/** The board this task is on: its client's (or personal) for a freelancer, its freelancer's for a client. */
+/** The board this task is on: the owner's own for a personal task; else its client's for a freelancer, its freelancer's for a client. */
 const boardScope = computed<BoardScope>(() => {
   const t = task.value
   if (!t) return {}
-  return { with: auth.isClient ? (t.freelancer?.id ?? '') : (t.client?.id ?? 'personal') }
+  if (!t.client) return { with: 'personal' }
+  return { with: auth.isClient ? (t.freelancer?.id ?? '') : t.client.id }
 })
 
 const priorityOptions = computed(() => priorityChoices())
@@ -225,6 +238,22 @@ async function move(statusId: string) {
     toast.error(error instanceof ApiRequestError ? error.message : tr('task.statusFailed'))
   } finally {
     busy.value = false
+  }
+}
+
+async function archive() {
+  const t = task.value
+  if (!t) return
+  archiving.value = true
+  try {
+    task.value = await tasks.archiveTask(t.id)
+    toast.success(tr('task.archived'))
+    emit('changed', task.value)
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.archiveFailed'))
+  } finally {
+    archiving.value = false
+    confirmArchive.value = false
   }
 }
 
@@ -367,9 +396,13 @@ function onSaved(t: Task) {
 <template>
   <!-- two cards: the task (title, actions, description) and its details -->
   <div class="grid min-h-0 flex-1 gap-4" :class="task && !detailsHidden ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : ''">
-    <article :class="[card, 'p-5 sm:p-8']">
+    <article :class="[card, 'p-5 sm:p-8', notFound ? 'flex flex-col' : '']">
       <slot name="nav" :task="task" />
-      <EmptyState v-if="notFound" class="mt-6" :title="$t('task.notFound')" :description="$t('task.notFoundText')" />
+      <EmptyState v-if="notFound" class="mt-6 flex-1 justify-center" :title="$t('task.notFound')" :description="$t('task.notFoundText')">
+        <template #illustration>
+          <NotFoundIllustration />
+        </template>
+      </EmptyState>
       <template v-else-if="task">
         <!-- title and actions -->
         <header class="mt-3 flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-5">
@@ -420,6 +453,27 @@ function onSaved(t: Task) {
           </div>
         </header>
 
+        <!-- closed for good: what archived it, and that it stays as it is -->
+        <p v-if="archived && task.archived_at" class="mt-5 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-600 ring-1 ring-neutral-200 ring-inset">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-neutral-400" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="5" rx="1" />
+            <path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" />
+            <path d="M10 13h4" />
+          </svg>
+          <span>{{ $t('task.archivedOn', { date: formatDate(task.archived_at) }) }}</span>
+          <template v-if="task.archived_by">
+            <span>·</span>
+            <i18n-t keypath="task.archivedByReport" tag="span" scope="global">
+              <template #report>
+                <!-- reports are the company owner's: a team member sees only the title -->
+                <span v-if="auth.isTeamMember" class="font-medium text-neutral-900">{{ task.archived_by.title }}</span>
+                <RouterLink v-else :to="{ name: 'report-detail', params: { id: task.archived_by.id } }" class="font-medium text-neutral-900 underline-offset-4 hover:underline">{{ task.archived_by.title }}</RouterLink>
+              </template>
+            </i18n-t>
+          </template>
+          <span class="text-neutral-400">· {{ $t('task.archivedClosed') }}</span>
+        </p>
+
         <section aria-labelledby="task-description" class="mt-5 min-w-0">
           <h2 id="task-description" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('task.description') }}</h2>
           <div v-if="inline === 'description'" class="mt-3">
@@ -464,8 +518,8 @@ function onSaved(t: Task) {
           </div>
         </section>
 
-        <TaskAttachments :task-id="task.id" />
-        <TaskActivity :task-id="task.id" :version="task.updated_at" />
+        <TaskAttachments :task-id="task.id" :readonly="archived" />
+        <TaskActivity :task-id="task.id" :version="task.updated_at" :readonly="archived" />
       </template>
     </article>
 
@@ -511,7 +565,12 @@ function onSaved(t: Task) {
 
             <dt class="text-neutral-500">{{ $t('task.priority') }}</dt>
             <dd class="min-w-0">
+              <span v-if="archived" class="inline-flex items-center gap-1.5 text-neutral-800">
+                <PriorityIcon :priority="task.priority" show-none />
+                {{ priorityOptions.find((o) => o.value === task?.priority)?.label }}
+              </span>
               <SelectInput
+                v-else
                 :model-value="task.priority"
                 :options="priorityOptions"
                 :disabled="busy"
@@ -528,7 +587,9 @@ function onSaved(t: Task) {
             <dt class="self-start pt-0.5 text-neutral-500">{{ $t('task.labels') }}</dt>
             <dd class="flex min-w-0 flex-wrap items-center gap-1">
               <LabelChip v-for="l in task.labels" :key="l.id" :name="l.name" :color="l.color" />
+              <span v-if="archived && !task.labels.length" class="text-neutral-400">{{ $t('task.none') }}</span>
               <LabelPicker
+                v-if="!archived"
                 :model-value="task.labels.map((l) => l.id)"
                 :scope="boardScope"
                 @update:model-value="setLabels"
@@ -588,7 +649,8 @@ function onSaved(t: Task) {
               <span v-else class="text-neutral-400">{{ $t('task.none') }}</span>
             </dd>
 
-            <template v-if="task.can_see_price">
+            <!-- a price nobody can set and nobody set (a client's own task, say) isn't shown -->
+            <template v-if="task.can_see_price && (task.can_set_price || task.price_cents !== null)">
               <dt class="text-neutral-500">{{ $t('task.price') }}</dt>
               <dd class="min-w-0">
                 <input
@@ -646,6 +708,14 @@ function onSaved(t: Task) {
     </aside>
 
     <TaskFormModal v-if="editing && task" :task="task" @close="editing = false" @saved="onSaved" />
+    <ConfirmDialog
+      v-model:open="confirmArchive"
+      :title="$t('task.confirmArchive')"
+      :description="$t('task.confirmArchiveText')"
+      :confirm-label="$t('task.archive')"
+      :loading="archiving"
+      @confirm="archive"
+    />
     <ConfirmDialog
       v-model:open="confirmDelete"
       :title="$t('task.confirmDelete')"

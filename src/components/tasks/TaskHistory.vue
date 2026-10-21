@@ -91,6 +91,9 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       return { key: 'history.attachmentAdded', values: { value: quote(e.data.name) } }
     case 'attachment_removed':
       return { key: 'history.attachmentRemoved', values: { value: quote(e.data.name) } }
+    case 'archived':
+      if (e.data.report) return { key: 'history.archivedPaid', values: { value: quote(e.data.report) } }
+      return { key: 'history.archived', values: {} }
     default:
       return { key: 'history.other', values: {} }
   }

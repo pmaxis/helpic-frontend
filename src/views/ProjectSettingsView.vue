@@ -9,6 +9,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
 import FormError from '@/components/auth/FormError.vue'
 import ProjectPeople from '@/components/projects/ProjectPeople.vue'
 import { useProjectsStore } from '@/stores/projects'
@@ -90,7 +91,8 @@ async function remove() {
 </script>
 
 <template>
-  <DashboardLayout>
+  <!-- a project that isn't there fills the page with its empty state -->
+  <DashboardLayout :fill="notFound">
     <nav class="flex items-center gap-1.5 self-start text-sm text-neutral-500" :aria-label="$t('project.breadcrumb')">
       <RouterLink
         :to="{ name: 'project-detail', params: { id } }"
@@ -116,8 +118,12 @@ async function remove() {
       </template>
     </nav>
 
-    <div v-if="notFound" class="mt-6">
-      <EmptyState :title="$t('project.notFound')" :description="$t('project.notFoundText')" />
+    <div v-if="notFound" class="mt-6 flex min-h-0 flex-1 flex-col">
+      <EmptyState class="flex-1 justify-center" :title="$t('project.notFound')" :description="$t('project.notFoundText')">
+        <template #illustration>
+          <NotFoundIllustration />
+        </template>
+      </EmptyState>
     </div>
 
     <template v-else-if="project">

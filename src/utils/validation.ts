@@ -11,6 +11,8 @@ import { t } from '@/i18n'
 /** The backend's limits. */
 export const LIMITS = {
   password: 8,
+  /** Bytes, as bcrypt counts them: "ї" takes two. */
+  passwordBytes: 72,
   name: 100,
   companyName: 120,
   projectName: 120,
@@ -62,12 +64,15 @@ export function currentPassword(message: Message = () => t('validation.passwordR
   return z.string().min(1, { error: message })
 }
 
-/** A new password: long enough, and both a letter and a number. */
+/** A new password: long enough, short enough, and both a letter and a number. */
 export function newPassword() {
   return z
     .string()
     .min(1, { error: () => t('validation.passwordRequired') })
     .min(LIMITS.password, { error: () => t('validation.passwordTooShort', { n: LIMITS.password }) })
+    .refine((value) => new TextEncoder().encode(value).length <= LIMITS.passwordBytes, {
+      error: () => t('validation.passwordTooLong'),
+    })
     .refine((value) => /\p{L}/u.test(value) && /\p{N}/u.test(value), {
       error: () => t('validation.passwordTooSimple'),
     })

@@ -4,6 +4,9 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FilterIllustration from '@/components/illustrations/FilterIllustration.vue'
+import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
+import TaskIllustration from '@/components/illustrations/TaskIllustration.vue'
 import TaskList from '@/components/tasks/TaskList.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import KanbanBoard from '@/components/board/KanbanBoard.vue'
@@ -37,6 +40,8 @@ const notFound = ref(false)
 const projectId = ref(id)
 const statuses = useStatusFilter(projectId)
 const shown = computed(() => statuses.visible(tasks.tasks))
+/** The task list has loaded and has nothing to show. */
+const listEmpty = computed(() => view.value === 'list' && !!project.value && !tasks.isLoading && !shown.value.length)
 const addingTask = ref(false)
 /** The board column a task is being added from, if any. */
 const newTaskColumn = ref<BoardColumn | null>(null)
@@ -88,7 +93,8 @@ async function onTaskSaved(task: Task) {
 </script>
 
 <template>
-  <DashboardLayout :fill="view === 'board'">
+  <!-- the board fills the page, and so does an empty state, so it sits in the middle -->
+  <DashboardLayout :fill="view === 'board' || notFound || listEmpty">
     <!-- back, then breadcrumbs -->
     <nav class="flex items-center gap-1.5 self-start text-sm text-neutral-500" :aria-label="$t('project.breadcrumb')">
       <RouterLink
@@ -111,8 +117,12 @@ async function onTaskSaved(task: Task) {
       </template>
     </nav>
 
-    <div v-if="notFound" class="mt-6">
-      <EmptyState :title="$t('project.notFound')" :description="$t('project.notFoundText')" />
+    <div v-if="notFound" class="mt-6 flex min-h-0 flex-1 flex-col">
+      <EmptyState class="flex-1 justify-center" :title="$t('project.notFound')" :description="$t('project.notFoundText')">
+        <template #illustration>
+          <NotFoundIllustration />
+        </template>
+      </EmptyState>
     </div>
 
     <template v-else-if="project">
@@ -159,18 +169,25 @@ async function onTaskSaved(task: Task) {
       </header>
 
       <KanbanBoard v-if="view === 'board'" class="mt-5" hide-project @new-task="startTask" />
-      <div v-else-if="!tasks.isLoading && !shown.length" class="mt-5">
+      <div v-else-if="listEmpty" class="mt-5 flex min-h-0 flex-1 flex-col">
         <EmptyState
           v-if="statuses.selected.length"
+          class="flex-1 justify-center"
           :title="$t('tasks.noStatusMatch')"
           :description="$t('tasks.nothingMatches')"
         >
+          <template #illustration>
+            <FilterIllustration />
+          </template>
           <div class="flex items-center gap-4">
             <BaseButton size="sm" variant="ghost" :block="false" @click="statuses.selected = []">{{ $t('tasks.showAll') }}</BaseButton>
             <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
           </div>
         </EmptyState>
-        <EmptyState v-else :title="$t('project.noTasksTitle')" :description="$t('project.noTasksText')">
+        <EmptyState v-else class="flex-1 justify-center" :title="$t('project.noTasksTitle')" :description="$t('project.noTasksText')">
+          <template #illustration>
+            <TaskIllustration />
+          </template>
           <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
         </EmptyState>
       </div>

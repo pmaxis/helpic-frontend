@@ -257,7 +257,6 @@ async function signOutOthers() {
               :class="savingCurrency ? 'pointer-events-none opacity-60' : ''"
               @update:model-value="saveCurrency"
             />
-            <p class="mt-1.5 text-xs leading-relaxed text-neutral-500">{{ $t('settings.profile.currencyHint') }}</p>
           </div>
         </section>
       </template>
