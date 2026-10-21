@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { http } from '@/services/api'
-import type { Task, TaskInput, TaskPriority, TaskStatus } from '@/types/tasks'
+import type { Task, TaskBilling, TaskInput, TaskPriority, TaskStatus } from '@/types/tasks'
 
 interface TasksState {
   tasks: Task[]
@@ -46,9 +46,12 @@ export const useTasksStore = defineStore('tasks', {
       return data.task
     },
 
-    /** Sets the task's price ("1200.50"), or clears it with null. Freelancer only. */
-    async setPrice(id: string, price: string | null): Promise<Task> {
-      const { data } = await http.put<{ task: Task }>(`/tasks/${id}/price`, { price })
+    /**
+     * Sets the task's price ("1200.50"), or clears it with null; billed by the
+     * hour, the price follows its time instead. Freelancer only.
+     */
+    async setPrice(id: string, price: string | null, billing: TaskBilling = 'fixed'): Promise<Task> {
+      const { data } = await http.put<{ task: Task }>(`/tasks/${id}/price`, { billing, price })
       this.replace(data.task)
       return data.task
     },

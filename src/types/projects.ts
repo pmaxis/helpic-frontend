@@ -14,6 +14,10 @@ export interface Project {
   participants: Array<Party & { role?: ProjectPerson['role'] }>
   /** Only the creator edits and deletes a project, and invites its participants. */
   can_edit: boolean
+  /** A freelancer on the project sets their own hourly rate for it. */
+  can_set_rate: boolean
+  /** The rate the viewer set on this project; null: their own rate applies. */
+  my_hourly_rate_cents: number | null
   created_at: string
   updated_at: string
 }

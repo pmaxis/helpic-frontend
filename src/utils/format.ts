@@ -106,3 +106,20 @@ export function deviceName(userAgent: string): string {
   if (browser && os) return `${browser} on ${os}`
   return browser || os || t('common.unknownDevice')
 }
+
+/** Time spent, to the minute: "1h 30m", "2h", "45m" ("1 год 30 хв"). */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60)
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h && m) return t('timelog.hm', { h, m })
+  if (h) return t('timelog.h', { h })
+  return t('timelog.m', { m })
+}
+
+/** A running timer's clock: "0:05:09", "1:30:00". */
+export function formatClock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`
+}

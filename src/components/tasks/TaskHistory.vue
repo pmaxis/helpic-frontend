@@ -77,6 +77,8 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       if (from == null) return pair('history.priceSet', '', money(to))
       if (to == null) return pair('history.priceRemoved', money(from), '')
       return pair('history.priceChanged', money(from), money(to))
+    case 'billing':
+      return { key: to === 'hourly' ? 'history.billingHourly' : 'history.billingFixed', values: {} }
     case 'priority':
       if (to === 'none') return pair('history.priorityRemoved', priority(from), '')
       return pair('history.prioritySet', '', priority(to))

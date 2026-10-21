@@ -16,6 +16,7 @@ import ConfirmPasswordModal from '@/components/account/ConfirmPasswordModal.vue'
 import SettingsGroup from '@/components/account/SettingsGroup.vue'
 import SettingsRow from '@/components/account/SettingsRow.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
+import RateInput from '@/components/account/RateInput.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
@@ -126,6 +127,27 @@ async function saveCurrency(currency: string) {
     toast.error(field ?? (error instanceof ApiRequestError ? error.message : t('settings.profile.currencyFailed')))
   } finally {
     savingCurrency.value = false
+  }
+}
+
+// --- hourly rate (freelancers) --------------------------------------------------
+
+const savingRate = ref(false)
+const rateError = ref('')
+
+/** Saved as soon as it's typed; tasks billed by the hour are priced at it. */
+async function saveRate(rate: string | null) {
+  savingRate.value = true
+  rateError.value = ''
+  try {
+    await auth.setHourlyRate(rate)
+    toast.success(t('timelog.rateChanged'))
+  } catch (error) {
+    const field = error instanceof ApiRequestError ? error.fields?.rate : undefined
+    if (field) rateError.value = field
+    else toast.error(error instanceof ApiRequestError ? error.message : t('timelog.rateFailed'))
+  } finally {
+    savingRate.value = false
   }
 }
 
@@ -360,6 +382,17 @@ async function signOutOthers() {
                 :options="currencyOptions"
                 :aria-label="$t('settings.profile.currency')"
                 @update:model-value="saveCurrency"
+              />
+            </SettingsRow>
+            <SettingsRow v-if="auth.isFreelancer" :label="$t('timelog.rate')" :hint="$t('timelog.rateText')">
+              <RateInput
+                class="w-44"
+                :cents="auth.user?.hourly_rate_cents ?? null"
+                :currency="auth.user?.currency ?? 'USD'"
+                :label="$t('timelog.rate')"
+                :saving="savingRate"
+                :error="rateError"
+                @save="saveRate"
               />
             </SettingsRow>
           </SettingsGroup>

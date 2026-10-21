@@ -8,10 +8,12 @@ import { useProjectsStore } from '@/stores/projects'
 import { useBoardStore } from '@/stores/board'
 import { useReportsStore } from '@/stores/reports'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useTimerStore } from '@/stores/timer'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import SidebarSection from '@/components/navigation/SidebarSection.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import NotificationBell from '@/components/navigation/NotificationBell.vue'
+import RunningTimer from '@/components/navigation/RunningTimer.vue'
 import { NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
 import { useI18n } from 'vue-i18n'
 
@@ -27,7 +29,12 @@ withDefaults(
 
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
-onMounted(() => notifications.startPolling())
+const timer = useTimerStore()
+onMounted(() => {
+  notifications.startPolling()
+  // Only a freelancer tracks time; the timer is loaded once per sign-in.
+  if (auth.isFreelancer && !timer.loaded) void timer.load()
+})
 const router = useRouter()
 const loggingOut = ref(false)
 const mobileOpen = ref(false)
@@ -84,6 +91,7 @@ async function handleLogout() {
     useReportsStore().$reset()
     notifications.stopPolling()
     notifications.$reset()
+    timer.reset()
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
@@ -146,6 +154,10 @@ async function handleLogout() {
         </SidebarSection>
       </nav>
 
+      <div v-if="timer.running" :class="collapsed ? 'flex justify-center px-2 pb-2' : 'px-3 pb-3'">
+        <RunningTimer :compact="collapsed" @navigate="mobileOpen = false" />
+      </div>
+
       <div :class="['border-t border-neutral-200', collapsed ? 'p-2' : 'p-3']">
         <div :class="['flex items-center gap-1 rounded-md', collapsed ? 'flex-col gap-2' : '']">
           <RouterLink
@@ -197,6 +209,7 @@ async function handleLogout() {
           </svg>
         </button>
         <AppLogo :size="28" />
+        <RunningTimer class="ml-auto" compact />
       </header>
 
       <main class="flex w-full min-h-0 flex-1 flex-col px-4 py-4">

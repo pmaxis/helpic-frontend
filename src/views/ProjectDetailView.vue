@@ -13,6 +13,7 @@ import KanbanBoard from '@/components/board/KanbanBoard.vue'
 import ViewToggle from '@/components/ui/ViewToggle.vue'
 import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
+import ProjectRate from '@/components/projects/ProjectRate.vue'
 import { fetchProjectPeople } from '@/services/projectPeople'
 import { useBoardStore } from '@/stores/board'
 import { useTaskView } from '@/composables/useTaskView'
@@ -83,6 +84,12 @@ onMounted(async () => {
   }
 })
 
+/** The viewer's rate here changed: so did the prices of their hourly tasks. */
+function onRateChanged(p: Project) {
+  project.value = p
+  void loadTasks()
+}
+
 async function onTaskSaved(task: Task) {
   addingTask.value = false
   newTaskColumn.value = null
@@ -149,6 +156,7 @@ async function onTaskSaved(task: Task) {
               class="w-48 shrink-0"
             />
             <AvatarStack v-if="participants.length" :people="participants" size="md" />
+            <ProjectRate v-if="project.can_set_rate" :project="project" @changed="onRateChanged" />
             <RouterLink
               v-if="project.can_edit"
               :to="{ name: 'project-settings', params: { id: project.id } }"

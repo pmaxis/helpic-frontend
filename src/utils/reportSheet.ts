@@ -1,5 +1,5 @@
 import { t } from '@/i18n'
-import { formatDocumentDate, formatDocumentPeriod } from '@/utils/format'
+import { formatDocumentDate, formatDocumentPeriod, formatDuration } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import type { Party } from '@/types/people'
 import type { Report } from '@/types/reports'
@@ -10,6 +10,8 @@ export interface SheetItem {
   completed: string
   /** '' for a task without a price. */
   price: string
+  /** The time a task billed by the hour took; '' for a fixed price. */
+  time: string
   /** What was done, in a detailed report: a paragraph or bullets. */
   notesText: string
   notesBullets: string[]
@@ -27,6 +29,8 @@ export interface ReportSheet {
   showProject: boolean
   /** A price column and the total when any task has a price. */
   showPrice: boolean
+  /** A time column when any task is billed by the hour. */
+  showTime: boolean
   total: string
   items: SheetItem[]
   /** On every page: when it was prepared, sent and paid; and who made it. */
@@ -41,6 +45,7 @@ export interface ReportSheet {
     project: string
     completed: string
     price: string
+    time: string
     total: string
     noTasks: string
   }
@@ -86,6 +91,7 @@ export function buildSheet(r: Report): ReportSheet {
     summaryBullets: summary.bullets,
     showProject: r.projects.length !== 1 && items.some((it) => it.project_name),
     showPrice: r.total_cents !== null,
+    showTime: items.some((it) => it.seconds !== null),
     total: r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : '',
     items: items.map((it) => {
       const notes = r.kind === 'detailed' ? splitText(it.notes) : { text: '', bullets: [] }
@@ -94,6 +100,7 @@ export function buildSheet(r: Report): ReportSheet {
         projectName: it.project_name,
         completed: formatDocumentDate(it.completed_on),
         price: it.price_cents !== null ? formatMoney(it.price_cents, r.currency) : '',
+        time: it.seconds !== null ? formatDuration(it.seconds) : '',
         notesText: notes.text,
         notesBullets: notes.bullets,
       }
@@ -109,6 +116,7 @@ export function buildSheet(r: Report): ReportSheet {
       project: t('reportPdf.project'),
       completed: t('reportPdf.completed'),
       price: t('reportPdf.price'),
+      time: t('reportPdf.time'),
       total: t('reportPdf.total'),
       noTasks: t('reportPdf.noTasks'),
     },

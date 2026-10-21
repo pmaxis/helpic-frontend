@@ -37,6 +37,13 @@ export const useProjectsStore = defineStore('projects', {
       return data.project
     },
 
+    /** Sets the viewer's hourly rate on the project ("50"), or clears it with null. A freelancer on it only. */
+    async setRate(id: string, rate: string | null): Promise<Project> {
+      const { data } = await http.put<{ project: Project }>(`/projects/${id}/rate`, { rate })
+      this.replace(data.project)
+      return data.project
+    },
+
     async deleteProject(id: string): Promise<void> {
       await http.delete(`/projects/${id}`)
       this.projects = this.projects.filter((p) => p.id !== id)

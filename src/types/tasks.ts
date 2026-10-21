@@ -2,6 +2,9 @@ import type { Party } from './people'
 
 export type TaskStatus = 'new' | 'in_progress' | 'done'
 
+/** How a task is billed: a price the freelancer sets, or its time at their hourly rate. */
+export type TaskBilling = 'fixed' | 'hourly'
+
 /** How urgent a task is; either side sets it. */
 export type TaskPriority = 'none' | 'low' | 'medium' | 'high' | 'urgent'
 
@@ -41,6 +44,12 @@ export interface Task {
   price_cents: number | null
   /** The freelancer's currency. */
   currency: string
+  /** A fixed price, or by the hour: then the price is tracked_seconds at hourly_rate_cents, kept up to date by the server. */
+  billing: TaskBilling
+  /** The time written on the task; null while there is none, or for whoever doesn't see the price. */
+  tracked_seconds: number | null
+  /** The freelancer's rate that applies: the project's, or their own; null without one. */
+  hourly_rate_cents: number | null
   priority: TaskPriority
   /** Sorted by name. */
   labels: TaskLabel[]
@@ -52,6 +61,10 @@ export interface Task {
   can_set_price: boolean
   /** False for a member of the client's team: the price is left out for them. */
   can_see_price: boolean
+  /** The task's freelancer writes time on it, until it's on a sent report or archived. */
+  can_track_time: boolean
+  /** On a sent report: its time and an hourly price stay as they were billed. */
+  billed: boolean
   /** The viewer's own personal task, which they may put in the archive by hand. */
   can_archive: boolean
   created_at: string
