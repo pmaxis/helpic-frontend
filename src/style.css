@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* `dark:` follows the theme picked in Settings (<html class="dark">), not only the system's. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --animate-pop-down: pop-down 120ms ease-out;
   --animate-pop-up: pop-up 120ms ease-out;
@@ -10,6 +13,116 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * Dark theme. The UI is written in light-theme classes, so instead of a
+ * `dark:` twin for each, the palette itself turns over: white becomes the
+ * darkest surface and the neutral ramp runs the other way (ink on paper turns
+ * to paper on ink), and the accents' pale tints become faint washes while
+ * their deep shades lighten, so tinted badges and alerts still read.
+ * Black stays black for overlays and shadows.
+ */
+html {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-white: oklch(16.5% 0 none);
+  --color-neutral-50: oklch(19.5% 0 none);
+  --color-neutral-100: oklch(23% 0 none);
+  --color-neutral-200: oklch(28% 0 none);
+  --color-neutral-300: oklch(36% 0 none);
+  --color-neutral-400: oklch(52% 0 none);
+  --color-neutral-500: oklch(64% 0 none);
+  --color-neutral-600: oklch(74% 0 none);
+  --color-neutral-700: oklch(82% 0 none);
+  --color-neutral-800: oklch(90% 0 none);
+  --color-neutral-900: oklch(95% 0 none);
+  --color-neutral-950: oklch(98% 0 none);
+
+  --color-red-50: color-mix(in oklab, var(--color-red-500) 12%, transparent);
+  --color-red-100: color-mix(in oklab, var(--color-red-500) 18%, transparent);
+  --color-red-200: color-mix(in oklab, var(--color-red-500) 28%, transparent);
+  --color-red-600: var(--color-red-400);
+  --color-red-700: var(--color-red-300);
+  --color-red-800: var(--color-red-300);
+  --color-red-900: var(--color-red-300);
+
+  --color-orange-50: color-mix(in oklab, var(--color-orange-500) 12%, transparent);
+  --color-orange-100: color-mix(in oklab, var(--color-orange-500) 18%, transparent);
+  --color-orange-200: color-mix(in oklab, var(--color-orange-500) 28%, transparent);
+  --color-orange-600: var(--color-orange-400);
+  --color-orange-700: var(--color-orange-300);
+  --color-orange-800: var(--color-orange-300);
+  --color-orange-900: var(--color-orange-300);
+
+  --color-amber-50: color-mix(in oklab, var(--color-amber-500) 12%, transparent);
+  --color-amber-100: color-mix(in oklab, var(--color-amber-500) 18%, transparent);
+  --color-amber-200: color-mix(in oklab, var(--color-amber-500) 28%, transparent);
+  --color-amber-600: var(--color-amber-400);
+  --color-amber-700: var(--color-amber-300);
+  --color-amber-800: var(--color-amber-300);
+  --color-amber-900: var(--color-amber-300);
+
+  --color-emerald-50: color-mix(in oklab, var(--color-emerald-500) 12%, transparent);
+  --color-emerald-100: color-mix(in oklab, var(--color-emerald-500) 18%, transparent);
+  --color-emerald-200: color-mix(in oklab, var(--color-emerald-500) 28%, transparent);
+  --color-emerald-600: var(--color-emerald-400);
+  --color-emerald-700: var(--color-emerald-300);
+  --color-emerald-800: var(--color-emerald-300);
+  --color-emerald-900: var(--color-emerald-300);
+
+  --color-teal-50: color-mix(in oklab, var(--color-teal-500) 12%, transparent);
+  --color-teal-100: color-mix(in oklab, var(--color-teal-500) 18%, transparent);
+  --color-teal-200: color-mix(in oklab, var(--color-teal-500) 28%, transparent);
+  --color-teal-600: var(--color-teal-400);
+  --color-teal-700: var(--color-teal-300);
+  --color-teal-800: var(--color-teal-300);
+  --color-teal-900: var(--color-teal-300);
+
+  --color-sky-50: color-mix(in oklab, var(--color-sky-500) 12%, transparent);
+  --color-sky-100: color-mix(in oklab, var(--color-sky-500) 18%, transparent);
+  --color-sky-200: color-mix(in oklab, var(--color-sky-500) 28%, transparent);
+  --color-sky-600: var(--color-sky-400);
+  --color-sky-700: var(--color-sky-300);
+  --color-sky-800: var(--color-sky-300);
+  --color-sky-900: var(--color-sky-300);
+
+  --color-violet-50: color-mix(in oklab, var(--color-violet-500) 12%, transparent);
+  --color-violet-100: color-mix(in oklab, var(--color-violet-500) 18%, transparent);
+  --color-violet-200: color-mix(in oklab, var(--color-violet-500) 28%, transparent);
+  --color-violet-600: var(--color-violet-400);
+  --color-violet-700: var(--color-violet-300);
+  --color-violet-800: var(--color-violet-300);
+  --color-violet-900: var(--color-violet-300);
+
+  --color-pink-50: color-mix(in oklab, var(--color-pink-500) 12%, transparent);
+  --color-pink-100: color-mix(in oklab, var(--color-pink-500) 18%, transparent);
+  --color-pink-200: color-mix(in oklab, var(--color-pink-500) 28%, transparent);
+  --color-pink-600: var(--color-pink-400);
+  --color-pink-700: var(--color-pink-300);
+  --color-pink-800: var(--color-pink-300);
+  --color-pink-900: var(--color-pink-300);
+}
+
+/* A panel that is dark by design (the sign-in page's product side) keeps its light-theme palette. */
+.dark .light-palette {
+  --color-white: #fff;
+  --color-neutral-50: oklch(98.5% 0 none);
+  --color-neutral-100: oklch(97% 0 none);
+  --color-neutral-200: oklch(92.2% 0 none);
+  --color-neutral-300: oklch(87% 0 none);
+  --color-neutral-400: oklch(70.8% 0 none);
+  --color-neutral-500: oklch(55.6% 0 none);
+  --color-neutral-600: oklch(43.9% 0 none);
+  --color-neutral-700: oklch(37.1% 0 none);
+  --color-neutral-800: oklch(26.9% 0 none);
+  --color-neutral-900: oklch(20.5% 0 none);
+  --color-neutral-950: oklch(14.5% 0 none);
+  --color-amber-200: oklch(92.4% 0.12 95.746);
 }
 
 body {

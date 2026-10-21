@@ -39,11 +39,11 @@ const last = computed(() => points.value[points.value.length - 1])
 <template>
   <div class="relative h-8">
     <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
-      <path v-if="max" :d="`${line} L${W},${H} L0,${H} Z`" fill="rgb(23 23 23)" fill-opacity="0.06" />
+      <path v-if="max" :d="`${line} L${W},${H} L0,${H} Z`" class="fill-neutral-900" fill-opacity="0.06" />
       <path
         :d="line"
         fill="none"
-        :stroke="max ? 'rgb(23 23 23)' : 'rgb(212 212 212)'"
+        :class="max ? 'stroke-neutral-900' : 'stroke-neutral-300'"
         stroke-width="1.5"
         stroke-linecap="round"
         stroke-linejoin="round"

@@ -21,6 +21,7 @@ import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
+import { THEMES, useTheme } from '@/composables/useTheme'
 import { currentPassword, email, LIMITS, newPassword, optionalText, passwordsMatch, requiredText } from '@/utils/validation'
 import { isLocale, LOCALE_NAMES, LOCALES, t } from '@/i18n'
 import { useI18n } from 'vue-i18n'
@@ -96,6 +97,16 @@ async function saveLocale(value: string) {
   } finally {
     savingLocale.value = false
   }
+}
+
+// --- theme --------------------------------------------------------------------
+
+const { theme, isTheme } = useTheme()
+const themeOptions = computed(() => THEMES.map((value) => ({ value, label: t(`settings.groups.themes.${value}`) })))
+
+/** Kept on this device only, so it switches without a request. */
+function saveTheme(value: string) {
+  if (isTheme(value)) theme.value = value
 }
 
 // --- currency (freelancers) ---------------------------------------------------
@@ -330,6 +341,15 @@ async function signOutOthers() {
                 :options="localeOptions"
                 :aria-label="$t('common.language')"
                 @update:model-value="saveLocale"
+              />
+            </SettingsRow>
+            <SettingsRow :label="$t('settings.groups.theme')" :hint="$t('settings.groups.themeText')">
+              <SelectInput
+                class="w-44"
+                :model-value="theme"
+                :options="themeOptions"
+                :aria-label="$t('settings.groups.theme')"
+                @update:model-value="saveTheme"
               />
             </SettingsRow>
             <SettingsRow v-if="auth.isFreelancer" :label="$t('settings.profile.currency')" :hint="$t('settings.groups.currencyText')">

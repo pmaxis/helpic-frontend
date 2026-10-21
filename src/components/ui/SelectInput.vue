@@ -327,7 +327,7 @@ watch(query, () => {
           v-if="open"
           ref="panel"
           :style="panelStyle"
-          class="z-[60] flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg shadow-neutral-900/10"
+          class="z-[60] flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg shadow-black/10"
           :class="placement === 'bottom' ? 'animate-pop-down' : 'animate-pop-up'"
         >
           <div v-if="isSearchable" class="shrink-0 border-b border-neutral-100 p-1.5">

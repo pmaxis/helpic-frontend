@@ -143,7 +143,7 @@ async function openNotification(n: AppNotification) {
       v-if="open"
       ref="panel"
       :style="panelStyle"
-      class="animate-pop-up z-[60] flex max-h-[min(32rem,80vh)] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl shadow-neutral-900/10"
+      class="animate-pop-up z-[60] flex max-h-[min(32rem,80vh)] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl shadow-black/10"
       role="dialog"
       :aria-label="$t('bell.title')"
     >

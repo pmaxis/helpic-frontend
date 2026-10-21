@@ -33,9 +33,9 @@ const props = defineProps<{
 const c = {
   grid: 'border-neutral-200',
   base: 'border-neutral-300',
-  stroke: 'rgb(23 23 23)',
-  empty: 'rgb(212 212 212)',
-  fill: 'rgb(23 23 23)',
+  stroke: 'stroke-neutral-900',
+  empty: 'stroke-neutral-300',
+  fill: 'text-neutral-900',
   fillOpacity: 0.08,
   guide: 'bg-neutral-300',
   current: 'h-3 w-3 bg-emerald-500 ring-4 ring-emerald-500/20',
@@ -98,15 +98,15 @@ const activePoint = computed(() => points.value.find((p) => p.key === active.val
       <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
         <defs>
           <linearGradient id="earnings-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" :stop-color="c.fill" :stop-opacity="c.fillOpacity" />
-            <stop offset="100%" :stop-color="c.fill" stop-opacity="0" />
+            <stop offset="0%" :class="c.fill" stop-color="currentColor" :stop-opacity="c.fillOpacity" />
+            <stop offset="100%" :class="c.fill" stop-color="currentColor" stop-opacity="0" />
           </linearGradient>
         </defs>
         <path v-if="max" :d="area" fill="url(#earnings-fill)" />
         <path
           :d="line"
           fill="none"
-          :stroke="max ? c.stroke : c.empty"
+          :class="max ? c.stroke : c.empty"
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"

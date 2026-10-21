@@ -95,7 +95,7 @@ async function handleLogout() {
   <div class="flex h-full overflow-hidden bg-white">
     <div
       v-if="mobileOpen"
-      class="fixed inset-0 z-40 bg-neutral-900/20 md:hidden"
+      class="fixed inset-0 z-40 bg-black/20 md:hidden"
       @click="mobileOpen = false"
     />
 

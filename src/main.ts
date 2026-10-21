@@ -6,6 +6,7 @@ import { onUnauthorized } from './services/api'
 import { useAuthStore } from './stores/auth'
 import { useNotificationsStore } from './stores/notifications'
 import { toast } from './composables/useToasts'
+import { initTheme } from './composables/useTheme'
 import { i18n, t } from './i18n'
 import './style.css'
 
@@ -15,6 +16,8 @@ const pinia = createPinia()
 app.use(i18n)
 app.use(pinia)
 app.use(router)
+
+initTheme()
 
 // Wire the API layer's 401 handler to the auth store once Pinia is active.
 onUnauthorized(() => {

@@ -149,7 +149,7 @@ onBeforeUnmount(stopListening)
         ref="panel"
         role="dialog"
         :aria-label="label"
-        class="animate-pop-down fixed z-[60] overflow-hidden rounded-lg border border-neutral-200 bg-white text-sm shadow-lg shadow-neutral-900/10"
+        class="animate-pop-down fixed z-[60] overflow-hidden rounded-lg border border-neutral-200 bg-white text-sm shadow-lg shadow-black/10"
         :style="panelStyle"
       >
         <ul class="max-h-60 overflow-y-auto p-1">
