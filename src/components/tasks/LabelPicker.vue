@@ -220,7 +220,7 @@ async function removeLabel() {
       ref="panel"
       role="dialog"
       :aria-label="$t('labels.aria')"
-      class="animate-pop-down fixed z-50 overflow-hidden rounded-xl border border-neutral-200 bg-white text-sm shadow-lg shadow-neutral-900/10"
+      class="animate-pop-down fixed z-50 overflow-hidden rounded-xl border border-neutral-200 bg-white text-sm shadow-lg shadow-black/10"
       :style="panelStyle"
     >
       <div class="border-b border-neutral-100 p-2">

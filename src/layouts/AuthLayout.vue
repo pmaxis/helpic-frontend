@@ -40,7 +40,7 @@ const FEATURES = ['invite', 'tasks', 'projects', 'personal'] as const
 
     <!-- Product side -->
     <aside
-      class="relative hidden overflow-hidden bg-neutral-950 text-white lg:flex lg:flex-col lg:justify-center lg:px-14 xl:px-20"
+      class="light-palette relative hidden overflow-hidden bg-neutral-950 text-white lg:flex lg:flex-col lg:justify-center lg:px-14 xl:px-20"
       :aria-label="$t('authLayout.about', { app: APP_NAME })"
       @pointermove="onPointerMove"
     >

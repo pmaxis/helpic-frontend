@@ -74,7 +74,7 @@ function pick(action: MenuAction) {
     <div
       v-if="open"
       role="menu"
-      class="animate-pop-down absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-neutral-200 bg-white p-1 text-sm shadow-lg shadow-neutral-900/10"
+      class="animate-pop-down absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-neutral-200 bg-white p-1 text-sm shadow-lg shadow-black/10"
     >
       <button
         v-for="a in actions"

@@ -285,7 +285,7 @@ function onPanelKeydown(e: KeyboardEvent) {
         role="dialog"
         :aria-label="t('ui.chooseDate', { label: label.toLowerCase() })"
         :style="panelStyle"
-        class="z-[60] w-74 rounded-xl border border-neutral-200 bg-white p-3 shadow-lg shadow-neutral-900/10"
+        class="z-[60] w-74 rounded-xl border border-neutral-200 bg-white p-3 shadow-lg shadow-black/10"
         :class="placement === 'bottom' ? 'animate-pop-down' : 'animate-pop-up'"
         @keydown="onPanelKeydown"
       >
