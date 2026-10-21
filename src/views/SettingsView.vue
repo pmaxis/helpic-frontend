@@ -13,6 +13,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import TelegramSettings from '@/components/account/TelegramSettings.vue'
 import EmailNotificationsSettings from '@/components/account/EmailNotificationsSettings.vue'
+import ConfirmPasswordModal from '@/components/account/ConfirmPasswordModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
 import { endOtherSessions, endSession, fetchSessions } from '@/services/sessions'
@@ -100,19 +101,34 @@ async function saveCurrency(currency: string) {
 
 // --- email ------------------------------------------------------------------
 
-const emailForm = useForm(z.object({ email: email(), current_password: currentPassword(() => t('validation.currentPassword')) }), {
-  email: auth.user?.email ?? '',
-  current_password: '',
-})
+// Both changes ask for the current password in a modal once their own fields
+// are fine; the modal sends them.
+
+const emailForm = useForm(z.object({ email: email() }), { email: auth.user?.email ?? '' })
 
 /** Where the last confirmation link went: the email changes once it's opened. */
 const pendingEmail = ref('')
+/** The new email, checked and waiting for the current password. */
+const emailToConfirm = ref('')
 
 function saveEmail() {
   void emailForm.submit(async (data) => {
-    pendingEmail.value = await auth.changeEmail(data)
-    emailForm.reset({ email: auth.user?.email ?? '' })
+    emailToConfirm.value = data.email
   })
+}
+
+async function changeEmail(password: string) {
+  pendingEmail.value = await auth.changeEmail({ email: emailToConfirm.value, current_password: password })
+}
+
+function emailChanged() {
+  emailToConfirm.value = ''
+  emailForm.reset({ email: auth.user?.email ?? '' })
+}
+
+function emailRefused(error: ApiRequestError) {
+  emailToConfirm.value = ''
+  emailForm.fail(error)
 }
 
 // --- password ---------------------------------------------------------------
@@ -120,23 +136,37 @@ function saveEmail() {
 const passwordForm = useForm(
   z
     .object({
-      current_password: currentPassword(() => t('validation.currentPassword')),
       password: newPassword(),
       password_confirmation: currentPassword(() => t('validation.confirmNewPassword')),
     })
     .refine(...passwordsMatch()),
-  { current_password: '', password: '', password_confirmation: '' },
+  { password: '', password_confirmation: '' },
 )
 /** Bumped to remount the form after a change, hiding any shown passwords. */
 const passwordKey = ref(0)
+/** The new password is checked and waits for the current one. */
+const confirmingPassword = ref(false)
 
 function savePassword() {
-  void passwordForm.submit(async (data) => {
-    await auth.changePassword(data)
-    toast.success(t('settings.password.changed'))
-    passwordForm.reset()
-    passwordKey.value++
+  void passwordForm.submit(async () => {
+    confirmingPassword.value = true
   })
+}
+
+async function changePassword(password: string) {
+  await auth.changePassword({ current_password: password, ...passwordForm.values })
+}
+
+function passwordChanged() {
+  confirmingPassword.value = false
+  toast.success(t('settings.password.changed'))
+  passwordForm.reset()
+  passwordKey.value++
+}
+
+function passwordRefused(error: ApiRequestError) {
+  confirmingPassword.value = false
+  passwordForm.fail(error)
 }
 
 // --- sessions ---------------------------------------------------------------
@@ -280,15 +310,20 @@ async function signOutOthers() {
         <form class="mt-4 space-y-4" novalidate @submit.prevent="saveEmail">
           <FormError :message="emailForm.formError" />
           <BaseInput v-bind="emailForm.field('email')" :label="$t('settings.email.email')" type="email" autocomplete="email" />
-          <PasswordInput
-            v-bind="emailForm.field('current_password')"
-            :label="$t('settings.email.currentPassword')"
-            autocomplete="current-password"
-          />
           <div class="flex justify-end">
             <BaseButton type="submit" size="sm" :block="false" :loading="emailForm.submitting" :disabled="emailForm.submitting">{{ $t('settings.email.change') }}</BaseButton>
           </div>
         </form>
+        <ConfirmPasswordModal
+          v-if="emailToConfirm"
+          :title="$t('settings.confirmPassword.title')"
+          :description="$t('settings.confirmPassword.email', { email: emailToConfirm })"
+          :confirm-label="$t('settings.email.change')"
+          :action="changeEmail"
+          @close="emailToConfirm = ''"
+          @done="emailChanged"
+          @failed="emailRefused"
+        />
       </section>
 
       <div v-else-if="tab === 'notifications'" class="space-y-4">
@@ -396,11 +431,6 @@ async function signOutOthers() {
         <form :key="passwordKey" class="mt-4 space-y-4" novalidate @submit.prevent="savePassword">
           <FormError :message="passwordForm.formError" />
           <PasswordInput
-            v-bind="passwordForm.field('current_password')"
-            :label="$t('settings.password.current')"
-            autocomplete="current-password"
-          />
-          <PasswordInput
             v-bind="passwordForm.field('password')"
             :label="$t('settings.password.new')"
             autocomplete="new-password"
@@ -417,6 +447,16 @@ async function signOutOthers() {
             </BaseButton>
           </div>
         </form>
+        <ConfirmPasswordModal
+          v-if="confirmingPassword"
+          :title="$t('settings.confirmPassword.title')"
+          :description="$t('settings.confirmPassword.password')"
+          :confirm-label="$t('settings.password.change')"
+          :action="changePassword"
+          @close="confirmingPassword = false"
+          @done="passwordChanged"
+          @failed="passwordRefused"
+        />
       </section>
     </div>
   </DashboardLayout>
