@@ -2,15 +2,18 @@
 /**
  * Tasks closed for good: shared work whose report was paid, and personal
  * tasks put away by hand. They're off every board; here they're listed, the
- * most recently archived first, a page at a time. Each opens read-only.
+ * most recently archived first, in numbered pages — the page is in the
+ * address, so back and forward and a shared link land on it. Each opens
+ * read-only.
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
+import Pagination from '@/components/ui/Pagination.vue'
 import StatusBadge from '@/components/tasks/StatusBadge.vue'
 import ArchiveIllustration from '@/components/illustrations/ArchiveIllustration.vue'
 import FilterIllustration from '@/components/illustrations/FilterIllustration.vue'
@@ -26,8 +29,12 @@ const auth = useAuthStore()
 const people = usePeopleStore()
 const projects = useProjectsStore()
 
+const route = useRoute()
+const router = useRouter()
+
 const list = ref<Task[]>([])
-const next = ref<string | undefined>()
+const total = ref(0)
+const limit = ref(10)
 const loading = ref(false)
 const loaded = ref(false)
 const loadError = ref('')
@@ -47,14 +54,32 @@ const projectOptions = computed(() => [
   ...projects.projects.map((p) => ({ value: p.id, label: p.name })),
 ])
 
-/** Reads the first page, or the next one after what's shown. */
-async function load(more = false) {
+/** The page in the address, 1 when there's none (or it makes no sense). */
+const page = computed(() => {
+  const n = Number(route.query.page)
+  return Number.isInteger(n) && n > 1 ? n : 1
+})
+
+/** Goes to a page: it's in the address, and the list starts from its top. */
+function goTo(p: number) {
+  void router.push({ query: { ...route.query, page: p > 1 ? String(p) : undefined } })
+}
+
+const top = ref<HTMLElement | null>(null)
+
+async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const page = await fetchArchive({ with: withId.value, project: projectId.value, before: more ? next.value : undefined })
-    list.value = more ? [...list.value, ...page.tasks] : page.tasks
-    next.value = page.next
+    const res = await fetchArchive({ with: withId.value, project: projectId.value, page: page.value })
+    // a link past the last page (the archive got shorter) goes to the last one
+    if (!res.tasks.length && res.total && page.value > 1) {
+      void router.replace({ query: { ...route.query, page: String(Math.ceil(res.total / res.limit)) } })
+      return
+    }
+    list.value = res.tasks
+    total.value = res.total
+    limit.value = res.limit
     loaded.value = true
   } catch {
     loadError.value = t('archive.loadFailed')
@@ -63,7 +88,19 @@ async function load(more = false) {
   }
 }
 
-watch([withId, projectId], () => void load())
+watch(page, () => {
+  // leaving for another page drops ?page too: nothing to load then
+  if (route.name !== 'archive') return
+  void load()
+  // the page's scroll box is what the list sits in: back to its top
+  top.value?.parentElement?.scrollTo({ top: 0 })
+})
+
+// a new filter starts from the first page
+watch([withId, projectId], () => {
+  if (page.value > 1) goTo(1)
+  else void load()
+})
 
 function clearFilters() {
   withId.value = ''
@@ -88,6 +125,7 @@ function where(task: Task): string {
 <template>
   <!-- an empty archive fills the page, so its empty state sits in the middle -->
   <DashboardLayout :fill="loaded && !list.length">
+    <span ref="top" aria-hidden="true" />
     <PageHeader :title="$t('archive.title')">
       <template #actions>
         <SelectInput v-model="withId" :options="withOptions" :aria-label="$t('archive.whose')" size="sm" class="w-48" />
@@ -136,9 +174,7 @@ function where(task: Task): string {
           </RouterLink>
         </li>
       </ul>
-      <div v-if="next" class="mt-4 flex justify-center">
-        <BaseButton variant="ghost" size="sm" :block="false" :loading="loading" @click="load(true)">{{ $t('archive.more') }}</BaseButton>
-      </div>
+      <Pagination class="mt-4" :page="page" :total="total" :limit="limit" @update:page="goTo" />
     </template>
   </DashboardLayout>
 </template>
