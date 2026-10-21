@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * Who is on a task, as one multi-select. The author stays picked. The
- * freelancer can be swapped for another one who can take the task, or taken
- * off. The rest are the client's team: a contractor sees a task only once
- * they're on it.
+ * Who is on a task, as one multi-select. The author stays picked. The client's
+ * side can swap the freelancer for another one who can take the task, or take
+ * them off a project's task (outside a project a task keeps one). The
+ * freelancer doesn't hand their task to someone else. The rest are the
+ * client's team: a contractor sees a task only once they're on it.
  */
 import { computed, ref, watch } from 'vue'
 import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
@@ -35,8 +36,9 @@ async function loadPeople() {
   } catch {
     people.value = []
   }
+  // A personal task is its owner's alone; only they see it, in their own role.
   if (!props.task.client && props.task.freelancer) {
-    people.value = [{ ...props.task.freelancer, role: 'freelancer', on_task: true }]
+    people.value = [{ ...props.task.freelancer, role: auth.isClient ? 'owner' : 'freelancer', on_task: true }]
   }
   const ids = new Set(people.value.filter((p) => p.on_task || p.id === authorId.value).map((p) => p.id))
   ids.add(authorId.value)
@@ -45,7 +47,9 @@ async function loadPeople() {
 watch(() => [props.task.id, props.task.freelancer?.id, props.task.client?.id, props.task.participants.length], loadPeople, { immediate: true })
 
 const canChange = computed(
-  () => !auth.isContractor || props.task.created_by === auth.user?.id || props.task.freelancer?.id === auth.user?.id,
+  () =>
+    !props.task.archived_at &&
+    (!auth.isContractor || props.task.created_by === auth.user?.id || props.task.freelancer?.id === auth.user?.id),
 )
 
 function personLabel(p: { id: string; name: string; email: string; role: TaskPerson['role'] }): string {
@@ -53,7 +57,21 @@ function personLabel(p: { id: string; name: string; email: string; role: TaskPer
   return `${name} · ${t(`taskPeople.roles.${p.role}`)}`
 }
 
-const options = computed(() => people.value.map((p) => ({ value: p.id, label: personLabel(p) })))
+/** Whether the viewer picks the task's freelancer: the client's side does. */
+const picksFreelancer = computed(() => auth.isClient)
+const assigneeId = computed(() => props.task.freelancer?.id ?? '')
+
+const options = computed(() =>
+  people.value
+    .filter((p) => picksFreelancer.value || p.role !== 'freelancer' || p.id === assigneeId.value)
+    .map((p) => ({ value: p.id, label: personLabel(p) })),
+)
+/** Who can't be taken off here: the author, and the freelancer when they can't be. */
+const locked = computed(() => {
+  const keep = [authorId.value]
+  if (assigneeId.value && (!picksFreelancer.value || !props.task.project)) keep.push(assigneeId.value)
+  return keep
+})
 const onTask = computed(() => people.value.filter((p) => picked.value.includes(p.id)))
 
 async function update(next: string[]) {
@@ -95,7 +113,7 @@ async function update(next: string[]) {
       hide-label
       size="sm"
       :options="options"
-      :locked="[authorId]"
+      :locked="locked"
       :placeholder="$t('taskPeople.nobody')"
       @update:model-value="update"
     />

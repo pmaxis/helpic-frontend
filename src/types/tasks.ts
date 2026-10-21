@@ -17,7 +17,7 @@ export interface Task {
   id: string
   /** Null while nobody is assigned to the task. */
   freelancer: Party | null
-  /** Null for a freelancer's personal task. */
+  /** Null for a personal task, a freelancer's or a client's; its owner is then in `freelancer`. */
   client: Party | null
   /** Null for a task outside any project. */
   project: { id: string; name: string } | null
@@ -52,11 +52,19 @@ export interface Task {
   can_set_price: boolean
   /** False for a member of the client's team: the price is left out for them. */
   can_see_price: boolean
+  /** The viewer's own personal task, which they may put in the archive by hand. */
+  can_archive: boolean
   created_at: string
   updated_at: string
+  /** Set once the task is archived: off the boards, and nothing on it changes. */
+  archived_at: string | null
+  /** The paid report that archived it; null when its owner put it away. */
+  archived_by: { id: string; title: string } | null
 }
 
 export interface TaskInput {
+  /** A client's own task, with nobody else on it (a freelancer's leaves client_id out). Create only. */
+  personal?: boolean
   /** Set by a client creating a task. */
   freelancer_id?: string
   /** Set by a freelancer creating a task for a client; omitted for a personal task. */

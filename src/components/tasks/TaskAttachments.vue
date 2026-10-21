@@ -14,7 +14,11 @@ import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
 import type { Attachment } from '@/types/attachments'
 
-const props = defineProps<{ taskId: string }>()
+const props = defineProps<{
+  taskId: string
+  /** An archived task's files: looked at and downloaded, never added or removed. */
+  readonly?: boolean
+}>()
 
 const auth = useAuthStore()
 
@@ -120,7 +124,7 @@ function onPick(e: Event) {
 const dragDepth = ref(0)
 
 function hasFiles(e: DragEvent): boolean {
-  return !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')
+  return !props.readonly && !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')
 }
 
 function onDragEnter(e: DragEvent) {
@@ -205,6 +209,7 @@ function uploader(a: Attachment): string {
         {{ $t('attachments.title') }}<span v-if="files.length" class="ml-1.5 font-normal text-neutral-400">{{ files.length }}</span>
       </h2>
       <button
+        v-if="!readonly"
         type="button"
         class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
         @click="input?.click()"
@@ -254,7 +259,7 @@ function uploader(a: Attachment): string {
           </svg>
         </button>
         <button
-          v-if="a.can_delete"
+          v-if="a.can_delete && !readonly"
           type="button"
           class="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
           :aria-label="$t('attachments.deleteNamed', { name: a.file_name })"
@@ -281,6 +286,7 @@ function uploader(a: Attachment): string {
       </li>
     </ul>
 
+    <p v-else-if="loaded && readonly" class="mt-3 text-sm text-neutral-400">{{ $t('attachments.none') }}</p>
     <button
       v-else-if="loaded"
       type="button"

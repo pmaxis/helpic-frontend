@@ -97,9 +97,6 @@ function submit() {
         :label="$t('projectForm.client')"
         :options="personOptions"
       />
-      <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">
-        {{ $t('projectForm.personalNote') }}
-      </p>
       <BaseInput v-bind="form.field('name')" :label="$t('projectForm.name')" :placeholder="$t('projectForm.namePlaceholder')" />
       <BaseTextarea
         v-bind="form.field('description')"

@@ -74,6 +74,13 @@ export const useTasksStore = defineStore('tasks', {
       return data.task
     },
 
+    /** Puts the user's own personal task in the archive, for good. */
+    async archiveTask(id: string): Promise<Task> {
+      const { data } = await http.post<{ task: Task }>(`/tasks/${id}/archive`)
+      this.tasks = this.tasks.filter((t) => t.id !== id)
+      return data.task
+    },
+
     async deleteTask(id: string): Promise<void> {
       await http.delete(`/tasks/${id}`)
       this.tasks = this.tasks.filter((t) => t.id !== id)

@@ -14,6 +14,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
 import FormError from '@/components/auth/FormError.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import PdfPreview from '@/components/reports/PdfPreview.vue'
@@ -288,8 +289,12 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           </template>
         </nav>
 
-        <div v-if="notFound" class="p-5 sm:p-8">
-          <EmptyState :title="$t('report.notFound')" :description="$t('report.notFoundText')" />
+        <div v-if="notFound" class="flex min-h-0 flex-1 flex-col p-5 sm:p-8">
+          <EmptyState class="flex-1 justify-center" :title="$t('report.notFound')" :description="$t('report.notFoundText')">
+            <template #illustration>
+              <NotFoundIllustration />
+            </template>
+          </EmptyState>
         </div>
         <!-- grows with the pages, so the card scrolls them with the bottom padding after the last one -->
         <div v-else class="relative px-5 pt-5 pb-5 sm:px-8 sm:pb-8">

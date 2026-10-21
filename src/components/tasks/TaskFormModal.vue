@@ -46,10 +46,15 @@ const projects = useProjectsStore()
 const isEdit = computed(() => !!props.task)
 /** The field naming the other side: a client picks a freelancer and vice versa. */
 const personField = auth.isClient ? 'freelancer_id' : 'client_id'
+/**
+ * The person choice that makes a personal task. A freelancer's is the empty
+ * one (no client); a client must pick something, so theirs is its own value.
+ */
+const PERSONAL = auth.isClient ? 'personal' : ''
 /** What picking the other side asks for. */
 const choosePerson = () => (auth.isClient ? t('validation.chooseFreelancer') : t('validation.chooseClient'))
 
-/** A new task from a client goes to a freelancer, unless its project says who. */
+/** A new task from a client goes to a freelancer or stays their own, unless its project says who. */
 const needsPerson = !isEdit.value && auth.isClient && !props.projectId
 
 /** The project a new task is being filed into, once one is chosen. */
@@ -87,11 +92,15 @@ const form = useForm(
   schema,
   {
     person_id:
-      props.personId && props.personId !== 'personal'
-        ? props.personId
-        : auth.isClient && props.people?.length === 1
-          ? props.people[0].id
-          : '',
+      props.personId === 'personal'
+        ? PERSONAL
+        : props.personId
+          ? props.personId
+          : auth.isClient && !props.people?.length
+            ? PERSONAL
+            : auth.isClient && props.people?.length === 1
+              ? props.people[0].id
+              : '',
     project_id: props.projectId ?? props.task?.project?.id ?? '',
     title: props.task?.title ?? '',
     description: props.task?.description ?? '',
@@ -117,15 +126,15 @@ const fixedProject = computed(() => projectById(props.projectId ?? ''))
 const projectFreelancers = computed(() => freelancerParticipants(projectById(pickedProjectId.value)))
 const showFreelancerSelect = computed(() => !isEdit.value && auth.isClient && projectFreelancers.value.length > 1)
 
-/** A client can only create a task for a freelancer they work with. */
-const nobody = computed(() => !isEdit.value && !props.projectId && auth.isClient && !props.people?.length)
 const personOptions = computed(() => {
   if (showFreelancerSelect.value) return projectFreelancers.value.map((p) => ({ value: p.id, label: p.name }))
   return [
-    ...(auth.isFreelancer ? [{ value: '', label: t('taskForm.personalOption') }] : []),
+    { value: PERSONAL, label: auth.isClient ? t('taskForm.personalOptionClient') : t('taskForm.personalOption') },
     ...(props.people ?? []).map((p) => ({ value: p.id, label: p.name || p.email })),
   ]
 })
+/** The task being made is the user's own. */
+const personal = computed(() => !isEdit.value && !props.projectId && form.values.person_id === PERSONAL)
 
 /** The other side of the task: the edited task's, or the one picked in the form ('' = personal). */
 const pairOther = computed(() => {
@@ -137,7 +146,8 @@ const pairOther = computed(() => {
 function sharesPair(p: Project): boolean {
   if (!auth.isClient) return (p.client?.id ?? '') === pairOther.value
   const id = pairOther.value
-  if (!id) return false
+  // A client's own task is in no project.
+  if (!id || id === PERSONAL || (props.task && !props.task.client)) return false
   return p.participants?.some((person) => person.role === 'freelancer' && person.id === id) || p.freelancer.id === id
 }
 
@@ -186,7 +196,8 @@ function submit() {
       if (data.project_id) {
         create.project_id = data.project_id
         if (auth.isClient && data.person_id) create.freelancer_id = data.person_id
-      } else if (data.person_id) create[personField] = data.person_id
+      } else if (auth.isClient && data.person_id === PERSONAL) create.personal = true
+      else if (data.person_id) create[personField] = data.person_id
       task = await tasks.createTask(create)
     }
     emit('saved', task)
@@ -200,11 +211,7 @@ function submit() {
     size="lg"
     @close="emit('close')"
   >
-    <div v-if="nobody" class="space-y-2 text-sm text-neutral-600">
-      <p>{{ $t('taskForm.nobody') }}</p>
-      <p>{{ $t('taskForm.askInvite') }}</p>
-    </div>
-    <form v-else id="task-form" class="space-y-4" novalidate @submit.prevent="submit">
+    <form id="task-form" class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
 
       <p v-if="fixedProject" class="text-sm text-neutral-500">
@@ -227,12 +234,12 @@ function submit() {
         <BaseSelect
           v-if="!isEdit && !statusId && !showFreelancerSelect && personOptions.length > 1"
           v-bind="form.field('person_id')"
-          :label="auth.isClient ? $t('taskForm.freelancer') : $t('taskForm.client')"
+          :label="auth.isClient ? $t('taskForm.forWhom') : $t('taskForm.client')"
           :placeholder="auth.isClient ? choosePerson() : undefined"
           :options="personOptions"
         />
         <BaseSelect v-if="projectOptions.length > 1" v-bind="form.field('project_id')" :label="$t('taskForm.project')" :options="projectOptions" />
-        <p v-if="!isEdit && auth.isFreelancer && !form.values.person_id" class="text-sm text-neutral-500">
+        <p v-if="personal" class="text-sm text-neutral-500">
           {{ $t('taskForm.personalNote') }}
         </p>
       </template>
@@ -251,10 +258,7 @@ function submit() {
       </div>
     </form>
 
-    <template v-if="nobody" #footer>
-      <BaseButton variant="ghost" size="sm" :block="false" @click="emit('close')">{{ $t('common.close') }}</BaseButton>
-    </template>
-    <template v-else #footer>
+    <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
       <BaseButton size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting" @click="submit">
         {{ isEdit ? $t('common.save') : $t('taskForm.create') }}

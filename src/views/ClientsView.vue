@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import InviteIllustration from '@/components/illustrations/InviteIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import InviteModal from '@/components/people/InviteModal.vue'
@@ -50,15 +51,19 @@ function initials(name: string): string {
 </script>
 
 <template>
-  <DashboardLayout>
+  <!-- with nobody yet the page is filled, so the empty state sits in the middle -->
+  <DashboardLayout :fill="loaded && !people.clients.length && !people.invitations.length">
     <PageHeader :title="$t('clients.title')">
       <template #actions>
         <BaseButton size="sm" :block="false" @click="inviting = true">{{ $t('clients.invite') }}</BaseButton>
       </template>
     </PageHeader>
 
-    <div v-if="loaded && !people.clients.length && !people.invitations.length" class="mt-6">
-      <EmptyState :title="$t('clients.noneYet')" :description="$t('clients.noneYetText')">
+    <div v-if="loaded && !people.clients.length && !people.invitations.length" class="mt-6 flex min-h-0 flex-1 flex-col">
+      <EmptyState class="flex-1 justify-center" :title="$t('clients.noneYet')" :description="$t('clients.noneYetText')">
+        <template #illustration>
+          <InviteIllustration />
+        </template>
         <BaseButton size="sm" :block="false" @click="inviting = true">{{ $t('clients.invite') }}</BaseButton>
       </EmptyState>
     </div>

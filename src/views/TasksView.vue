@@ -4,6 +4,10 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import BoardIllustration from '@/components/illustrations/BoardIllustration.vue'
+import FilterIllustration from '@/components/illustrations/FilterIllustration.vue'
+import PeopleIllustration from '@/components/illustrations/PeopleIllustration.vue'
+import TaskIllustration from '@/components/illustrations/TaskIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
@@ -50,6 +54,8 @@ const projects = useProjectsStore()
 const projectId = ref('')
 const statuses = useStatusFilter(projectId)
 const shown = computed(() => statuses.visible(tasks.tasks))
+/** The list has loaded and has nothing to show. */
+const listEmpty = computed(() => view.value === 'list' && !tasks.isLoading && !shown.value.length)
 
 const projectOptions = computed(() => projects.projects.map((p) => ({ value: p.id, label: p.name })))
 
@@ -115,7 +121,8 @@ function onSaved(task: Task) {
 </script>
 
 <template>
-  <DashboardLayout :fill="view === 'board'">
+  <!-- the board fills the page, and so does an empty list, so its empty state sits in the middle -->
+  <DashboardLayout :fill="view === 'board' || listEmpty">
     <PageHeader :title="$t('tasks.title')">
       <template #actions>
         <!-- the filters, then the view and the new task -->
@@ -145,53 +152,82 @@ function onSaved(task: Task) {
     <p v-if="loadError" class="mt-6 text-sm text-red-600">{{ loadError }}</p>
 
     <template v-else-if="view === 'board'">
-      <div v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length" class="mt-6">
+      <div v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length" class="mt-6 flex min-h-0 flex-1 flex-col">
         <EmptyState
+          class="flex-1 justify-center"
           :title="$t('tasks.noFreelancersTitle')"
           :description="$t('tasks.noFreelancersBoard')"
-        />
+        >
+          <template #illustration>
+            <PeopleIllustration />
+          </template>
+        </EmptyState>
       </div>
-      <div v-else-if="projects.loaded && !projectId" class="mt-6">
+      <div v-else-if="projects.loaded && !projectId" class="mt-6 flex min-h-0 flex-1 flex-col">
         <EmptyState
+          class="flex-1 justify-center"
           :title="$t('projects.noneYet')"
           :description="auth.isClient ? $t('projects.noneYetClient') : $t('projects.noneYetFreelancer')"
         >
+          <template #illustration>
+            <BoardIllustration />
+          </template>
           <RouterLink to="/projects" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('projects.title') }}</RouterLink>
         </EmptyState>
       </div>
       <KanbanBoard v-else-if="projectId" class="mt-5" @new-task="startTask" />
     </template>
 
-    <div v-else-if="!tasks.isLoading && !shown.length" class="mt-6">
+    <div v-else-if="listEmpty" class="mt-6 flex min-h-0 flex-1 flex-col">
       <EmptyState
         v-if="auth.isClient && people.freelancersLoaded && !people.freelancers.length"
+        class="flex-1 justify-center"
         :title="$t('tasks.noFreelancersTitle')"
         :description="$t('tasks.noFreelancersTasks')"
-      />
+      >
+        <template #illustration>
+          <PeopleIllustration />
+        </template>
+        <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
+      </EmptyState>
       <EmptyState
         v-else-if="statuses.selected.length"
+        class="flex-1 justify-center"
         :title="$t('tasks.noStatusMatch')"
         :description="$t('tasks.nothingMatches')"
       >
+        <template #illustration>
+          <FilterIllustration />
+        </template>
         <div class="flex items-center gap-4">
           <BaseButton size="sm" variant="ghost" :block="false" @click="statuses.selected = []">{{ $t('tasks.showAll') }}</BaseButton>
           <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
         </div>
       </EmptyState>
-      <EmptyState v-else-if="auth.isClient" :title="$t('tasks.emptyTitle')" :description="$t('tasks.emptyClient')">
+      <EmptyState v-else-if="auth.isClient" class="flex-1 justify-center" :title="$t('tasks.emptyTitle')" :description="$t('tasks.emptyClient')">
+        <template #illustration>
+          <TaskIllustration />
+        </template>
         <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </EmptyState>
       <EmptyState
         v-else-if="!people.clients.length"
+        class="flex-1 justify-center"
         :title="$t('tasks.noneYetTitle')"
         :description="$t('tasks.noneYetPersonal')"
       >
+        <template #illustration>
+          <TaskIllustration />
+        </template>
         <div class="flex items-center gap-4">
           <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
           <RouterLink to="/clients" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('tasks.inviteClient') }}</RouterLink>
         </div>
       </EmptyState>
-      <EmptyState v-else :title="$t('tasks.emptyTitle')" :description="$t('tasks.noneYetFreelancer')">
+      <EmptyState v-else class="flex-1 justify-center" :title="$t('tasks.emptyTitle')" :description="$t('tasks.noneYetFreelancer')">
+        <template #illustration>
+          <TaskIllustration />
+        </template>
         <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </EmptyState>
     </div>

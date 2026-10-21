@@ -4,6 +4,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import ReportIllustration from '@/components/illustrations/ReportIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import NewReportModal from '@/components/reports/NewReportModal.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -41,22 +42,27 @@ function onCreated(r: Report) {
 </script>
 
 <template>
-  <DashboardLayout>
+  <!-- with no reports the page is filled, so the empty state sits in the middle -->
+  <DashboardLayout :fill="reports.loaded && !reports.reports.length">
     <PageHeader :title="$t('reports.title')">
       <template v-if="auth.isFreelancer" #actions>
         <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('reports.new') }}</BaseButton>
       </template>
     </PageHeader>
 
-    <div v-if="reports.loaded && !reports.reports.length" class="mt-6">
+    <div v-if="reports.loaded && !reports.reports.length" class="mt-6 flex min-h-0 flex-1 flex-col">
       <EmptyState
-        v-if="auth.isFreelancer"
+        class="flex-1 justify-center"
         :title="$t('reports.noneYet')"
-        :description="$t('reports.noneYetFreelancer')"
+        :description="auth.isFreelancer ? $t('reports.noneYetFreelancer') : $t('reports.noneYetClient')"
       >
-        <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('reports.new') }}</BaseButton>
+        <template #illustration>
+          <ReportIllustration />
+        </template>
+        <template v-if="auth.isFreelancer" #default>
+          <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('reports.new') }}</BaseButton>
+        </template>
       </EmptyState>
-      <EmptyState v-else :title="$t('reports.noneYet')" :description="$t('reports.noneYetClient')" />
     </div>
 
     <div v-else-if="reports.reports.length" class="mt-6 overflow-hidden rounded-xl border border-neutral-200">

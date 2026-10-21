@@ -8,6 +8,8 @@ defineProps<{
   taskId: string
   /** The task's updated_at, so the history reloads when the task changes. */
   version?: string
+  /** The task is archived: its discussion is closed. */
+  readonly?: boolean
 }>()
 
 type Tab = 'comments' | 'history'
@@ -36,7 +38,7 @@ const commentCount = ref(0)
 
     <!-- comments stay mounted, so a half-written comment survives a look at the history -->
     <div v-show="tab === 'comments'" id="activity-panel-comments" role="tabpanel" aria-labelledby="activity-tab-comments">
-      <TaskComments :task-id="taskId" @count="commentCount = $event" />
+      <TaskComments :task-id="taskId" :readonly="readonly" @count="commentCount = $event" />
     </div>
     <div v-if="tab === 'history'" id="activity-panel-history" role="tabpanel" aria-labelledby="activity-tab-history">
       <TaskHistory :task-id="taskId" :version="version" />

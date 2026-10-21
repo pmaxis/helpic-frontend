@@ -126,9 +126,10 @@ function dueChip(t: Task): { text: string; tone: string } | null {
 
 function where(t: Task): string {
   if (t.project) return t.project.name
+  // A personal task's owner sits where the freelancer would: it's nobody else's.
+  if (!t.client) return tr('dashboard.personal')
   const other = auth.isClient ? t.freelancer : t.client
-  if (other) return other.name || other.email
-  return t.client ? '' : tr('dashboard.personal')
+  return other ? other.name || other.email : ''
 }
 
 const recent = computed(() => [...tasks.tasks].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6))
