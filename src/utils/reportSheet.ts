@@ -10,6 +10,8 @@ export interface SheetItem {
   completed: string
   /** '' for a task without a price. */
   price: string
+  /** The price in hryvnias, "(~ ₴4,502.56)", when they're shown; '' otherwise. */
+  priceInUAH: string
   /** The time a task billed by the hour took; '' for a fixed price. */
   time: string
   /** What was done, in a detailed report: a paragraph or bullets. */
@@ -32,6 +34,8 @@ export interface ReportSheet {
   /** A time column when any task is billed by the hour. */
   showTime: boolean
   total: string
+  /** The total in hryvnias, "(~ ₴4,502.56)", under the total when they're shown; '' otherwise. */
+  totalInUAH: string
   items: SheetItem[]
   /** On every page: when it was prepared, sent and paid; and who made it. */
   footerLeft: string
@@ -74,8 +78,14 @@ function signature(p: Party): string {
   return !p.name || p.name === p.email ? p.email : `${p.name} (${p.email})`
 }
 
-export function buildSheet(r: Report): ReportSheet {
+export interface SheetOptions {
+  /** Hryvnias beside the prices, for a client who pays in them, when the report has a rate. */
+  inUAH?: boolean
+}
+
+export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): ReportSheet {
   const items = r.items ?? []
+  const uah = inUAH ? r.in_uah : null
   const projects = r.projects.map((p) => p.name).join(', ')
   const summary = splitText(r.summary)
 
@@ -93,6 +103,7 @@ export function buildSheet(r: Report): ReportSheet {
     showPrice: r.total_cents !== null,
     showTime: items.some((it) => it.seconds !== null),
     total: r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : '',
+    totalInUAH: uah ? `(~ ${formatMoney(uah.total_cents, 'UAH')})` : '',
     items: items.map((it) => {
       const notes = r.kind === 'detailed' ? splitText(it.notes) : { text: '', bullets: [] }
       return {
@@ -100,6 +111,7 @@ export function buildSheet(r: Report): ReportSheet {
         projectName: it.project_name,
         completed: formatDocumentDate(it.completed_on),
         price: it.price_cents !== null ? formatMoney(it.price_cents, r.currency) : '',
+        priceInUAH: uah && it.price_in_uah_cents != null ? `(~ ${formatMoney(it.price_in_uah_cents, 'UAH')})` : '',
         time: it.seconds !== null ? formatDuration(it.seconds) : '',
         notesText: notes.text,
         notesBullets: notes.bullets,

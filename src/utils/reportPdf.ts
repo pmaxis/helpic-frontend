@@ -3,7 +3,7 @@ import medium from '@/assets/fonts/Inter-Medium.ttf?url'
 import semiBold from '@/assets/fonts/Inter-SemiBold.ttf?url'
 import bold from '@/assets/fonts/Inter-Bold.ttf?url'
 import type { Report } from '@/types/reports'
-import { buildSheet } from './reportSheet'
+import { buildSheet, type SheetOptions } from './reportSheet'
 import { reportDocument } from './reportDocument'
 
 type PdfMake = typeof import('pdfmake')
@@ -28,9 +28,9 @@ function pdfMake(): Promise<PdfMake> {
 }
 
 /** The report as a PDF file. */
-export async function renderReportPdf(report: Report): Promise<ArrayBuffer> {
+export async function renderReportPdf(report: Report, options: SheetOptions = {}): Promise<ArrayBuffer> {
   const pdf = await pdfMake()
-  const blob = await pdf.createPdf(reportDocument(buildSheet(report))).getBlob()
+  const blob = await pdf.createPdf(reportDocument(buildSheet(report, options))).getBlob()
   return blob.arrayBuffer()
 }
 

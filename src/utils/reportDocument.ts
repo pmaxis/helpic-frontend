@@ -143,7 +143,8 @@ function tasksTable(s: ReportSheet): ContentTable {
   }
   if (s.showPrice) {
     header.push(th(s.labels.price, 'right'))
-    widths.push(84 - CELL_PAD)
+    // Hryvnias under the prices take a little more room.
+    widths.push((s.items.some((it) => it.priceInUAH) ? 100 : 84) - CELL_PAD)
   }
 
   const rows = s.items.map((it, i) => {
@@ -152,7 +153,9 @@ function tasksTable(s: ReportSheet): ContentTable {
     row.push({ text: it.completed, color: INK_2, alignment: 'right', noWrap: true })
     if (s.showTime) row.push({ text: it.time || '—', color: it.time ? INK_2 : INK_3, alignment: 'right', noWrap: true })
     if (s.showPrice) {
-      row.push(it.price ? { text: it.price, font: 'InterMedium', color: INK, alignment: 'right', noWrap: true } : { text: '—', color: INK_3, alignment: 'right' })
+      const price: TableCell = { text: it.price, font: 'InterMedium', color: INK, alignment: 'right', noWrap: true }
+      const inUAH: TableCell = { text: it.priceInUAH, fontSize: 8, color: INK_3, alignment: 'right', noWrap: true, margin: [0, 1, 0, 0] }
+      row.push(!it.price ? { text: '—', color: INK_3, alignment: 'right' } : it.priceInUAH ? { stack: [price, inUAH] } : price)
     }
     return row
   })
@@ -189,7 +192,7 @@ function rowsFitPage(items: SheetItem[], taskWidth: number): boolean {
   })
 }
 
-/** The sum under the price column, its label on the same baseline. */
+/** The sum under the price column, its label on the same baseline; under it, the sum in hryvnias. */
 function total(s: ReportSheet): Content {
   return {
     unbreakable: true,
@@ -207,7 +210,15 @@ function total(s: ReportSheet): Content {
             characterSpacing: tracking(0.08, 8),
             margin: [0, ASCENT * (12 - 8), 0, 0],
           },
-          { width: 'auto', text: s.total, bold: true, fontSize: 12, color: INK },
+          {
+            width: 'auto',
+            // The hryvnias go under the total, as under the prices, so turning them on doesn't move it.
+            stack: [
+              { text: s.total, bold: true, fontSize: 12, color: INK },
+              ...(s.totalInUAH ? [{ text: s.totalInUAH, fontSize: 9, color: INK_3, margin: [0, 1, 0, 0] as [number, number, number, number] }] : []),
+            ],
+            alignment: 'right',
+          },
         ],
         columnGap: 16,
         margin: [0, 6, 0, 0],

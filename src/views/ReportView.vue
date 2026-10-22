@@ -5,7 +5,7 @@
  * right what can be done with it: send, download, and for a draft its title,
  * summary and tasks. Every change re-prints the preview.
  */
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { z } from 'zod'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -20,6 +20,7 @@ import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import PdfPreview from '@/components/reports/PdfPreview.vue'
 import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
+import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
 import { formatDate, formatDuration } from '@/utils/format'
@@ -44,11 +45,34 @@ const notFound = ref(false)
 const pdf = ref<ArrayBuffer | null>(null)
 const printing = ref(false)
 
+/**
+ * Hryvnias beside the prices in the report, for a client who pays in them.
+ * Each viewer picks it for themselves; it's remembered in this browser and
+ * goes into the downloaded PDF too.
+ */
+const UAH_KEY = 'helpic:report-in-uah'
+function readInUAH(): boolean {
+  try {
+    return localStorage.getItem(UAH_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const inUAH = ref(readInUAH())
+watch(inUAH, (on) => {
+  try {
+    localStorage.setItem(UAH_KEY, on ? '1' : '0')
+  } catch {
+    // storage may be unavailable (private mode); the choice then lasts for this visit
+  }
+  void printPreview()
+})
+
 async function printPreview() {
   if (!report.value) return
   printing.value = true
   try {
-    pdf.value = await renderReportPdf(report.value)
+    pdf.value = await renderReportPdf(report.value, { inUAH: inUAH.value })
   } catch {
     toast.error(t('report.renderFailed'))
   } finally {
@@ -213,7 +237,7 @@ async function download() {
   const r = report.value
   if (!r) return
   try {
-    savePdf(await renderReportPdf(r), pdfFileName(r.title))
+    savePdf(await renderReportPdf(r, { inUAH: inUAH.value }), pdfFileName(r.title))
   } catch {
     toast.error(t('report.downloadFailed'))
   }
@@ -348,6 +372,20 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           <template v-if="report.total_cents !== null">
             <dt class="text-neutral-500">{{ $t('report.total') }}</dt>
             <dd class="font-semibold text-neutral-900">{{ formatMoney(report.total_cents, report.currency) }}</dd>
+          </template>
+          <!-- for a client who pays in hryvnias -->
+          <template v-if="report.in_uah">
+            <dt class="text-neutral-500">{{ $t('report.inUAH') }}</dt>
+            <dd>
+              <span class="font-semibold text-neutral-900">≈ {{ formatMoney(report.in_uah.total_cents, 'UAH') }}</span>
+              <span class="block text-xs text-neutral-500">
+                {{ $t('report.inUAHRate', { rate: report.in_uah.rate, date: formatDate(report.in_uah.rate_on) }) }}
+              </span>
+              <label class="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                <ToggleSwitch v-model="inUAH" :label="$t('report.inUAHShow')" />
+                <span aria-hidden="true">{{ $t('report.inUAHShow') }}</span>
+              </label>
+            </dd>
           </template>
         </dl>
 
