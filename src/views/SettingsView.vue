@@ -11,6 +11,7 @@ import FormError from '@/components/auth/FormError.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import TelegramSettings from '@/components/account/TelegramSettings.vue'
+import TwoFactorSettings from '@/components/account/TwoFactorSettings.vue'
 import EmailNotificationsSettings from '@/components/account/EmailNotificationsSettings.vue'
 import ConfirmPasswordModal from '@/components/account/ConfirmPasswordModal.vue'
 import SettingsGroup from '@/components/account/SettingsGroup.vue'
@@ -500,6 +501,9 @@ async function signOutOthers() {
             @done="passwordChanged"
             @failed="passwordRefused"
           />
+
+          <!-- turning it on signs the other devices out -->
+          <TwoFactorSettings @enabled="loadSessions" />
 
           <section>
             <div class="flex items-end justify-between gap-3">
