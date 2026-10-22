@@ -26,8 +26,7 @@ const people = usePeopleStore()
 const router = useRouter()
 const creating = ref(false)
 const query = ref('')
-/** The project being edited, or asked about before deleting, from its card's or row's buttons. */
-const editing = ref<Project | null>(null)
+/** The project asked about before deleting, from its card's or row's button. */
 const removing = ref<Project | null>(null)
 const deleting = ref(false)
 const confirmDelete = computed({
@@ -63,11 +62,6 @@ onMounted(async () => {
 function onSaved(project: Project) {
   creating.value = false
   void router.push({ name: 'project-detail', params: { id: project.id } })
-}
-
-function onEdited() {
-  editing.value = null
-  toast.success(t('project.saved'))
 }
 
 async function remove() {
@@ -151,7 +145,7 @@ async function remove() {
                   <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
               </span>
-              <!-- room for the edit and delete buttons laid over the card's corner -->
+              <!-- room for the settings and delete buttons laid over the card's corner -->
               <div class="min-w-0 flex-1" :class="p.can_edit ? 'pr-14' : ''">
                 <p class="truncate font-semibold text-neutral-900">{{ p.name }}</p>
                 <p class="mt-0.5 text-xs text-neutral-400">{{ $t('projects.updated', { date: formatDate(p.updated_at) }) }}</p>
@@ -171,18 +165,17 @@ async function remove() {
             v-if="p.can_edit"
             class="absolute top-4 right-4 flex gap-0.5 rounded-lg bg-white opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           >
-            <button
-              type="button"
+            <RouterLink
+              :to="{ name: 'project-settings', params: { id: p.id } }"
               class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100"
-              :aria-label="$t('projects.editNamed', { name: p.name })"
-              :title="$t('projects.edit')"
-              @click="editing = p"
+              :aria-label="$t('projects.settingsNamed', { name: p.name })"
+              :title="$t('project.settings')"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-            </button>
+            </RouterLink>
             <button
               type="button"
               class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100"
@@ -204,7 +197,7 @@ async function remove() {
 
       <!-- list -->
       <div v-else class="mt-5 overflow-hidden rounded-xl border border-neutral-200">
-        <!-- the last, unnamed column holds the row's edit and delete buttons -->
+        <!-- the last, unnamed column holds the row's settings and delete buttons -->
         <div class="hidden border-b border-neutral-200 bg-neutral-50 pr-18 md:block" aria-hidden="true">
           <div class="grid grid-cols-[minmax(0,1fr)_9rem_7rem_7rem] gap-4 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
             <span>{{ $t('projects.project') }}</span>
@@ -241,18 +234,17 @@ async function remove() {
             </RouterLink>
             <div class="flex w-18 shrink-0 justify-center gap-0.5 self-stretch pr-2 md:items-center max-md:pt-2.5">
               <template v-if="p.can_edit">
-                <button
-                  type="button"
+                <RouterLink
+                  :to="{ name: 'project-settings', params: { id: p.id } }"
                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-200/70 hover:text-neutral-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-                  :aria-label="$t('projects.editNamed', { name: p.name })"
-                  :title="$t('projects.edit')"
-                  @click="editing = p"
+                  :aria-label="$t('projects.settingsNamed', { name: p.name })"
+                  :title="$t('project.settings')"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
-                </button>
+                </RouterLink>
                 <button
                   type="button"
                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100"
@@ -276,7 +268,6 @@ async function remove() {
     </template>
 
     <ProjectFormModal v-if="creating" :people="counterparts" @close="creating = false" @saved="onSaved" />
-    <ProjectFormModal v-if="editing" :project="editing" @close="editing = null" @saved="onEdited" />
     <ConfirmDialog
       v-model:open="confirmDelete"
       :title="$t('project.confirmDelete')"
