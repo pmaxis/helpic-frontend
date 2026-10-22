@@ -17,6 +17,9 @@ const en = {
     noneYetClient: 'Start a project with your freelancer to keep its tasks together.',
     noneYetFreelancer: 'Create a project for a client, or a personal one, to keep its tasks together.',
     loadFailed: 'Could not load projects',
+    edit: 'Edit project',
+    editNamed: 'Edit {name}',
+    deleteNamed: 'Delete {name}',
   },
   project: {
     breadcrumb: 'Breadcrumb',
@@ -172,6 +175,9 @@ const uk: typeof en = {
     noneYetClient: 'Почніть проєкт із фрилансером, щоб тримати його задачі разом.',
     noneYetFreelancer: 'Створіть проєкт для клієнта або особистий, щоб тримати задачі разом.',
     loadFailed: 'Не вдалося завантажити проєкти',
+    edit: 'Редагувати проєкт',
+    editNamed: 'Редагувати «{name}»',
+    deleteNamed: 'Видалити «{name}»',
   },
   project: {
     breadcrumb: 'Навігація',
