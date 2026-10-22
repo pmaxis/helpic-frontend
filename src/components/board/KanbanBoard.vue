@@ -432,18 +432,18 @@ function foldedLabelNames(t: Task): string {
       @dragover="onBoardDragOver"
       @pointerdown="onPanStart"
     >
-      <div ref="row" class="flex h-full w-max items-stretch gap-3" :class="board.isLoading ? 'opacity-60' : ''">
+      <div ref="row" class="flex h-full w-max min-w-full items-stretch gap-3" :class="board.isLoading ? 'opacity-60' : ''">
         <template v-for="(col, ci) in board.columns" :key="col.id">
           <!-- where a dragged column would land -->
           <div
             v-if="draggingColumn && columnDropMoves(ci)"
-            class="w-72 shrink-0 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50"
+            class="w-72 max-w-lg shrink-0 grow rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50"
             aria-hidden="true"
             @dragover.prevent
             @drop.prevent="onColumnDrop"
           />
           <section
-            class="flex w-72 shrink-0 flex-col rounded-xl bg-neutral-100/70 transition-colors"
+            class="flex w-72 max-w-lg shrink-0 grow flex-col rounded-xl bg-neutral-100/70 transition-colors"
             :class="
               draggingColumn?.id === col.id || (dragging && !canDrop(col))
                 ? 'opacity-40'
@@ -643,7 +643,7 @@ function foldedLabelNames(t: Task): string {
         </template>
         <div
           v-if="draggingColumn && columnDropMoves(board.columns.length)"
-          class="w-72 shrink-0 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50"
+          class="w-72 max-w-lg shrink-0 grow rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50"
           aria-hidden="true"
           @dragover.prevent
           @drop.prevent="onColumnDrop"
@@ -652,7 +652,7 @@ function foldedLabelNames(t: Task): string {
         <button
           v-if="board.canManage"
           type="button"
-          class="flex h-12 w-72 shrink-0 items-center justify-center gap-1.5 self-start rounded-xl border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-900"
+          class="flex h-12 w-72 max-w-lg shrink-0 grow items-center justify-center gap-1.5 self-start rounded-xl border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-900"
           @click="adding = true"
         >
           <svg
