@@ -30,78 +30,79 @@ html {
 .dark {
   color-scheme: dark;
 
-  --color-white: oklch(16.5% 0 none);
-  --color-neutral-50: oklch(19.5% 0 none);
-  --color-neutral-100: oklch(23% 0 none);
-  --color-neutral-200: oklch(28% 0 none);
-  --color-neutral-300: oklch(36% 0 none);
-  --color-neutral-400: oklch(52% 0 none);
-  --color-neutral-500: oklch(64% 0 none);
-  --color-neutral-600: oklch(74% 0 none);
-  --color-neutral-700: oklch(82% 0 none);
-  --color-neutral-800: oklch(90% 0 none);
-  --color-neutral-900: oklch(95% 0 none);
-  --color-neutral-950: oklch(98% 0 none);
+  /* A faint blue-slate cast, strongest on the surfaces and fading out toward the text, keeps the dark from reading as flat gray. */
+  --color-white: oklch(17% 0.013 265);
+  --color-neutral-50: oklch(20% 0.015 265);
+  --color-neutral-100: oklch(23.5% 0.017 265);
+  --color-neutral-200: oklch(28.5% 0.019 265);
+  --color-neutral-300: oklch(36.5% 0.02 265);
+  --color-neutral-400: oklch(52% 0.018 265);
+  --color-neutral-500: oklch(64% 0.014 265);
+  --color-neutral-600: oklch(74% 0.01 265);
+  --color-neutral-700: oklch(82% 0.007 265);
+  --color-neutral-800: oklch(90% 0.005 265);
+  --color-neutral-900: oklch(95% 0.003 265);
+  --color-neutral-950: oklch(98% 0.002 265);
 
-  --color-red-50: color-mix(in oklab, var(--color-red-500) 12%, transparent);
-  --color-red-100: color-mix(in oklab, var(--color-red-500) 18%, transparent);
-  --color-red-200: color-mix(in oklab, var(--color-red-500) 28%, transparent);
+  --color-red-50: color-mix(in oklab, var(--color-red-500) 15%, transparent);
+  --color-red-100: color-mix(in oklab, var(--color-red-500) 22%, transparent);
+  --color-red-200: color-mix(in oklab, var(--color-red-500) 32%, transparent);
   --color-red-600: var(--color-red-400);
   --color-red-700: var(--color-red-300);
   --color-red-800: var(--color-red-300);
   --color-red-900: var(--color-red-300);
 
-  --color-orange-50: color-mix(in oklab, var(--color-orange-500) 12%, transparent);
-  --color-orange-100: color-mix(in oklab, var(--color-orange-500) 18%, transparent);
-  --color-orange-200: color-mix(in oklab, var(--color-orange-500) 28%, transparent);
+  --color-orange-50: color-mix(in oklab, var(--color-orange-500) 15%, transparent);
+  --color-orange-100: color-mix(in oklab, var(--color-orange-500) 22%, transparent);
+  --color-orange-200: color-mix(in oklab, var(--color-orange-500) 32%, transparent);
   --color-orange-600: var(--color-orange-400);
   --color-orange-700: var(--color-orange-300);
   --color-orange-800: var(--color-orange-300);
   --color-orange-900: var(--color-orange-300);
 
-  --color-amber-50: color-mix(in oklab, var(--color-amber-500) 12%, transparent);
-  --color-amber-100: color-mix(in oklab, var(--color-amber-500) 18%, transparent);
-  --color-amber-200: color-mix(in oklab, var(--color-amber-500) 28%, transparent);
+  --color-amber-50: color-mix(in oklab, var(--color-amber-500) 15%, transparent);
+  --color-amber-100: color-mix(in oklab, var(--color-amber-500) 22%, transparent);
+  --color-amber-200: color-mix(in oklab, var(--color-amber-500) 32%, transparent);
   --color-amber-600: var(--color-amber-400);
   --color-amber-700: var(--color-amber-300);
   --color-amber-800: var(--color-amber-300);
   --color-amber-900: var(--color-amber-300);
 
-  --color-emerald-50: color-mix(in oklab, var(--color-emerald-500) 12%, transparent);
-  --color-emerald-100: color-mix(in oklab, var(--color-emerald-500) 18%, transparent);
-  --color-emerald-200: color-mix(in oklab, var(--color-emerald-500) 28%, transparent);
+  --color-emerald-50: color-mix(in oklab, var(--color-emerald-500) 15%, transparent);
+  --color-emerald-100: color-mix(in oklab, var(--color-emerald-500) 22%, transparent);
+  --color-emerald-200: color-mix(in oklab, var(--color-emerald-500) 32%, transparent);
   --color-emerald-600: var(--color-emerald-400);
   --color-emerald-700: var(--color-emerald-300);
   --color-emerald-800: var(--color-emerald-300);
   --color-emerald-900: var(--color-emerald-300);
 
-  --color-teal-50: color-mix(in oklab, var(--color-teal-500) 12%, transparent);
-  --color-teal-100: color-mix(in oklab, var(--color-teal-500) 18%, transparent);
-  --color-teal-200: color-mix(in oklab, var(--color-teal-500) 28%, transparent);
+  --color-teal-50: color-mix(in oklab, var(--color-teal-500) 15%, transparent);
+  --color-teal-100: color-mix(in oklab, var(--color-teal-500) 22%, transparent);
+  --color-teal-200: color-mix(in oklab, var(--color-teal-500) 32%, transparent);
   --color-teal-600: var(--color-teal-400);
   --color-teal-700: var(--color-teal-300);
   --color-teal-800: var(--color-teal-300);
   --color-teal-900: var(--color-teal-300);
 
-  --color-sky-50: color-mix(in oklab, var(--color-sky-500) 12%, transparent);
-  --color-sky-100: color-mix(in oklab, var(--color-sky-500) 18%, transparent);
-  --color-sky-200: color-mix(in oklab, var(--color-sky-500) 28%, transparent);
+  --color-sky-50: color-mix(in oklab, var(--color-sky-500) 15%, transparent);
+  --color-sky-100: color-mix(in oklab, var(--color-sky-500) 22%, transparent);
+  --color-sky-200: color-mix(in oklab, var(--color-sky-500) 32%, transparent);
   --color-sky-600: var(--color-sky-400);
   --color-sky-700: var(--color-sky-300);
   --color-sky-800: var(--color-sky-300);
   --color-sky-900: var(--color-sky-300);
 
-  --color-violet-50: color-mix(in oklab, var(--color-violet-500) 12%, transparent);
-  --color-violet-100: color-mix(in oklab, var(--color-violet-500) 18%, transparent);
-  --color-violet-200: color-mix(in oklab, var(--color-violet-500) 28%, transparent);
+  --color-violet-50: color-mix(in oklab, var(--color-violet-500) 15%, transparent);
+  --color-violet-100: color-mix(in oklab, var(--color-violet-500) 22%, transparent);
+  --color-violet-200: color-mix(in oklab, var(--color-violet-500) 32%, transparent);
   --color-violet-600: var(--color-violet-400);
   --color-violet-700: var(--color-violet-300);
   --color-violet-800: var(--color-violet-300);
   --color-violet-900: var(--color-violet-300);
 
-  --color-pink-50: color-mix(in oklab, var(--color-pink-500) 12%, transparent);
-  --color-pink-100: color-mix(in oklab, var(--color-pink-500) 18%, transparent);
-  --color-pink-200: color-mix(in oklab, var(--color-pink-500) 28%, transparent);
+  --color-pink-50: color-mix(in oklab, var(--color-pink-500) 15%, transparent);
+  --color-pink-100: color-mix(in oklab, var(--color-pink-500) 22%, transparent);
+  --color-pink-200: color-mix(in oklab, var(--color-pink-500) 32%, transparent);
   --color-pink-600: var(--color-pink-400);
   --color-pink-700: var(--color-pink-300);
   --color-pink-800: var(--color-pink-300);
