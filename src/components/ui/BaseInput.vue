@@ -13,6 +13,8 @@ defineProps<{
   disabled?: boolean
   /** id of a <datalist> with suggestions. */
   list?: string
+  /** The keyboard a phone shows, e.g. "numeric". */
+  inputmode?: 'text' | 'numeric' | 'email'
   /** Taller field, for prominent forms like sign-in. */
   size?: 'md' | 'lg'
 }>()
@@ -44,6 +46,7 @@ function onInput(event: Event) {
         :placeholder="placeholder"
         :disabled="disabled"
         :list="list"
+        :inputmode="inputmode"
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="error ? errorId : undefined"
         class="block w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"

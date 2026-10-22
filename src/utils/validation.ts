@@ -64,6 +64,14 @@ export function currentPassword(message: Message = () => t('validation.passwordR
   return z.string().min(1, { error: message })
 }
 
+/** A code from an authenticator app, or a recovery code; the API tells which and whether it's right. */
+export function twoFactorCode() {
+  return z
+    .string()
+    .trim()
+    .min(1, { error: () => t('validation.twoFactorCode') })
+}
+
 /** A new password: long enough, short enough, and both a letter and a number. */
 export function newPassword() {
   return z

@@ -39,4 +39,6 @@ export interface AcceptInvitationPayload {
   name?: string
   password: string
   password_confirmation?: string
+  /** For an existing account with two-factor on. */
+  code?: string
 }

@@ -1,34 +1,81 @@
 <script setup lang="ts">
+import { computed, nextTick, ref } from 'vue'
 import { z } from 'zod'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { ApiRequestError } from '@/services/api'
 import { useForm } from '@/composables/useForm'
-import { currentPassword, email } from '@/utils/validation'
+import { currentPassword, email, twoFactorCode } from '@/utils/validation'
+import { TWO_FACTOR_REQUIRED } from '@/types/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthCard from '@/components/auth/AuthCard.vue'
 import FormError from '@/components/auth/FormError.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
+import TwoFactorCodeInput from '@/components/auth/TwoFactorCodeInput.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const form = useForm(z.object({ email: email(), password: currentPassword() }), { email: '', password: '' })
+/** The password was right and the account has two-factor on: the second step asks for a code. */
+const needsCode = ref(false)
+
+const schema = computed(() =>
+  z.object({ email: email(), password: currentPassword(), code: needsCode.value ? twoFactorCode() : z.string() }),
+)
+const form = useForm(schema, { email: '', password: '', code: '' })
+
+function focusCode() {
+  void nextTick(() => document.querySelector<HTMLInputElement>('[data-two-factor-code] input')?.focus())
+}
 
 function onSubmit() {
   void form.submit(async (data) => {
-    await auth.login(data)
+    try {
+      await auth.login({ email: data.email, password: data.password, ...(needsCode.value ? { code: data.code } : {}) })
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.code === TWO_FACTOR_REQUIRED) {
+        needsCode.value = true
+        focusCode()
+        return
+      }
+      throw error
+    }
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     await router.replace(redirect)
   })
+}
+
+/** Back to the email and password, say to sign in with another account. */
+function back() {
+  needsCode.value = false
+  form.reset({ email: form.values.email, password: '', code: '' })
 }
 </script>
 
 <template>
   <AuthLayout>
-    <AuthCard :title="$t('login.title')" :subtitle="$t('login.subtitle')">
+    <AuthCard v-if="needsCode" :title="$t('login.codeTitle')" :subtitle="$t('login.codeSubtitle', { email: form.values.email.trim() })">
+      <form class="space-y-5" novalidate @submit.prevent="onSubmit">
+        <FormError :message="form.formError" />
+        <TwoFactorCodeInput v-bind="form.field('code')" :label="$t('login.code')" :hint="$t('login.codeHint')" size="lg" />
+        <div class="pt-1">
+          <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
+            {{ $t('login.verify') }}
+          </BaseButton>
+        </div>
+      </form>
+
+      <template #footer>
+        <button type="button" class="font-medium text-neutral-900 underline-offset-4 hover:underline" @click="back">
+          {{ $t('login.back') }}
+        </button>
+      </template>
+    </AuthCard>
+
+    <AuthCard v-else :title="$t('login.title')" :subtitle="$t('login.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
 

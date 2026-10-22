@@ -19,6 +19,8 @@ export interface User {
   locale: 'en' | 'uk'
   /** Set for a member of a client's company: they act for it, but don't see its reports. */
   member_of: { owner_id: string; name: string; role: TeamRole } | null
+  /** Signing in also takes a code from an authenticator app. */
+  two_factor: boolean
   created_at: string
 }
 
@@ -47,6 +49,28 @@ export interface ChangePasswordPayload {
 export interface LoginPayload {
   email: string
   password: string
+  /** Asked for once the password is right, when the account has two-factor on: six digits from the app, or a recovery code. */
+  code?: string
+}
+
+/** The API's answer to a right password when the account also needs a code. */
+export const TWO_FACTOR_REQUIRED = 'TWO_FACTOR_REQUIRED'
+
+/** Where the account's two-factor sign-in stands. */
+export interface TwoFactorStatus {
+  enabled: boolean
+  /** Unused recovery codes; 0 while off. */
+  recovery_codes_left: number
+}
+
+/** What goes into the authenticator app while turning two-factor on. */
+export interface TwoFactorSetup {
+  /** For typing in by hand. */
+  secret: string
+  /** The otpauth:// link the QR code carries. */
+  uri: string
+  /** The QR code, an image data: URL. */
+  qr: string
 }
 
 /** Unified API error envelope returned by the backend. */

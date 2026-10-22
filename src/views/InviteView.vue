@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { z } from 'zod'
 import { useRoute, useRouter } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -9,14 +9,16 @@ import FormError from '@/components/auth/FormError.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
+import TwoFactorCodeInput from '@/components/auth/TwoFactorCodeInput.vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePeopleStore } from '@/stores/people'
 import { ApiRequestError } from '@/services/api'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
-import { currentPassword, LIMITS, newPassword, passwordsMatch, requiredText } from '@/utils/validation'
+import { currentPassword, LIMITS, newPassword, passwordsMatch, requiredText, twoFactorCode } from '@/utils/validation'
 import { t } from '@/i18n'
 import { linkToken } from '@/utils/linkToken'
+import { TWO_FACTOR_REQUIRED } from '@/types/auth'
 import type { InvitationLookup } from '@/types/people'
 
 const auth = useAuthStore()
@@ -29,19 +31,27 @@ const invitation = ref<InvitationLookup | null>(null)
 const invalid = ref('')
 /** A 404 means the link itself is dead; anything else is a failed lookup. */
 const linkGone = ref(false)
+/** The existing account has two-factor on: signing in takes a code too. */
+const needsCode = ref(false)
 /** An existing account only signs in; a new one needs a name and a confirmed password. */
 const schema = computed(() =>
   invitation.value?.account_exists
-    ? z.object({ name: z.string(), password: currentPassword(), password_confirmation: z.string() })
+    ? z.object({
+        name: z.string(),
+        password: currentPassword(),
+        password_confirmation: z.string(),
+        code: needsCode.value ? twoFactorCode() : z.string(),
+      })
     : z
         .object({
           name: requiredText('name', LIMITS.name),
           password: newPassword(),
           password_confirmation: currentPassword(() => t('validation.confirmPassword')),
+          code: z.string(),
         })
         .refine(...passwordsMatch()),
 )
-const form = useForm(schema, { name: '', password: '', password_confirmation: '' })
+const form = useForm(schema, { name: '', password: '', password_confirmation: '', code: '' })
 
 onMounted(async () => {
   try {
@@ -59,12 +69,22 @@ onMounted(async () => {
 
 function onSubmit() {
   void form.submit(async (data) => {
-    const user = await people.acceptInvitation(
-      token,
-      invitation.value?.account_exists
-        ? { password: data.password }
-        : { name: data.name, password: data.password, password_confirmation: data.password_confirmation },
-    )
+    let user
+    try {
+      user = await people.acceptInvitation(
+        token,
+        invitation.value?.account_exists
+          ? { password: data.password, ...(needsCode.value ? { code: data.code } : {}) }
+          : { name: data.name, password: data.password, password_confirmation: data.password_confirmation },
+      )
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.code === TWO_FACTOR_REQUIRED) {
+        needsCode.value = true
+        void nextTick(() => document.querySelector<HTMLInputElement>('[data-two-factor-code] input')?.focus())
+        return
+      }
+      throw error
+    }
     people.$reset()
     auth.setUser(user)
     toast.success(t('invite.accepted', { name: invitation.value?.freelancer.name || t('invite.yourFreelancer') }))
@@ -111,6 +131,7 @@ function onSubmit() {
           :label="$t('register.confirmPassword')"
           autocomplete="new-password"
         />
+        <TwoFactorCodeInput v-if="needsCode" v-bind="form.field('code')" :label="$t('login.code')" :hint="$t('login.codeHint')" size="lg" />
 
         <div class="pt-1">
           <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
