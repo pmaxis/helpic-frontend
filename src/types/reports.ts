@@ -14,6 +14,8 @@ export interface ReportItem {
   completed_on: string
   /** Null for a task without a price. Live while a draft, frozen once sent. */
   price_cents: number | null
+  /** The price in hryvnias at the report's rate (see in_uah); null without a price or a rate. */
+  price_in_uah_cents?: number | null
   /** The time a task billed by the hour took; null for a fixed price. */
   seconds: number | null
   /** What was done in the task, shown in a detailed report. Starts as the task's description. */
@@ -44,6 +46,12 @@ export interface Report {
   currency: string
   /** Sum of the items' prices on a single report; null when none has a price. */
   total_cents: number | null
+  /**
+   * The total in hryvnias at the NBU's official rate, on a single report in
+   * another currency: as of the day it was paid, or today while it isn't.
+   * null for a report in hryvnias, without prices, or with no rate known.
+   */
+  in_uah?: { rate: string; rate_on: string; total_cents: number } | null
   /** The freelancer, while it's a draft. */
   can_edit: boolean
   /** The freelancer, sent or not; a deleted sent report is gone for the client too. */
