@@ -1,7 +1,7 @@
 import type { Role } from '@/types/auth'
 
 /** Sidebar words: keys under "nav" in the messages. */
-export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team' | 'adminStats' | 'adminAccounts' | 'adminLogs' | 'adminActions' | 'adminSignups' | 'adminEmails' | 'adminSystem' | 'adminLimits' | 'system'
+export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team' | 'adminStats' | 'adminAccounts' | 'adminLogs' | 'adminActions' | 'adminSignups' | 'adminEmails' | 'adminSystem' | 'adminLimits' | 'adminAdmins' | 'system'
 
 export interface NavItem {
   label: NavKey
@@ -72,6 +72,7 @@ export const NAV_SECTIONS: Record<Role, NavSection[]> = {
         { label: 'adminEmails', icon: 'mail', to: '/admin/emails' },
         { label: 'adminLogs', icon: 'logs', to: '/admin/logs' },
         { label: 'adminActions', icon: 'journal', to: '/admin/actions' },
+        { label: 'adminAdmins', icon: 'admins', to: '/admin/admins' },
       ],
     },
   ],
