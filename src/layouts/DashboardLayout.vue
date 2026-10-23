@@ -15,7 +15,7 @@ import SidebarSection from '@/components/navigation/SidebarSection.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import NotificationBell from '@/components/navigation/NotificationBell.vue'
 import RunningTimer from '@/components/navigation/RunningTimer.vue'
-import { ADMIN_SECTION, NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
+import { NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
 import { useI18n } from 'vue-i18n'
 
 withDefaults(
@@ -34,7 +34,6 @@ const timer = useTimerStore()
 const admin = useAdminStore()
 onMounted(() => {
   notifications.startPolling()
-  void admin.load()
   // Only a freelancer tracks time; the timer is loaded once per sign-in.
   if (auth.isFreelancer && !timer.loaded) void timer.load()
 })
@@ -68,8 +67,7 @@ const { t } = useI18n()
 /** The sidebar for this user's role, in the interface's language. */
 const navSections = computed(() => {
   if (!auth.user) return []
-  const sections = admin.isAdmin ? [...NAV_SECTIONS[auth.user.role], ADMIN_SECTION] : NAV_SECTIONS[auth.user.role]
-  return sections.map((s) => ({
+  return NAV_SECTIONS[auth.user.role].map((s) => ({
     label: s.label ? t(`nav.${s.label}`) : '',
     items: s.items
       .filter((i) => !auth.isTeamMember || !OWNER_ONLY_PATHS.includes(i.to))
