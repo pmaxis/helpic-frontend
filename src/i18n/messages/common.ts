@@ -95,6 +95,7 @@ const en = {
     team: 'Team',
     adminStats: 'Statistics',
     adminAccounts: 'Accounts',
+    adminLogs: 'Logs',
   },
   notificationKinds: {
     groups: {
@@ -217,6 +218,7 @@ const uk: typeof en = {
     team: 'Команда',
     adminStats: 'Статистика',
     adminAccounts: 'Акаунти',
+    adminLogs: 'Логи',
   },
   notificationKinds: {
     groups: {
