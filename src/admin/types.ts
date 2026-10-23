@@ -145,7 +145,7 @@ export interface AdminAction {
   /** Null once the account is gone; the email stays. */
   admin_id: string | null
   admin_email: string
-  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor'
+  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor' | 'retry_email' | 'resend_signup' | 'delete_signup'
   target_id: string | null
   target_email: string
   reason: string
@@ -163,4 +163,98 @@ export interface AdminActionsPage {
   page: number
   limit: number
   total: number
+}
+
+export type AdminEmailStatus = 'queued' | 'failed' | 'sent'
+
+/** An outgoing email: whom to, about what and how sending it went. Never the body. */
+export interface AdminEmail {
+  id: string
+  to: string
+  subject: string
+  status: AdminEmailStatus
+  attempts: number
+  last_error: string
+  /** When a queued email is tried next. */
+  next_attempt_at: string
+  sent_at: string | null
+  created_at: string
+}
+
+/** How many emails stand where, over the week the outbox keeps them. */
+export interface AdminEmailCounts {
+  queued: number
+  failed: number
+  sent: number
+  last_sent: string | null
+}
+
+export interface AdminEmailsQuery {
+  status?: AdminEmailStatus | ''
+  q?: string
+  page?: number
+  limit?: number
+}
+
+export interface AdminEmailsPage {
+  emails: AdminEmail[]
+  page: number
+  limit: number
+  total: number
+  counts: AdminEmailCounts
+}
+
+/** A public sign-up that hasn't opened its confirmation link. */
+export interface AdminSignup {
+  email: string
+  name: string
+  locale: string
+  created_at: string
+  expires_at: string
+  /** How the newest email to the address went; empty once it is no longer kept. */
+  email_status: AdminEmailStatus | ''
+  email_error: string
+}
+
+export interface AdminSignupsQuery {
+  q?: string
+  page?: number
+  limit?: number
+}
+
+export interface AdminSignupsPage {
+  signups: AdminSignup[]
+  page: number
+  limit: number
+  total: number
+}
+
+/** A service Helpic depends on, checked on the spot; "off" is left out of the config. */
+export interface AdminCheck {
+  name: 'database' | 'mail' | 'telegram'
+  state: 'ok' | 'failing' | 'off'
+  latency_ms: number
+  error: string
+}
+
+/** How a background job ran on this server since it started. */
+export interface AdminJob {
+  name: string
+  interval_seconds: number
+  last_run: string | null
+  last_success: string | null
+  last_error: string
+  running: boolean
+  runs: number
+  failures: number
+  state: 'ok' | 'failing' | 'late' | 'waiting'
+}
+
+export interface AdminSystem {
+  version: string
+  go_version: string
+  started_at: string
+  checks: AdminCheck[]
+  jobs: AdminJob[]
+  emails: AdminEmailCounts
 }

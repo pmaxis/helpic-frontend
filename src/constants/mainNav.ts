@@ -1,7 +1,7 @@
 import type { Role } from '@/types/auth'
 
 /** Sidebar words: keys under "nav" in the messages. */
-export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team' | 'adminStats' | 'adminAccounts' | 'adminLogs' | 'adminActions' | 'system'
+export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team' | 'adminStats' | 'adminAccounts' | 'adminLogs' | 'adminActions' | 'adminSignups' | 'adminEmails' | 'adminSystem' | 'system'
 
 export interface NavItem {
   label: NavKey
@@ -20,7 +20,7 @@ export interface NavSection {
 /**
  * The sidebar per role: the overview, the work, who it's with, then the
  * archive of closed work; an admin's is the admin panel: the statistics, the
- * accounts, then the server. Labels are message keys.
+ * accounts and sign-ups, then the server. Labels are message keys.
  */
 export const NAV_SECTIONS: Record<Role, NavSection[]> = {
   freelancer: [
@@ -57,10 +57,18 @@ export const NAV_SECTIONS: Record<Role, NavSection[]> = {
   ],
   admin: [
     { label: '', items: [{ label: 'adminStats', icon: 'stats', to: '/admin', exact: true }] },
-    { label: 'people', items: [{ label: 'adminAccounts', icon: 'clients', to: '/admin/users' }] },
+    {
+      label: 'people',
+      items: [
+        { label: 'adminAccounts', icon: 'clients', to: '/admin/users' },
+        { label: 'adminSignups', icon: 'signups', to: '/admin/signups' },
+      ],
+    },
     {
       label: 'system',
       items: [
+        { label: 'adminSystem', icon: 'status', to: '/admin/system' },
+        { label: 'adminEmails', icon: 'mail', to: '/admin/emails' },
         { label: 'adminLogs', icon: 'logs', to: '/admin/logs' },
         { label: 'adminActions', icon: 'journal', to: '/admin/actions' },
       ],

@@ -26,4 +26,22 @@ export const adminRoutes: RouteRecordRaw[] = [
     component: () => import('./views/AdminActionsView.vue'),
     meta: { requiresAuth: true, role: 'admin' },
   },
+  {
+    path: '/admin/signups',
+    name: 'admin-signups',
+    component: () => import('./views/AdminSignupsView.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+  },
+  {
+    path: '/admin/emails',
+    name: 'admin-emails',
+    component: () => import('./views/AdminEmailsView.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+  },
+  {
+    path: '/admin/system',
+    name: 'admin-system',
+    component: () => import('./views/AdminSystemView.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+  },
 ]
