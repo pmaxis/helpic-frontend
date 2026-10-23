@@ -9,6 +9,7 @@ import reports from './reports'
 import dashboard from './dashboard'
 import settings from './settings'
 import timelog from './timelog'
+import admin from '@/admin/messages'
 
 export const en = {
   ...common.en,
@@ -21,6 +22,7 @@ export const en = {
   ...dashboard.en,
   ...settings.en,
   ...timelog.en,
+  ...admin.en,
 }
 
 export type MessageSchema = typeof en
@@ -36,4 +38,5 @@ export const uk: MessageSchema = {
   ...dashboard.uk,
   ...settings.uk,
   ...timelog.uk,
+  ...admin.uk,
 }

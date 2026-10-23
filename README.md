@@ -42,4 +42,6 @@ src/
   services/api.ts    HTTP client (cookies, 401 handling)
   router/            routes, auth guard, per-role pages (meta.role)
   constants/mainNav  sidebar items per role
+  admin/             admin panel (/admin): statistics and accounts, for the
+                     backend's ADMIN_EMAILS; its own lazy-loaded chunks
 ```
