@@ -20,7 +20,7 @@ import type { AdminLog, AdminLogLevel, AdminLogsPage } from '../types'
 const { t } = useI18n()
 const auth = useAuthStore()
 
-const LIMIT = 50
+const LIMIT = 10
 const LEVELS: AdminLogLevel[] = ['', 'warn', 'error']
 
 const query = ref('')

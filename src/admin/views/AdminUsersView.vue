@@ -28,7 +28,7 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const LIMIT = 25
+const LIMIT = 10
 const query = ref('')
 const role = ref<Exclude<Role, 'admin'> | ''>('')
 const activity = ref<AdminActivity>('')
