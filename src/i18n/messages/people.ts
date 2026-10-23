@@ -56,7 +56,7 @@ const en = {
     confirmRemoveText: 'They no longer see this project. Its tasks stay.',
     removed: 'Removed from the project',
     removeFailed: 'Could not remove them',
-    roles: { freelancer: 'Freelancer', owner: 'Client', member: 'Employee', contractor: 'Contractor' },
+    roles: { freelancer: 'Freelancer', owner: 'Client', member: 'Employee', contractor: 'Contractor', admin: 'Admin' },
   },
   projectForm: {
     edit: 'Edit project',
@@ -213,7 +213,7 @@ const uk: typeof en = {
     confirmRemoveText: 'Людина більше не бачитиме цей проєкт. Його задачі лишаться.',
     removed: 'Прибрано з проєкту',
     removeFailed: 'Не вдалося прибрати',
-    roles: { freelancer: 'Фрилансер', owner: 'Клієнт', member: 'Співробітник', contractor: 'Підрядник' },
+    roles: { freelancer: 'Фрилансер', owner: 'Клієнт', member: 'Співробітник', contractor: 'Підрядник', admin: 'Адміністратор' },
   },
   projectForm: {
     edit: 'Змінити проєкт',

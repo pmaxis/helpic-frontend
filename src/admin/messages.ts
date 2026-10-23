@@ -1,8 +1,6 @@
 /** The admin panel. */
 const en = {
   admin: {
-    title: 'Admin panel',
-    tabs: { stats: 'Statistics', users: 'Accounts' },
     statsDescription: 'How Helpic is used, across every account. Counts only.',
     usersDescription: 'Every account: who they are and how much they use Helpic, never their work.',
     loadFailed: "Couldn't load the admin panel",
@@ -92,8 +90,6 @@ const en = {
 
 const uk: typeof en = {
   admin: {
-    title: 'Адмін-панель',
-    tabs: { stats: 'Статистика', users: 'Акаунти' },
     statsDescription: 'Як користуються Helpic, по всіх акаунтах. Лише кількості.',
     usersDescription: 'Усі акаунти: хто вони і як часто користуються Helpic, без їхньої роботи.',
     loadFailed: 'Не вдалося завантажити адмінку',

@@ -36,8 +36,10 @@ const route = useRoute()
 const router = useRouter()
 
 /** Three groups: who you are, how and where you sign in, and what you hear about. */
-const TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }] as const
-type Tab = (typeof TABS)[number]['value']
+const ALL_TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }] as const
+type Tab = (typeof ALL_TABS)[number]['value']
+/** An admin has no work to hear about, so no notifications. */
+const TABS = computed(() => (auth.isAdmin ? ALL_TABS.filter((t) => t.value !== 'notifications') : ALL_TABS))
 
 /** The old tabs, still in links (an email confirmation goes to ?tab=email), now live under security. */
 const MOVED: Record<string, Tab> = { email: 'security', password: 'security', sessions: 'security' }
@@ -46,7 +48,7 @@ const MOVED: Record<string, Tab> = { email: 'security', password: 'security', se
 const tab = computed<Tab>({
   get: () => {
     const q = String(route.query.tab ?? '')
-    return TABS.find((t) => t.value === q)?.value ?? MOVED[q] ?? 'profile'
+    return TABS.value.find((t) => t.value === q)?.value ?? MOVED[q] ?? 'profile'
   },
   set: (value) => void router.replace({ query: { ...route.query, tab: value === 'profile' ? undefined : value } }),
 })
@@ -57,6 +59,7 @@ const tab = computed<Tab>({
 const roleText = computed(() => {
   const u = auth.user
   if (!u) return ''
+  if (auth.isAdmin) return t('project.roles.admin')
   if (auth.isFreelancer) return t('project.roles.freelancer')
   if (u.member_of) return `${t(`project.roles.${u.member_of.role}`)} · ${u.member_of.name}`
   return t('project.roles.owner')

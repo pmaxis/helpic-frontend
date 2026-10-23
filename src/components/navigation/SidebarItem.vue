@@ -10,15 +10,18 @@ const props = withDefaults(
     to: string
     /** Icon-only rendering when the sidebar is collapsed. */
     collapsed?: boolean
+    /** Active on the page itself only, when the pages under it have items of their own. */
+    exact?: boolean
   }>(),
   {
     collapsed: false,
+    exact: false,
   },
 )
 
 const route = useRoute()
-/** Active on the page itself and on the pages under it (/tasks/…, /projects/…). */
-const active = computed(() => route.path === props.to || route.path.startsWith(`${props.to}/`))
+/** Active on the page itself and, unless exact, on the pages under it (/tasks/…, /projects/…). */
+const active = computed(() => route.path === props.to || (!props.exact && route.path.startsWith(`${props.to}/`)))
 </script>
 
 <template>

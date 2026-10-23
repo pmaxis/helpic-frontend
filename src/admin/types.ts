@@ -1,13 +1,5 @@
 import type { Role } from '@/types/auth'
 
-/** Whether the signed-in user may open the admin panel. */
-export interface AdminAccess {
-  /** Their email is one of the backend's ADMIN_EMAILS. */
-  admin: boolean
-  /** They sign in with two-factor; the panel needs it. */
-  two_factor: boolean
-}
-
 /** The app as it stands. */
 export interface AdminTotals {
   users: number
@@ -61,7 +53,7 @@ export interface AdminAccount {
   id: string
   email: string
   name: string
-  role: Role
+  role: Exclude<Role, 'admin'>
   two_factor: boolean
   tasks: number
   projects: number
@@ -104,7 +96,7 @@ export type AdminSort = 'created' | 'last_active' | 'tasks'
 
 export interface AdminAccountsQuery {
   q?: string
-  role?: Role | ''
+  role?: Exclude<Role, 'admin'> | ''
   activity?: AdminActivity
   sort?: AdminSort
   page?: number

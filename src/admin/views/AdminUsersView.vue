@@ -19,18 +19,18 @@ import AccountAvatar from '../components/AccountAvatar.vue'
 import AccountDrawer from '../components/AccountDrawer.vue'
 import { timeAgoDay } from '../chart'
 import { fetchAdminAccounts } from '../api'
-import { useAdminStore } from '../store'
+import { useAuthStore } from '@/stores/auth'
 import type { AdminAccountsPage, AdminActivity, AdminSort } from '../types'
 import type { Role } from '@/types/auth'
 
 const { t } = useI18n()
-const admin = useAdminStore()
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
 const LIMIT = 25
 const query = ref('')
-const role = ref<Role | ''>('')
+const role = ref<Exclude<Role, 'admin'> | ''>('')
 const activity = ref<AdminActivity>('')
 const sort = ref<AdminSort>('created')
 const page = ref(1)
@@ -49,7 +49,7 @@ const ACTIVITIES: AdminActivity[] = ['', 'active', 'idle', 'never']
 let latest = 0
 
 async function load() {
-  if (!admin.canOpen) return
+  if (!auth.canOpenAdmin) return
   const mine = ++latest
   loading.value = true
   try {
@@ -85,7 +85,7 @@ watch([role, activity, sort], () => {
 watch(page, load)
 onBeforeUnmount(() => clearTimeout(typing))
 // Two-factor may have been turned on since the access was asked.
-void admin.load(true).then(load)
+void load()
 
 // --- the columns that sort ---------------------------------------------------------
 
@@ -115,7 +115,7 @@ function activeShare(days: number): number {
 </script>
 
 <template>
-  <AdminShell :description="$t('admin.usersDescription')">
+  <AdminShell :title="$t('nav.adminAccounts')" :description="$t('admin.usersDescription')">
     <div class="flex flex-wrap items-end gap-3">
       <BaseInput v-model="query" :label="$t('admin.search')" type="search" class="min-w-56 flex-1" />
       <SelectInput v-model="role" :options="roleOptions" class="w-44" :aria-label="$t('admin.columns.role')" />
@@ -215,6 +215,6 @@ function activeShare(days: number): number {
 
     <Pagination v-if="result" v-model:page="page" class="mt-4" :total="result.total" :limit="LIMIT" />
 
-    <AccountDrawer v-if="openId && admin.canOpen" :id="openId" @close="close" />
+    <AccountDrawer v-if="openId && auth.canOpenAdmin" :id="openId" @close="close" />
   </AdminShell>
 </template>

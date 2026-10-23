@@ -9,7 +9,6 @@ import { useBoardStore } from '@/stores/board'
 import { useReportsStore } from '@/stores/reports'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTimerStore } from '@/stores/timer'
-import { useAdminStore } from '@/admin/store'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import SidebarSection from '@/components/navigation/SidebarSection.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
@@ -31,9 +30,9 @@ withDefaults(
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const timer = useTimerStore()
-const admin = useAdminStore()
 onMounted(() => {
-  notifications.startPolling()
+  // An admin has no work to hear about.
+  if (!auth.isAdmin) notifications.startPolling()
   // Only a freelancer tracks time; the timer is loaded once per sign-in.
   if (auth.isFreelancer && !timer.loaded) void timer.load()
 })
@@ -94,7 +93,6 @@ async function handleLogout() {
     notifications.stopPolling()
     notifications.$reset()
     timer.reset()
-    admin.$reset()
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
@@ -151,6 +149,7 @@ async function handleLogout() {
             :icon="item.icon"
             :label="item.label"
             :to="item.to"
+            :exact="item.exact"
             :collapsed="collapsed"
             @click="mobileOpen = false"
           />
@@ -181,7 +180,7 @@ async function handleLogout() {
               <span class="block truncate text-xs text-neutral-400">{{ auth.user?.name ? auth.user.email : $t('sidebar.settings') }}</span>
             </span>
           </RouterLink>
-          <NotificationBell />
+          <NotificationBell v-if="!auth.isAdmin" />
           <button
             type="button"
             :title="$t('sidebar.logOut')"

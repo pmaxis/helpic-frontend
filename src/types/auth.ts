@@ -1,7 +1,11 @@
 import type { TeamRole } from '@/types/team'
 
-/** Public sign-up creates a freelancer; clients join by a freelancer's invitation. */
-export type Role = 'freelancer' | 'client'
+/**
+ * Public sign-up creates a freelancer; clients join by a freelancer's
+ * invitation. An admin runs the platform, with no work of their own, and is
+ * made only with the backend's cli.
+ */
+export type Role = 'freelancer' | 'client' | 'admin'
 
 export interface User {
   id: string
