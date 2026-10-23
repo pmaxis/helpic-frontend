@@ -231,7 +231,7 @@ export interface AdminSignupsPage {
 
 /** A service Helpic depends on, checked on the spot; "off" is left out of the config. */
 export interface AdminCheck {
-  name: 'database' | 'mail' | 'telegram'
+  name: 'database' | 'mail' | 'telegram' | 'alerts'
   state: 'ok' | 'failing' | 'off'
   latency_ms: number
   error: string
