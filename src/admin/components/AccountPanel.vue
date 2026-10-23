@@ -95,6 +95,9 @@ const DOTS: Record<AdminAction['action'], string> = {
   unblock: 'bg-emerald-500',
   end_sessions: 'bg-amber-500',
   reset_two_factor: 'bg-amber-500',
+  retry_email: 'bg-sky-500',
+  resend_signup: 'bg-sky-500',
+  delete_signup: 'bg-neutral-400',
 }
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))

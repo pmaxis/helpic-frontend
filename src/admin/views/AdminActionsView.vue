@@ -47,12 +47,15 @@ const TONES: Record<AdminAction['action'], string> = {
   unblock: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   end_sessions: 'bg-amber-50 text-amber-700 ring-amber-200',
   reset_two_factor: 'bg-amber-50 text-amber-700 ring-amber-200',
+  retry_email: 'bg-sky-50 text-sky-700 ring-sky-200',
+  resend_signup: 'bg-sky-50 text-sky-700 ring-sky-200',
+  delete_signup: 'bg-neutral-100 text-neutral-700 ring-neutral-200',
 }
 </script>
 
 <template>
-  <AdminShell :title="$t('nav.adminActions')" :description="$t('admin.actions.description')">
-    <EmptyState v-if="result && !result.actions.length" :title="$t('admin.actions.empty')" :description="$t('admin.actions.emptyText')">
+  <AdminShell :title="$t('nav.adminActions')" :description="$t('admin.actions.description')" :fill="!!result && !result.actions.length">
+    <EmptyState v-if="result && !result.actions.length" class="flex-1 justify-center" :title="$t('admin.actions.empty')" :description="$t('admin.actions.emptyText')">
       <template #illustration>
         <HistoryIllustration />
       </template>

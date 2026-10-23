@@ -98,6 +98,9 @@ const en = {
     adminAccounts: 'Accounts',
     adminLogs: 'Logs',
     adminActions: 'Action log',
+    adminSignups: 'Sign-ups',
+    adminEmails: 'Emails',
+    adminSystem: 'Status',
   },
   notificationKinds: {
     groups: {
@@ -223,6 +226,9 @@ const uk: typeof en = {
     adminAccounts: 'Акаунти',
     adminLogs: 'Логи',
     adminActions: 'Журнал дій',
+    adminSignups: 'Реєстрації',
+    adminEmails: 'Листи',
+    adminSystem: 'Стан системи',
   },
   notificationKinds: {
     groups: {

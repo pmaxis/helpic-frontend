@@ -58,6 +58,19 @@ defineProps<{
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       <path d="M9 10h6M9 14h4" />
     </template>
+    <template v-else-if="name === 'signups'">
+      <circle cx="10" cy="8" r="4" />
+      <path d="M3 21a7 7 0 0 1 11.5-5.4" />
+      <path d="M17 15v3l2 1.5" />
+      <circle cx="18" cy="18" r="4" />
+    </template>
+    <template v-else-if="name === 'mail'">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </template>
+    <template v-else-if="name === 'status'">
+      <path d="M3 12h4l3-8 4 16 3-8h4" />
+    </template>
     <circle v-else cx="12" cy="12" r="9" />
   </svg>
 </template>
