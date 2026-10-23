@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * Every account, a page at a time: search by email or name, filter by role
- * and by how active they are, sort by a column. A row opens the account in
- * a side panel; the open account is in the address (?account=…), so it can
- * be linked to and survives a reload.
+ * and by how active they are, sort by a column. A row opens the account in a
+ * card beside the list, which then leaves out the role, activity and join date;
+ * the open account is in the address (?account=…), so it can be linked to
+ * and survives a reload.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -16,7 +17,7 @@ import { toast } from '@/composables/useToasts'
 import { formatDate } from '@/utils/format'
 import AdminShell from '../components/AdminShell.vue'
 import AccountAvatar from '../components/AccountAvatar.vue'
-import AccountDrawer from '../components/AccountDrawer.vue'
+import AccountPanel from '../components/AccountPanel.vue'
 import { timeAgoDay } from '../chart'
 import { fetchAdminAccounts } from '../api'
 import { useAuthStore } from '@/stores/auth'
@@ -43,7 +44,7 @@ const roleOptions = computed(() => [
   { value: 'client', label: t('admin.roles.client') },
 ])
 
-const ACTIVITIES: AdminActivity[] = ['', 'active', 'idle', 'never']
+const ACTIVITIES: AdminActivity[] = ['', 'active', 'idle', 'never', 'blocked']
 
 /** Answers that come back after a newer request was sent are dropped. */
 let latest = 0
@@ -95,6 +96,8 @@ const SORTABLE: { key: AdminSort; label: string; align: 'left' | 'right' }[] = [
   { key: 'created', label: 'admin.columns.joined', align: 'left' },
 ]
 const sortable = (key: AdminSort) => SORTABLE.find((s) => s.key === key)!
+/** The sorting columns shown: beside an open account, not the join date. */
+const columns = computed<AdminSort[]>(() => (openId.value ? ['tasks', 'last_active'] : ['tasks', 'last_active', 'created']))
 
 // --- the open account ----------------------------------------------------------------
 
@@ -139,14 +142,16 @@ function activeShare(days: number): number {
     <EmptyState v-if="result && !result.users.length" class="mt-6" :title="$t('admin.noAccounts')" :description="$t('admin.noAccountsText')" />
 
     <div v-else class="mt-4 overflow-x-auto rounded-xl border border-neutral-200 transition-opacity" :class="loading && result ? 'opacity-60' : ''">
-      <table class="w-full min-w-[52rem] text-left text-sm">
+      <table class="w-full text-left text-sm" :class="openId ? 'min-w-[28rem]' : 'min-w-[52rem]'">
         <thead class="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
           <tr>
             <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.columns.account') }}</th>
-            <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.columns.role') }}</th>
-            <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.columns.activity') }}</th>
+            <template v-if="!openId">
+              <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.columns.role') }}</th>
+              <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.columns.activity') }}</th>
+            </template>
             <th
-              v-for="key in ['tasks', 'last_active', 'created'] as AdminSort[]"
+              v-for="key in columns"
               :key="key"
               scope="col"
               class="px-4 py-2.5 font-medium"
@@ -184,13 +189,14 @@ function activeShare(days: number): number {
                   <span class="flex items-center gap-1.5">
                     <span class="truncate font-medium text-neutral-900">{{ u.name || u.email }}</span>
                     <span v-if="u.two_factor" class="shrink-0 rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-700" :title="$t('admin.twoFactor')">2FA</span>
+                    <span v-if="u.blocked_at" class="shrink-0 rounded bg-red-50 px-1 text-[10px] font-semibold text-red-700">{{ $t('admin.manage.blocked') }}</span>
                   </span>
                   <span v-if="u.name" class="block truncate text-xs text-neutral-500">{{ u.email }}</span>
                 </span>
               </button>
             </td>
-            <td class="px-4 py-2.5 text-neutral-600">{{ $t(`admin.roles.${u.role}`) }}</td>
-            <td class="px-4 py-2.5">
+            <td v-if="!openId" class="px-4 py-2.5 text-neutral-600">{{ $t(`admin.roles.${u.role}`) }}</td>
+            <td v-if="!openId" class="px-4 py-2.5">
               <div class="flex items-center gap-2">
                 <div class="h-1.5 w-16 rounded-full bg-neutral-100" aria-hidden="true">
                   <div class="h-full rounded-full bg-emerald-500" :style="{ width: `${u.active_days ? Math.max(activeShare(u.active_days), 6) : 0}%` }" />
@@ -202,11 +208,11 @@ function activeShare(days: number): number {
             <td class="px-4 py-2.5 whitespace-nowrap" :class="u.last_active ? 'text-neutral-600' : 'text-neutral-400'">
               {{ u.last_active ? timeAgoDay(u.last_active) : $t('admin.never') }}
             </td>
-            <td class="px-4 py-2.5 whitespace-nowrap text-neutral-600">{{ formatDate(u.created_at) }}</td>
+            <td v-if="!openId" class="px-4 py-2.5 whitespace-nowrap text-neutral-600">{{ formatDate(u.created_at) }}</td>
           </tr>
           <template v-if="!result">
             <tr v-for="i in 6" :key="i">
-              <td v-for="j in 6" :key="j" class="px-4 py-3.5"><div class="h-3 animate-pulse rounded bg-neutral-100" /></td>
+              <td v-for="j in openId ? 3 : 6" :key="j" class="px-4 py-3.5"><div class="h-3 animate-pulse rounded bg-neutral-100" /></td>
             </tr>
           </template>
         </tbody>
@@ -215,6 +221,8 @@ function activeShare(days: number): number {
 
     <Pagination v-if="result" v-model:page="page" class="mt-4" :total="result.total" :limit="LIMIT" />
 
-    <AccountDrawer v-if="openId && auth.canOpenAdmin" :id="openId" @close="close" />
+    <template v-if="openId" #side>
+      <AccountPanel :id="openId" @close="close" @changed="load" />
+    </template>
   </AdminShell>
 </template>
