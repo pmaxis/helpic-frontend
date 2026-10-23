@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import LogsIllustration from '@/components/illustrations/LogsIllustration.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 import { toast } from '@/composables/useToasts'
 import { intlLocale } from '@/i18n'
@@ -88,7 +89,7 @@ function toggle(id: number) {
 </script>
 
 <template>
-  <AdminShell :title="$t('nav.adminLogs')" :description="$t('admin.logs.description')">
+  <AdminShell :title="$t('nav.adminLogs')" :description="$t('admin.logs.description')" :fill="!!logs && !logs.length">
     <template #actions>
       <BaseButton variant="ghost" size="sm" :block="false" :loading="loading" @click="load()">{{ $t('admin.logs.refresh') }}</BaseButton>
     </template>
@@ -121,7 +122,11 @@ function toggle(id: number) {
       </div>
     </div>
 
-    <EmptyState v-if="logs && !logs.length" class="mt-6" :title="$t('admin.logs.empty')" :description="$t('admin.logs.emptyText')" />
+    <EmptyState v-if="logs && !logs.length" class="mt-6 flex-1 justify-center" :title="$t('admin.logs.empty')" :description="$t('admin.logs.emptyText')">
+      <template #illustration>
+        <LogsIllustration />
+      </template>
+    </EmptyState>
 
     <div v-else class="mt-4 overflow-x-auto rounded-xl border border-neutral-200 transition-opacity" :class="loading && logs ? 'opacity-60' : ''">
       <table class="w-full min-w-[44rem] text-left text-sm">

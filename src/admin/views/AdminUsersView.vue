@@ -13,6 +13,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FilterIllustration from '@/components/illustrations/FilterIllustration.vue'
 import { toast } from '@/composables/useToasts'
 import { formatDate } from '@/utils/format'
 import AdminShell from '../components/AdminShell.vue'
@@ -118,7 +119,7 @@ function activeShare(days: number): number {
 </script>
 
 <template>
-  <AdminShell :title="$t('nav.adminAccounts')" :description="$t('admin.usersDescription')">
+  <AdminShell :title="$t('nav.adminAccounts')" :description="$t('admin.usersDescription')" :fill="!!result && !result.users.length">
     <div class="flex flex-wrap items-end gap-3">
       <BaseInput v-model="query" :label="$t('admin.search')" type="search" class="min-w-56 flex-1" />
       <SelectInput v-model="role" :options="roleOptions" class="w-44" :aria-label="$t('admin.columns.role')" />
@@ -139,7 +140,11 @@ function activeShare(days: number): number {
       </button>
     </div>
 
-    <EmptyState v-if="result && !result.users.length" class="mt-6" :title="$t('admin.noAccounts')" :description="$t('admin.noAccountsText')" />
+    <EmptyState v-if="result && !result.users.length" class="mt-6 flex-1 justify-center" :title="$t('admin.noAccounts')" :description="$t('admin.noAccountsText')">
+      <template #illustration>
+        <FilterIllustration />
+      </template>
+    </EmptyState>
 
     <div v-else class="mt-4 overflow-x-auto rounded-xl border border-neutral-200 transition-opacity" :class="loading && result ? 'opacity-60' : ''">
       <table class="w-full text-left text-sm" :class="openId ? 'min-w-[28rem]' : 'min-w-[52rem]'">
