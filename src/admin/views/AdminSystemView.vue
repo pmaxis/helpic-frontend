@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * The server at a glance: the database, the mail server and the Telegram
- * bot checked on the spot, the outgoing email, the build, and how this
- * server's background jobs ran. It checks again every 30 seconds while open.
+ * The server at a glance: the database, the mail server, the Telegram bot
+ * and the admins' alert bot checked on the spot, with a test alert; the
+ * outgoing email, the build, and how this server's background jobs ran. It
+ * checks again every 30 seconds while open.
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -13,7 +14,7 @@ import { intlLocale } from '@/i18n'
 import { timeAgo } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
 import AdminShell from '../components/AdminShell.vue'
-import { fetchAdminSystem } from '../api'
+import { fetchAdminSystem, sendTestAlert } from '../api'
 import type { AdminCheck, AdminJob, AdminSystem } from '../types'
 
 const { t, te } = useI18n()
@@ -39,6 +40,20 @@ const timer = setInterval(() => {
   if (!document.hidden && !loading.value) void load()
 }, REFRESH_MS)
 onBeforeUnmount(() => clearInterval(timer))
+
+const testing = ref(false)
+
+async function testAlert() {
+  testing.value = true
+  try {
+    await sendTestAlert()
+    toast.success(t('admin.system.testSent'))
+  } catch {
+    toast.error(t('admin.system.testFailed'))
+  } finally {
+    testing.value = false
+  }
+}
 
 type State = AdminCheck['state'] | AdminJob['state']
 
@@ -91,23 +106,34 @@ const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'nu
         {{ $t('admin.system.services') }}
         <span v-if="overall" class="h-2 w-2 rounded-full" :class="DOTS[overall]" aria-hidden="true" />
       </h2>
-      <div class="mt-3 grid gap-3 sm:grid-cols-3">
+      <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <template v-if="system">
           <div v-for="c in system.checks" :key="c.name" class="rounded-xl border border-neutral-200 px-4 py-3">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-start justify-between gap-2">
               <p class="text-sm font-medium text-neutral-900">{{ $t(`admin.system.checks.${c.name}`) }}</p>
-              <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="BADGES[c.state]">
+              <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="BADGES[c.state]">
                 <span class="h-1.5 w-1.5 rounded-full" :class="DOTS[c.state]" aria-hidden="true" />
                 {{ $t(`admin.system.state.${c.state}`) }}
               </span>
             </div>
-            <p v-if="c.state === 'off'" class="mt-2 text-xs text-neutral-500">{{ $t(`admin.system.off.${c.name}`) }}</p>
+            <template v-if="c.state === 'off'">
+              <p v-if="$t(`admin.system.off.${c.name}`)" class="mt-2 text-xs text-neutral-500">{{ $t(`admin.system.off.${c.name}`) }}</p>
+            </template>
             <p v-else class="mt-2 text-xs text-neutral-500 tabular-nums">{{ $t('admin.system.latency', { ms: c.latency_ms }) }}</p>
             <p v-if="c.error" class="mt-1 font-mono text-xs break-words text-red-600">{{ c.error }}</p>
+            <button
+              v-if="c.name === 'alerts' && c.state !== 'off'"
+              type="button"
+              class="mt-1.5 text-xs font-semibold text-neutral-900 underline-offset-2 hover:underline disabled:opacity-50"
+              :disabled="testing"
+              @click="testAlert"
+            >
+              {{ $t('admin.system.testAlert') }}
+            </button>
           </div>
         </template>
         <template v-else>
-          <div v-for="i in 3" :key="i" class="h-[4.5rem] animate-pulse rounded-xl border border-neutral-200 bg-neutral-50" />
+          <div v-for="i in 4" :key="i" class="h-[4.5rem] animate-pulse rounded-xl border border-neutral-200 bg-neutral-50" />
         </template>
       </div>
     </section>

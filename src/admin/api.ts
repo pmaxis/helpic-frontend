@@ -91,3 +91,8 @@ export async function fetchAdminSystem(): Promise<AdminSystem> {
   const { data } = await http.get<AdminSystem>('/admin/system')
   return data
 }
+
+/** Posts a test message to the admins' alert chat. */
+export async function sendTestAlert(): Promise<void> {
+  await http.post('/admin/system/test-alert')
+}
