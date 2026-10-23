@@ -9,6 +9,8 @@ import type {
   AdminEmail,
   AdminEmailsPage,
   AdminEmailsQuery,
+  AdminLimit,
+  AdminSession,
   AdminLogsPage,
   AdminLogsQuery,
   AdminSignupsPage,
@@ -95,4 +97,28 @@ export async function fetchAdminSystem(): Promise<AdminSystem> {
 /** Posts a test message to the admins' alert chat. */
 export async function sendTestAlert(): Promise<void> {
   await http.post('/admin/system/test-alert')
+}
+
+/** The devices an account is signed in on, the most recently used first. */
+export async function fetchAccountSessions(id: string): Promise<AdminSession[]> {
+  const { data } = await http.get<{ sessions: AdminSession[] }>(`/admin/users/${id}/sessions`)
+  return data.sessions
+}
+
+/** Signs an account out of one device, recorded with the reason; returns the account as it is now. */
+export async function endAccountSession(id: string, session: string, reason: string): Promise<AdminAccountDetail> {
+  const { data } = await http.post<{ user: AdminAccountDetail }>(`/admin/users/${id}/sessions/${session}/end`, { reason })
+  return data.user
+}
+
+/** The rate limits refusing attempts now, the longest first. */
+export async function fetchAdminLimits(query: { q?: string; account?: string }): Promise<AdminLimit[]> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== '' && v !== undefined))
+  const { data } = await http.get<{ limits: AdminLimit[] }>('/admin/limits', { params })
+  return data.limits
+}
+
+/** Lifts a rate limit at once. */
+export async function clearAdminLimit(limit: Pick<AdminLimit, 'scope' | 'key'>): Promise<void> {
+  await http.post('/admin/limits/clear', { scope: limit.scope, key: limit.key })
 }

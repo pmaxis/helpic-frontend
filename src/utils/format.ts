@@ -100,10 +100,10 @@ export function parseDevice(userAgent: string): Device {
   return { browser, os, kind }
 }
 
-/** "Chrome on macOS" from a user agent; "Unknown device" when it says nothing useful. */
+/** "Chrome on macOS" ("Chrome на macOS") from a user agent; "Unknown device" when it says nothing useful. */
 export function deviceName(userAgent: string): string {
   const { browser, os } = parseDevice(userAgent)
-  if (browser && os) return `${browser} on ${os}`
+  if (browser && os) return t('common.deviceOn', { browser, os })
   return browser || os || t('common.unknownDevice')
 }
 

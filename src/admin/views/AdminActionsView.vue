@@ -50,6 +50,8 @@ const TONES: Record<AdminAction['action'], string> = {
   retry_email: 'bg-sky-50 text-sky-700 ring-sky-200',
   resend_signup: 'bg-sky-50 text-sky-700 ring-sky-200',
   delete_signup: 'bg-neutral-100 text-neutral-700 ring-neutral-200',
+  end_session: 'bg-amber-50 text-amber-700 ring-amber-200',
+  clear_limit: 'bg-sky-50 text-sky-700 ring-sky-200',
 }
 </script>
 
@@ -91,7 +93,9 @@ const TONES: Record<AdminAction['action'], string> = {
               <span v-else class="block truncate text-neutral-500">{{ a.target_email }}</span>
             </td>
             <td class="max-w-48 truncate px-4 py-2.5 text-neutral-600">{{ a.admin_email }}</td>
-            <td class="max-w-72 px-4 py-2.5 break-words text-neutral-600">{{ a.reason || '–' }}</td>
+            <td class="max-w-72 px-4 py-2.5 break-words text-neutral-600">
+              {{ a.action === 'clear_limit' && a.reason ? $t(`admin.limits.scopes.${a.reason}`) : a.reason || '–' }}
+            </td>
           </tr>
           <template v-if="!result">
             <tr v-for="i in 5" :key="i">

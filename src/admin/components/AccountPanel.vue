@@ -2,7 +2,9 @@
 /**
  * One account in full, in a card beside the accounts list, as a task's
  * details sit beside the task: who they are, their team, how much they have
- * done (counts only) and the days they used Helpic; on a tab of its own the
+ * done (counts only), the days they used Helpic, the devices they're signed
+ * in on, each one signed out on its own, and the rate limits holding them
+ * back, each lifted at once; on a tab of its own the
  * account's history, what admins did to it; and under both what an admin can
  * do to it, each asked for a reason and recorded. Escape or the close button
  * closes it.
@@ -10,7 +12,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { formatDate, formatDuration, timeAgo } from '@/utils/format'
+import { deviceName, formatDate, formatDuration, parseDevice, timeAgo } from '@/utils/format'
 import { timeAgoDay } from '../chart'
 import { intlLocale, LOCALE_NAMES } from '@/i18n'
 import { toast } from '@/composables/useToasts'
@@ -20,10 +22,12 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import HistoryIllustration from '@/components/illustrations/HistoryIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
+import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import ActivityHeatmap from './ActivityHeatmap.vue'
 import AccountAvatar from './AccountAvatar.vue'
-import { actOnAccount, fetchAdminAccount, fetchAdminActions } from '../api'
-import type { AdminAccountDetail, AdminAction, AdminActionPath } from '../types'
+import { actOnAccount, clearAdminLimit, endAccountSession, fetchAccountSessions, fetchAdminAccount, fetchAdminActions, fetchAdminLimits } from '../api'
+import { untilText } from '../limits'
+import type { AdminAccountDetail, AdminAction, AdminActionPath, AdminLimit, AdminSession } from '../types'
 
 const props = defineProps<{ id: string }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
@@ -54,9 +58,34 @@ async function loadHistory() {
 }
 watch(historyPage, loadHistory)
 
+/** The devices and the limits, loaded beside the account and again after each change. */
+const sessions = ref<AdminSession[] | null>(null)
+const limits = ref<AdminLimit[]>([])
+
+async function loadAccess() {
+  try {
+    const [s, l] = await Promise.all([fetchAccountSessions(props.id), fetchAdminLimits({ account: props.id })])
+    sessions.value = s
+    limits.value = l
+  } catch {
+    sessions.value = []
+    toast.error(t('admin.loadFailed'))
+  }
+}
+
+/** Something changed the account: its history and its access are new. */
+function refreshAfterChange() {
+  emit('changed')
+  void loadAccess()
+  if (historyPage.value === 1) void loadHistory()
+  else historyPage.value = 1
+}
+
 async function load() {
   account.value = null
   history.value = null
+  sessions.value = null
+  limits.value = []
   tab.value = 'overview'
   try {
     account.value = await fetchAdminAccount(props.id)
@@ -65,6 +94,7 @@ async function load() {
     emit('close')
     return
   }
+  void loadAccess()
   if (historyPage.value === 1) void loadHistory()
   else historyPage.value = 1
 }
@@ -98,6 +128,8 @@ const DOTS: Record<AdminAction['action'], string> = {
   retry_email: 'bg-sky-500',
   resend_signup: 'bg-sky-500',
   delete_signup: 'bg-neutral-400',
+  end_session: 'bg-amber-500',
+  clear_limit: 'bg-sky-500',
 }
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
@@ -127,9 +159,7 @@ async function act() {
     account.value = await actOnAccount(account.value.id, asking.value, reason.value.trim())
     asking.value = null
     toast.success(t('admin.manage.done'))
-    emit('changed')
-    if (historyPage.value === 1) void loadHistory()
-    else historyPage.value = 1
+    refreshAfterChange()
   } catch {
     toast.error(t('admin.manage.failed'))
   } finally {
@@ -137,9 +167,55 @@ async function act() {
   }
 }
 
+// --- one device, one limit ---------------------------------------------------------
+
+/** The device asked to be signed out, and why. */
+const ending = ref<AdminSession | null>(null)
+
+function askEnd(s: AdminSession) {
+  ending.value = s
+  reason.value = ''
+}
+
+async function endSession() {
+  if (!ending.value || !account.value) return
+  acting.value = true
+  try {
+    account.value = await endAccountSession(account.value.id, ending.value.id, reason.value.trim())
+    ending.value = null
+    toast.success(t('admin.manage.done'))
+    refreshAfterChange()
+  } catch {
+    toast.error(t('admin.manage.failed'))
+  } finally {
+    acting.value = false
+  }
+}
+
+const clearing = ref<string | null>(null)
+
+async function clearLimit(l: AdminLimit) {
+  clearing.value = l.scope + ' ' + l.key
+  try {
+    await clearAdminLimit(l)
+    toast.success(t('admin.limits.cleared'))
+    refreshAfterChange()
+  } catch {
+    toast.error(t('admin.limits.failed'))
+    void loadAccess()
+  } finally {
+    clearing.value = null
+  }
+}
+
+/** A history entry's reason; a lifted limit's is the limit, named in the reader's language. */
+function reasonText(h: AdminAction): string {
+  return h.action === 'clear_limit' && h.reason ? t(`admin.limits.scopes.${h.reason}`) : h.reason
+}
+
 function onKeydown(e: KeyboardEvent) {
   // The question's own Escape closes only the question.
-  if (e.key === 'Escape' && !asking.value) emit('close')
+  if (e.key === 'Escape' && !asking.value && !ending.value) emit('close')
 }
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
@@ -212,6 +288,28 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
     </nav>
 
     <div v-if="account && tab === 'overview'" class="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+      <section v-if="limits.length" class="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3">
+        <h3 class="text-xs font-semibold text-amber-700">{{ $t('admin.limits.inAccount') }}</h3>
+        <ul class="mt-2 space-y-2">
+          <li v-for="l in limits" :key="l.scope + ' ' + l.key" class="flex items-start justify-between gap-3">
+            <div class="min-w-0 text-sm">
+              <p class="font-medium text-neutral-900">{{ $t(`admin.limits.scopes.${l.scope}`) }}</p>
+              <p class="text-xs text-amber-700 tabular-nums">
+                {{ untilText(l.opens_at) }}<template v-if="l.ip"> · {{ l.ip }}</template>
+              </p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-neutral-900 ring-1 ring-neutral-200 transition-colors ring-inset hover:bg-neutral-100 disabled:opacity-50"
+              :disabled="clearing === l.scope + ' ' + l.key"
+              @click="clearLimit(l)"
+            >
+              {{ $t('admin.limits.clear') }}
+            </button>
+          </li>
+        </ul>
+      </section>
+
       <section>
         <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.account.activity') }}</h3>
         <p class="mt-0.5 text-xs text-neutral-500">
@@ -250,11 +348,37 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
             <dt class="text-neutral-500">{{ $t('admin.account.lastSignIn') }}</dt>
             <dd class="text-neutral-900">{{ account.last_sign_in ? timeAgo(account.last_sign_in) : $t('admin.never') }}</dd>
           </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-neutral-500">{{ $t('admin.account.sessions') }}</dt>
-            <dd class="text-neutral-900 tabular-nums">{{ account.sessions }}</dd>
-          </div>
         </dl>
+      </section>
+
+      <section>
+        <h3 class="text-xs font-semibold text-neutral-900">
+          {{ $t('admin.account.sessions') }} <span class="font-normal text-neutral-400 tabular-nums">{{ account.sessions }}</span>
+        </h3>
+        <div v-if="!sessions" class="mt-2 space-y-2" aria-hidden="true">
+          <div v-for="i in 2" :key="i" class="h-12 animate-pulse rounded-lg bg-neutral-100" />
+        </div>
+        <p v-else-if="!sessions.length" class="mt-1 text-sm text-neutral-500">{{ $t('admin.account.noSessions') }}</p>
+        <ul v-else class="mt-2 divide-y divide-neutral-100 rounded-lg border border-neutral-200">
+          <li v-for="s in sessions" :key="s.id" class="flex items-center gap-3 px-3 py-2.5">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
+              <DeviceIcon :kind="parseDevice(s.user_agent).kind" class="h-4 w-4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm text-neutral-900">{{ deviceName(s.user_agent) }}</p>
+              <p class="truncate text-xs text-neutral-500">
+                {{ $t('admin.account.activeAgo', { when: timeAgo(s.last_used_at) }) }}<template v-if="s.ip"> · {{ s.ip }}</template>
+              </p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-neutral-500 transition-colors hover:bg-red-50 hover:text-red-600"
+              @click="askEnd(s)"
+            >
+              {{ $t('admin.account.endSession') }}
+            </button>
+          </li>
+        </ul>
       </section>
     </div>
 
@@ -273,7 +397,7 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
             <span class="absolute top-1.5 -left-[21px] h-2.5 w-2.5 rounded-full ring-4 ring-white" :class="DOTS[h.action]" aria-hidden="true" />
             <p class="text-sm font-medium text-neutral-900">{{ $t(`admin.actions.names.${h.action}`) }}</p>
             <p class="text-xs text-neutral-500">{{ formatDateTime(h.at) }} · {{ h.admin_email }}</p>
-            <p v-if="h.reason" class="mt-1 rounded-md bg-neutral-50 px-2.5 py-1.5 text-xs break-words text-neutral-700">{{ h.reason }}</p>
+            <p v-if="h.reason" class="mt-1 rounded-md bg-neutral-50 px-2.5 py-1.5 text-xs break-words text-neutral-700">{{ reasonText(h) }}</p>
           </li>
         </ol>
         <Pagination v-if="historyTotal > HISTORY" v-model:page="historyPage" class="mt-5" :total="historyTotal" :limit="HISTORY" />
@@ -306,6 +430,19 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="acting" @click="asking = null">{{ $t('common.cancel') }}</BaseButton>
       <BaseButton :variant="ACTIONS[asking].tone" size="sm" :block="false" :loading="acting" :disabled="acting" @click="act">
         {{ $t(ACTIONS[asking].label) }}
+      </BaseButton>
+    </template>
+  </Modal>
+
+  <Modal v-if="ending && account" :title="$t('admin.account.endSessionTitle', { device: deviceName(ending.user_agent) })" @close="acting || (ending = null)">
+    <p class="text-sm leading-relaxed text-neutral-600">{{ $t('admin.account.endSessionText') }}</p>
+    <div class="mt-4">
+      <BaseTextarea v-model="reason" :label="$t('admin.manage.reason')" :placeholder="$t('admin.manage.reasonHint')" :rows="3" />
+    </div>
+    <template #footer>
+      <BaseButton variant="ghost" size="sm" :block="false" :disabled="acting" @click="ending = null">{{ $t('common.cancel') }}</BaseButton>
+      <BaseButton variant="danger" size="sm" :block="false" :loading="acting" :disabled="acting" @click="endSession">
+        {{ $t('admin.account.endSession') }}
       </BaseButton>
     </template>
   </Modal>
