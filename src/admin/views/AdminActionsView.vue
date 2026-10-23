@@ -52,6 +52,9 @@ const TONES: Record<AdminAction['action'], string> = {
   delete_signup: 'bg-neutral-100 text-neutral-700 ring-neutral-200',
   end_session: 'bg-amber-50 text-amber-700 ring-amber-200',
   clear_limit: 'bg-sky-50 text-sky-700 ring-sky-200',
+  lock_admin: 'bg-red-50 text-red-700 ring-red-200',
+  unlock_admin: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  reset_admin: 'bg-amber-50 text-amber-700 ring-amber-200',
 }
 </script>
 

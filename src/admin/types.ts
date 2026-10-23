@@ -145,7 +145,7 @@ export interface AdminAction {
   /** Null once the account is gone; the email stays. */
   admin_id: string | null
   admin_email: string
-  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor' | 'retry_email' | 'resend_signup' | 'delete_signup' | 'end_session' | 'clear_limit'
+  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor' | 'retry_email' | 'resend_signup' | 'delete_signup' | 'end_session' | 'clear_limit' | 'lock_admin' | 'unlock_admin' | 'reset_admin'
   target_id: string | null
   target_email: string
   reason: string
