@@ -55,6 +55,8 @@ export interface AdminAccount {
   name: string
   role: Exclude<Role, 'admin'>
   two_factor: boolean
+  /** When an admin blocked them; null when they aren't. */
+  blocked_at: string | null
   tasks: number
   projects: number
   /** On how many of the last 30 days they used Helpic. */
@@ -121,7 +123,7 @@ export interface AdminLogsPage {
   errors: number
 }
 
-export type AdminActivity = '' | 'active' | 'idle' | 'never'
+export type AdminActivity = '' | 'active' | 'idle' | 'never' | 'blocked'
 export type AdminSort = 'created' | 'last_active' | 'tasks'
 
 export interface AdminAccountsQuery {
@@ -131,4 +133,34 @@ export interface AdminAccountsQuery {
   sort?: AdminSort
   page?: number
   limit?: number
+}
+
+/** What an admin can do to an account, as the API's path names it. */
+export type AdminActionPath = 'block' | 'unblock' | 'end-sessions' | 'reset-two-factor'
+
+/** One thing an admin did to an account. */
+export interface AdminAction {
+  id: number
+  at: string
+  /** Null once the account is gone; the email stays. */
+  admin_id: string | null
+  admin_email: string
+  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor'
+  target_id: string | null
+  target_email: string
+  reason: string
+}
+
+export interface AdminActionsQuery {
+  /** Only the actions on this account. */
+  target?: string
+  page?: number
+  limit?: number
+}
+
+export interface AdminActionsPage {
+  actions: AdminAction[]
+  page: number
+  limit: number
+  total: number
 }

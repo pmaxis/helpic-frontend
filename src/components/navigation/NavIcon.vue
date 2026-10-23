@@ -54,6 +54,10 @@ defineProps<{
       <path d="M4 6h16M4 12h10M4 18h13" />
       <path d="M18 10.5v3M18 16.5h.01" />
     </template>
+    <template v-else-if="name === 'journal'">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 10h6M9 14h4" />
+    </template>
     <circle v-else cx="12" cy="12" r="9" />
   </svg>
 </template>
