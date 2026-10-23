@@ -10,24 +10,30 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import TwoFactorIllustration from '@/components/illustrations/TwoFactorIllustration.vue'
 import { useAuthStore } from '@/stores/auth'
 
-defineProps<{ title: string; description: string }>()
+defineProps<{
+  title: string
+  description: string
+  /** Let the page fill the window's height, for an empty state in its middle. */
+  fill?: boolean
+}>()
 
 const auth = useAuthStore()
 const router = useRouter()
 </script>
 
 <template>
-  <DashboardLayout :bare="!!$slots.side && auth.canOpenAdmin">
+  <DashboardLayout :bare="!!$slots.side && auth.canOpenAdmin" :fill="fill || !auth.canOpenAdmin">
     <div v-if="$slots.side && auth.canOpenAdmin" class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-      <div class="min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-8">
+      <div class="flex min-h-0 flex-col overflow-y-auto rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-8">
         <PageHeader :title="title" :description="description">
           <template v-if="$slots.actions" #actions>
             <slot name="actions" />
           </template>
         </PageHeader>
-        <div class="mt-6">
+        <div class="mt-6 flex flex-1 flex-col">
           <slot />
         </div>
       </div>
@@ -44,12 +50,10 @@ const router = useRouter()
         </template>
       </PageHeader>
 
-      <div class="mt-6">
-        <EmptyState v-if="!auth.canOpenAdmin" :title="$t('admin.needsTwoFactor')" :description="$t('admin.needsTwoFactorText')">
-          <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+      <div class="mt-6 flex flex-1 flex-col">
+        <EmptyState v-if="!auth.canOpenAdmin" class="flex-1 justify-center" :title="$t('admin.needsTwoFactor')" :description="$t('admin.needsTwoFactorText')">
+          <template #illustration>
+            <TwoFactorIllustration />
           </template>
           <BaseButton size="sm" :block="false" @click="router.push({ name: 'settings', query: { tab: 'security' } })">{{ $t('admin.openSettings') }}</BaseButton>
         </EmptyState>
