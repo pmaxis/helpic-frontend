@@ -131,9 +131,14 @@ export async function fetchAdmins(): Promise<AdminAccountAdmin[]> {
   return data.admins
 }
 
-/** A page of sign-ins to admin accounts, the newest first; `failed` keeps only the ones that didn't go through. */
-export async function fetchAdminSignIns(query: { failed?: boolean; page?: number; limit?: number }): Promise<AdminSignInsPage> {
-  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== false && v !== undefined))
+/** A page of sign-ins to admin accounts, the newest first; `failed` keeps only the ones that didn't go through, `admin` one admin's. */
+export async function fetchAdminSignIns(query: { failed?: boolean; admin?: string; page?: number; limit?: number }): Promise<AdminSignInsPage> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== false && v !== '' && v !== undefined))
   const { data } = await http.get<AdminSignInsPage>('/admin/sign-ins', { params })
   return data
+}
+
+/** Signs an admin out of one device, confirmed with your own two-factor code; they get an email and the alert chat hears of it. */
+export async function endAdminSession(id: string, session: string, reason: string, code: string): Promise<void> {
+  await http.post(`/admin/admins/${id}/sessions/${session}/end`, { reason, code })
 }

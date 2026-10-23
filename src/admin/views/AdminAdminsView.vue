@@ -1,25 +1,29 @@
 <script setup lang="ts">
 /**
- * Who can open the admin panel: each admin with their last sign-in and the
- * devices they're signed in on; under them every sign-in to an admin
- * account, the failed attempts too, a page at a time. Admins are made on the
- * server, not here.
+ * Who can open the admin panel, in a table: a row opens the admin in a card
+ * beside it, as accounts open, with their devices and sign-ins; the open
+ * admin is in the address (?admin=…). On a tab of its own (?tab=sign-ins)
+ * every sign-in to an admin account, the failed attempts too, a page at a
+ * time. Admins are made, locked and reset on the server, not here.
  */
 import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Pagination from '@/components/ui/Pagination.vue'
-import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import { toast } from '@/composables/useToasts'
 import { intlLocale } from '@/i18n'
-import { deviceName, parseDevice, timeAgo } from '@/utils/format'
+import { deviceName, formatDate, timeAgo } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
 import AdminShell from '../components/AdminShell.vue'
 import AccountAvatar from '../components/AccountAvatar.vue'
+import AdminPanel from '../components/AdminPanel.vue'
 import { fetchAdmins, fetchAdminSignIns } from '../api'
 import type { AdminAccountAdmin, AdminSignInOutcome, AdminSignInsPage } from '../types'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 const admins = ref<AdminAccountAdmin[] | null>(null)
 
@@ -32,6 +36,39 @@ async function loadAdmins() {
   }
 }
 void loadAdmins()
+
+// --- the tabs: the admins, every sign-in ----------------------------------------------
+
+const TABS = ['admins', 'sign-ins'] as const
+type Tab = (typeof TABS)[number]
+const tab = computed<Tab>(() => (route.query.tab === 'sign-ins' ? 'sign-ins' : 'admins'))
+
+function show(next: Tab) {
+  // The sign-ins have no card beside them.
+  const { tab: _, admin: __, ...rest } = route.query
+  void router.replace({ query: next === 'admins' ? rest : { ...rest, tab: next } })
+}
+
+// --- the open admin ------------------------------------------------------------------
+
+const openId = computed(() => (tab.value === 'admins' && typeof route.query.admin === 'string' ? route.query.admin : null))
+const openAdmin = computed(() => admins.value?.find((a) => a.id === openId.value) ?? null)
+
+function open(id: string) {
+  void router.replace({ query: { ...route.query, admin: id } })
+}
+function close() {
+  const { admin: _, ...rest } = route.query
+  void router.replace({ query: rest })
+}
+
+/** Something changed an admin: the list, and the sign-ins under it, are new. */
+function changed() {
+  void loadAdmins()
+  void loadSignIns()
+}
+
+// --- every sign-in -------------------------------------------------------------------
 
 const LIMIT = 10
 const failedOnly = ref(false)
@@ -69,49 +106,70 @@ const TONES: Record<AdminSignInOutcome, string> = {
 
 <template>
   <AdminShell :title="$t('nav.adminAdmins')" :description="$t('admin.admins.description')">
-    <div class="grid gap-3 lg:grid-cols-2">
-      <template v-if="admins">
-        <section v-for="a in admins" :key="a.id" class="rounded-xl border border-neutral-200 px-4 py-3.5">
-          <div class="flex items-center gap-3">
-            <AccountAvatar :name="a.name" :email="a.email" />
-            <div class="min-w-0 flex-1">
-              <p class="flex items-center gap-1.5">
-                <span class="truncate font-medium text-neutral-900">{{ a.name || a.email }}</span>
-                <span v-if="a.id === auth.user?.id" class="shrink-0 rounded bg-neutral-100 px-1 text-[10px] font-semibold text-neutral-600">{{ $t('admin.admins.you') }}</span>
-                <span v-if="a.two_factor" class="shrink-0 rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-700">2FA</span>
-              </p>
-              <p v-if="a.name" class="truncate text-xs text-neutral-500">{{ a.email }}</p>
-            </div>
-          </div>
-          <p v-if="!a.two_factor" class="mt-2 text-xs text-amber-700">{{ $t('admin.admins.noTwoFactor') }}</p>
-          <p class="mt-2 text-xs text-neutral-500">
-            {{ a.last_sign_in ? $t('admin.admins.lastSignIn', { when: timeAgo(a.last_sign_in) }) : $t('admin.admins.neverSignedIn') }} ·
-            {{ $t('admin.admins.devices', { n: a.sessions.length }, a.sessions.length) }}
-          </p>
-          <ul v-if="a.sessions.length" class="mt-2.5 space-y-2">
-            <li v-for="s in a.sessions" :key="s.id" class="flex items-center gap-2.5">
-              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-600">
-                <DeviceIcon :kind="parseDevice(s.user_agent).kind" class="h-3.5 w-3.5" />
-              </span>
-              <p class="min-w-0 flex-1 truncate text-sm text-neutral-900">
-                {{ deviceName(s.user_agent) }}
-                <span class="text-xs text-neutral-500"> · {{ $t('admin.account.activeAgo', { when: timeAgo(s.last_used_at) }) }}<template v-if="s.ip"> · {{ s.ip }}</template></span>
-              </p>
-            </li>
-          </ul>
-        </section>
-      </template>
-      <template v-else>
-        <div v-for="i in 2" :key="i" class="h-32 animate-pulse rounded-xl border border-neutral-200 bg-neutral-50" />
-      </template>
+    <nav class="mb-4 flex gap-5 border-b border-neutral-200" :aria-label="$t('nav.adminAdmins')">
+      <button
+        v-for="item in TABS"
+        :key="item"
+        type="button"
+        class="-mb-px flex items-center gap-1.5 border-b-2 py-2.5 text-sm font-medium transition-colors"
+        :class="tab === item ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-900'"
+        :aria-current="tab === item ? 'page' : undefined"
+        @click="show(item)"
+      >
+        {{ item === 'admins' ? $t('nav.adminAdmins') : $t('admin.admins.signIns') }}
+        <span v-if="item === 'admins' && admins" class="rounded-full bg-neutral-100 px-1.5 text-[11px] text-neutral-500 tabular-nums">{{ admins.length }}</span>
+      </button>
+    </nav>
+
+    <div v-if="tab === 'admins'" class="overflow-x-auto rounded-xl border border-neutral-200">
+      <table class="w-full text-left text-sm" :class="openId ? 'min-w-[24rem]' : 'min-w-[44rem]'">
+        <thead class="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
+          <tr>
+            <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.admins.columns2.admin') }}</th>
+            <th scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.admins.columns2.lastSignIn') }}</th>
+            <th v-if="!openId" scope="col" class="px-4 py-2.5 text-right font-medium">{{ $t('admin.admins.columns2.devices') }}</th>
+            <th v-if="!openId" scope="col" class="px-4 py-2.5 font-medium">{{ $t('admin.admins.columns2.created') }}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-100">
+          <tr
+            v-for="a in admins ?? []"
+            :key="a.id"
+            class="cursor-pointer transition-colors hover:bg-neutral-50"
+            :class="openId === a.id ? 'bg-neutral-50' : ''"
+            @click="open(a.id)"
+          >
+            <td class="max-w-80 px-4 py-2.5">
+              <!-- the row's click is for the pointer; the name is the keyboard's way in -->
+              <button type="button" class="flex w-full min-w-0 items-center gap-3 text-left focus:outline-none focus-visible:underline" @click.stop="open(a.id)">
+                <AccountAvatar :name="a.name" :email="a.email" />
+                <span class="min-w-0">
+                  <span class="flex items-center gap-1.5">
+                    <span class="truncate font-medium text-neutral-900">{{ a.name || a.email }}</span>
+                    <span v-if="a.id === auth.user?.id" class="shrink-0 rounded bg-neutral-100 px-1 text-[10px] font-semibold text-neutral-600">{{ $t('admin.admins.you') }}</span>
+                    <span v-if="a.two_factor" class="shrink-0 rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-700">2FA</span>
+                  </span>
+                  <span v-if="a.name" class="block truncate text-xs text-neutral-500">{{ a.email }}</span>
+                </span>
+              </button>
+            </td>
+            <td class="px-4 py-2.5 whitespace-nowrap" :class="a.last_sign_in ? 'text-neutral-600' : 'text-neutral-400'">
+              {{ a.last_sign_in ? timeAgo(a.last_sign_in) : $t('admin.never') }}
+            </td>
+            <td v-if="!openId" class="px-4 py-2.5 text-right text-neutral-600 tabular-nums">{{ a.sessions.length }}</td>
+            <td v-if="!openId" class="px-4 py-2.5 whitespace-nowrap text-neutral-600">{{ formatDate(a.created_at) }}</td>
+          </tr>
+          <template v-if="!admins">
+            <tr v-for="i in 2" :key="i">
+              <td v-for="j in openId ? 2 : 4" :key="j" class="px-4 py-3.5"><div class="h-3 animate-pulse rounded bg-neutral-100" /></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
 
-    <section class="mt-8">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.admins.signIns') }}</h2>
-          <p class="text-xs text-neutral-500">{{ $t('admin.admins.signInsHint') }}</p>
-        </div>
+    <section v-else>
+      <div class="flex justify-end">
         <div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group">
           <button
             v-for="f in [false, true]"
@@ -166,5 +224,9 @@ const TONES: Record<AdminSignInOutcome, string> = {
 
       <Pagination v-if="signIns && signIns.total" v-model:page="page" class="mt-4" :total="signIns.total" :limit="LIMIT" />
     </section>
+
+    <template v-if="openAdmin" #side>
+      <AdminPanel :admin="openAdmin" @close="close" @changed="changed" />
+    </template>
   </AdminShell>
 </template>

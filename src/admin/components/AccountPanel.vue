@@ -133,6 +133,9 @@ const DOTS: Record<AdminAction['action'], string> = {
   delete_signup: 'bg-neutral-400',
   end_session: 'bg-amber-500',
   clear_limit: 'bg-sky-500',
+  lock_admin: 'bg-red-500',
+  unlock_admin: 'bg-emerald-500',
+  reset_admin: 'bg-amber-500',
 }
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
