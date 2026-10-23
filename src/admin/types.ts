@@ -145,7 +145,7 @@ export interface AdminAction {
   /** Null once the account is gone; the email stays. */
   admin_id: string | null
   admin_email: string
-  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor' | 'retry_email' | 'resend_signup' | 'delete_signup'
+  action: 'block' | 'unblock' | 'end_sessions' | 'reset_two_factor' | 'retry_email' | 'resend_signup' | 'delete_signup' | 'end_session' | 'clear_limit'
   target_id: string | null
   target_email: string
   reason: string
@@ -257,4 +257,42 @@ export interface AdminSystem {
   checks: AdminCheck[]
   jobs: AdminJob[]
   emails: AdminEmailCounts
+}
+
+/** A device an account is signed in on. */
+export interface AdminSession {
+  id: string
+  user_agent: string
+  ip: string
+  created_at: string
+  last_used_at: string
+}
+
+export type AdminLimitScope =
+  | 'sign-in'
+  | 'sign-up'
+  | 'refresh'
+  | 'login-failures'
+  | 'login-failures-email'
+  | 'password-checks'
+  | 'two-factor-codes'
+  | 'reset'
+  | 'reset-email'
+  | 'invites'
+
+/** A rate limit refusing someone right now. */
+export interface AdminLimit {
+  scope: AdminLimitScope
+  key: string
+  /** What the key is: an address, an email, both, or a user's ID. */
+  kind: 'ip' | 'email' | 'email_ip' | 'user'
+  email: string
+  ip: string
+  /** The account it holds back; null when there is none. */
+  account_id: string | null
+  account_email: string
+  burst: number
+  every_seconds: number
+  /** When the next attempt is let through. */
+  opens_at: string
 }

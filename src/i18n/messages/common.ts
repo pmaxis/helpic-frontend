@@ -15,6 +15,7 @@ const en = {
     you_capital: 'You',
     personal: 'Personal',
     unknownDevice: 'Unknown device',
+    deviceOn: '{browser} on {os}',
     language: 'Language',
   },
   errors: {
@@ -101,6 +102,7 @@ const en = {
     adminSignups: 'Sign-ups',
     adminEmails: 'Emails',
     adminSystem: 'Status',
+    adminLimits: 'Limits',
   },
   notificationKinds: {
     groups: {
@@ -144,6 +146,7 @@ const uk: typeof en = {
     you_capital: 'Ви',
     personal: 'Особисте',
     unknownDevice: 'Невідомий пристрій',
+    deviceOn: '{browser} на {os}',
     language: 'Мова',
   },
   errors: {
@@ -229,6 +232,7 @@ const uk: typeof en = {
     adminSignups: 'Реєстрації',
     adminEmails: 'Листи',
     adminSystem: 'Стан системи',
+    adminLimits: 'Ліміти',
   },
   notificationKinds: {
     groups: {
