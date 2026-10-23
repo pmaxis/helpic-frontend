@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useAdminStore } from '@/admin/store'
 import { adminRoutes } from '@/admin/routes'
 import type { Role } from '@/types/auth'
 
@@ -12,12 +11,14 @@ declare module 'vue-router' {
     role?: Role
     /** Not for members of a client's company: the reports are the owner's. */
     ownerOnly?: boolean
-    /** The admin panel: only for the backend's ADMIN_EMAILS. */
-    admin?: boolean
+    /** Open to every role, admins too: the account's own pages. */
+    everyone?: boolean
   }
 }
 
 const HOME = '/dashboard'
+/** Where an admin starts: they have no work, so no dashboard. */
+const ADMIN_HOME = '/admin'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: HOME },
@@ -145,7 +146,7 @@ const routes: RouteRecordRaw[] = [
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, everyone: true },
   },
   ...adminRoutes,
   { path: '/:pathMatch(.*)*', redirect: HOME },
@@ -172,22 +173,23 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: to.fullPath !== HOME ? { redirect: to.fullPath } : {} }
   }
 
+  const home = auth.isAdmin ? ADMIN_HOME : HOME
+
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return HOME
+    return home
+  }
+
+  // An admin has only the panel and their settings: the work isn't theirs.
+  if (auth.isAdmin && to.meta.requiresAuth && to.meta.role !== 'admin' && !to.meta.everyone) {
+    return ADMIN_HOME
   }
 
   if (to.meta.role && auth.user?.role !== to.meta.role) {
-    return HOME
+    return home
   }
 
   if (to.meta.ownerOnly && auth.isTeamMember) {
     return HOME
-  }
-
-  if (to.meta.admin) {
-    const admin = useAdminStore()
-    await admin.load()
-    if (!admin.isAdmin) return HOME
   }
 
   return true

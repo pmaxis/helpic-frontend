@@ -33,6 +33,10 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state): boolean => state.user !== null,
     isFreelancer: (state): boolean => state.user?.role === 'freelancer',
     isClient: (state): boolean => state.user?.role === 'client',
+    /** Runs the platform: the admin panel and their settings, no work. */
+    isAdmin: (state): boolean => state.user?.role === 'admin',
+    /** An admin who can open the panel: it needs two-factor sign-in on. */
+    canOpenAdmin: (state): boolean => state.user?.role === 'admin' && state.user.two_factor,
     /** A member of a client's company: acts for it, but doesn't see its reports. */
     isTeamMember: (state): boolean => !!state.user?.member_of,
     /** A contractor of a client's company: sees only the tasks they set or were added to. */

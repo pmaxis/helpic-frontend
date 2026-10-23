@@ -14,11 +14,11 @@ import KpiTile from '../components/KpiTile.vue'
 import TrendChart, { type TrendPoint } from '../components/TrendChart.vue'
 import { compact, shortDay } from '../chart'
 import { fetchAdminStats } from '../api'
-import { useAdminStore } from '../store'
+import { useAuthStore } from '@/stores/auth'
 import type { AdminDay, AdminSeries, AdminStats } from '../types'
 
 const { t } = useI18n()
-const admin = useAdminStore()
+const auth = useAuthStore()
 
 const PERIODS = ['7', '30', '90', '365'] as const
 const period = ref<string>('30')
@@ -28,7 +28,7 @@ const stats = ref<AdminStats | null>(null)
 const loading = ref(false)
 
 async function load() {
-  if (!admin.canOpen) return
+  if (!auth.canOpenAdmin) return
   loading.value = true
   try {
     stats.value = await fetchAdminStats(Number(period.value))
@@ -41,7 +41,7 @@ async function load() {
 
 watch(period, load)
 // Two-factor may have been turned on since the access was asked.
-void admin.load(true).then(load)
+void load()
 
 const range = computed(() => (stats.value ? t('admin.range', { from: formatDate(stats.value.from), to: formatDate(stats.value.to) }) : ''))
 
@@ -133,7 +133,7 @@ const card = 'rounded-xl border border-neutral-200 bg-white p-5'
 </script>
 
 <template>
-  <AdminShell :description="$t('admin.statsDescription')">
+  <AdminShell :title="$t('nav.adminStats')" :description="$t('admin.statsDescription')">
     <template #actions>
       <SelectInput v-model="period" :options="periodOptions" size="sm" class="w-44" :aria-label="$t('admin.period')" />
     </template>
