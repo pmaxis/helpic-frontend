@@ -19,11 +19,13 @@ import WorkloadCard from '@/components/dashboard/WorkloadCard.vue'
 import type { Slice } from '@/components/dashboard/WorkloadDonut.vue'
 import ProgressRing from '@/components/dashboard/ProgressRing.vue'
 import PeopleCard, { type Person } from '@/components/dashboard/PeopleCard.vue'
+import NavIcon from '@/components/navigation/NavIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
 import { useReportsStore } from '@/stores/reports'
 import { usePeopleStore } from '@/stores/people'
+import { useAdminStore } from '@/admin/store'
 import { isOverdue } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import { toast } from '@/composables/useToasts'
@@ -38,6 +40,9 @@ const tasks = useTasksStore()
 const projects = useProjectsStore()
 const reports = useReportsStore()
 const people = usePeopleStore()
+// The way into the admin panel is a button here, not a sidebar item.
+const admin = useAdminStore()
+void admin.load()
 const router = useRouter()
 const loaded = ref(false)
 
@@ -301,6 +306,15 @@ const card = 'rounded-2xl border border-neutral-200/80 bg-white shadow-[0_1px_2p
   <DashboardLayout fill>
     <PageHeader :title="greeting" :description="summary">
       <template #actions>
+        <RouterLink
+          v-if="admin.isAdmin"
+          :to="{ name: 'admin' }"
+          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+          :aria-label="$t('nav.admin')"
+          :title="$t('nav.admin')"
+        >
+          <NavIcon name="admin" aria-hidden="true" />
+        </RouterLink>
         <BaseButton size="sm" :block="false" @click="creating = true">{{ $t('tasks.newTask') }}</BaseButton>
       </template>
     </PageHeader>

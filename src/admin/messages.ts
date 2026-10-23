@@ -1,7 +1,7 @@
 /** The admin panel. */
 const en = {
   admin: {
-    title: 'Admin',
+    title: 'Admin panel',
     tabs: { stats: 'Statistics', users: 'Accounts' },
     statsDescription: 'How Helpic is used, across every account. Counts only.',
     usersDescription: 'Every account: who they are and how much they use Helpic, never their work.',
@@ -92,13 +92,13 @@ const en = {
 
 const uk: typeof en = {
   admin: {
-    title: 'Адмінка',
+    title: 'Адмін-панель',
     tabs: { stats: 'Статистика', users: 'Акаунти' },
     statsDescription: 'Як користуються Helpic, по всіх акаунтах. Лише кількості.',
     usersDescription: 'Усі акаунти: хто вони і як часто користуються Helpic, без їхньої роботи.',
     loadFailed: 'Не вдалося завантажити адмінку',
     needsTwoFactor: 'Увімкніть двофакторний вхід',
-    needsTwoFactorText: 'Адмінка відкривається лише адмінам, які входять з кодом із застосунку-автентифікатора.',
+    needsTwoFactorText: 'Адмін-панель відкривається лише адмінам, які входять з кодом із застосунку-автентифікатора.',
     openSettings: 'Відкрити налаштування',
     period: 'Період',
     periods: { '7': 'Останні 7 днів', '30': 'Останні 30 днів', '90': 'Останні 90 днів', '365': 'Останній рік' },
