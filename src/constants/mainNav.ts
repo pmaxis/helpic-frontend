@@ -1,7 +1,7 @@
 import type { Role } from '@/types/auth'
 
 /** Sidebar words: keys under "nav" in the messages. */
-export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team'
+export type NavKey = 'dashboard' | 'work' | 'people' | 'projects' | 'tasks' | 'archive' | 'closedTasks' | 'reports' | 'clients' | 'freelancers' | 'team' | 'admin'
 
 export interface NavItem {
   label: NavKey
@@ -53,3 +53,6 @@ export const NAV_SECTIONS: Record<Role, NavSection[]> = {
 
 /** Pages a member of a client's company doesn't see: the reports are the owner's. */
 export const OWNER_ONLY_PATHS = ['/reports']
+
+/** The admin panel's section, added for admins whatever their role. */
+export const ADMIN_SECTION: NavSection = { label: 'admin', items: [{ label: 'admin', icon: 'admin', to: '/admin' }] }

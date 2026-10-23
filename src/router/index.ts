@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAdminStore } from '@/admin/store'
+import { adminRoutes } from '@/admin/routes'
 import type { Role } from '@/types/auth'
 
 declare module 'vue-router' {
@@ -10,6 +12,8 @@ declare module 'vue-router' {
     role?: Role
     /** Not for members of a client's company: the reports are the owner's. */
     ownerOnly?: boolean
+    /** The admin panel: only for the backend's ADMIN_EMAILS. */
+    admin?: boolean
   }
 }
 
@@ -143,6 +147,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/SettingsView.vue'),
     meta: { requiresAuth: true },
   },
+  ...adminRoutes,
   { path: '/:pathMatch(.*)*', redirect: HOME },
 ]
 
@@ -177,6 +182,12 @@ router.beforeEach(async (to) => {
 
   if (to.meta.ownerOnly && auth.isTeamMember) {
     return HOME
+  }
+
+  if (to.meta.admin) {
+    const admin = useAdminStore()
+    await admin.load()
+    if (!admin.isAdmin) return HOME
   }
 
   return true

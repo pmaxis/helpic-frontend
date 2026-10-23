@@ -93,6 +93,7 @@ const en = {
     clients: 'Clients',
     freelancers: 'Freelancers',
     team: 'Team',
+    admin: 'Admin',
   },
   notificationKinds: {
     groups: {
@@ -213,6 +214,7 @@ const uk: typeof en = {
     clients: 'Клієнти',
     freelancers: 'Фрилансери',
     team: 'Команда',
+    admin: 'Адмінка',
   },
   notificationKinds: {
     groups: {

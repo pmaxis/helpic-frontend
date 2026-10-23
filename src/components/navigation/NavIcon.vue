@@ -46,6 +46,10 @@ defineProps<{
       <path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" />
       <path d="M10 13h4" />
     </template>
+    <template v-else-if="name === 'admin'">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </template>
     <circle v-else cx="12" cy="12" r="9" />
   </svg>
 </template>

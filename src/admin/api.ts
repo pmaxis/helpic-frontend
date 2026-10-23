@@ -1,0 +1,27 @@
+import { http } from '@/services/api'
+import type { AdminAccess, AdminAccountDetail, AdminAccountsPage, AdminAccountsQuery, AdminStats } from './types'
+
+/** Whether the signed-in user may open the panel; anyone may ask. */
+export async function fetchAdminAccess(): Promise<AdminAccess> {
+  const { data } = await http.get<AdminAccess>('/admin/access')
+  return data
+}
+
+/** Totals and the last `days` days, today included (7 to 365). */
+export async function fetchAdminStats(days: number): Promise<AdminStats> {
+  const { data } = await http.get<AdminStats>('/admin/stats', { params: { days } })
+  return data
+}
+
+/** A page of accounts, the newest first. */
+export async function fetchAdminAccounts(query: AdminAccountsQuery): Promise<AdminAccountsPage> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== '' && v !== undefined))
+  const { data } = await http.get<AdminAccountsPage>('/admin/users', { params })
+  return data
+}
+
+/** One account in full. */
+export async function fetchAdminAccount(id: string): Promise<AdminAccountDetail> {
+  const { data } = await http.get<{ user: AdminAccountDetail }>(`/admin/users/${id}`)
+  return data.user
+}

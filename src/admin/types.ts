@@ -1,0 +1,112 @@
+import type { Role } from '@/types/auth'
+
+/** Whether the signed-in user may open the admin panel. */
+export interface AdminAccess {
+  /** Their email is one of the backend's ADMIN_EMAILS. */
+  admin: boolean
+  /** They sign in with two-factor; the panel needs it. */
+  two_factor: boolean
+}
+
+/** The app as it stands. */
+export interface AdminTotals {
+  users: number
+  freelancers: number
+  clients: number
+  /** Sign-ups that haven't opened their confirmation link yet. */
+  pending_signups: number
+  two_factor: number
+  /** Active users today, over the last 7 days and over 30, today included. */
+  active_day: number
+  active_week: number
+  active_month: number
+  tasks: number
+  projects: number
+}
+
+/** What happened over a stretch of days. */
+export interface AdminPeriod {
+  /** People who used Helpic on any of the days. */
+  active: number
+  new_users: number
+  tasks_created: number
+  tasks_completed: number
+}
+
+/** One day, in the backend's time zone. */
+export interface AdminDay {
+  /** YYYY-MM-DD */
+  day: string
+  signups: number
+  active: number
+  tasks_created: number
+  tasks_completed: number
+}
+
+export type AdminSeries = Exclude<keyof AdminDay, 'day'>
+
+export interface AdminStats {
+  from: string
+  to: string
+  totals: AdminTotals
+  period: AdminPeriod
+  /** The period before, as long. */
+  previous: AdminPeriod
+  days: AdminDay[]
+  previous_days: AdminDay[]
+}
+
+/** An account as the panel lists it: who, and how much they use Helpic. */
+export interface AdminAccount {
+  id: string
+  email: string
+  name: string
+  role: Role
+  two_factor: boolean
+  tasks: number
+  projects: number
+  /** On how many of the last 30 days they used Helpic. */
+  active_days: number
+  /** The last day they used Helpic, YYYY-MM-DD; null if never. */
+  last_active: string | null
+  created_at: string
+}
+
+/** One account in full: still counts and metadata, never their work. */
+export interface AdminAccountDetail extends AdminAccount {
+  locale: 'en' | 'uk'
+  currency: string
+  team: { name: string; role: 'owner' | 'member' | 'contractor'; members: number } | null
+  /** A freelancer's clients, or a client's freelancers. */
+  partners: number
+  reports_sent: number
+  reports_paid: number
+  seconds_logged: number
+  comments: number
+  telegram: boolean
+  /** Signed-in devices now. */
+  sessions: number
+  last_sign_in: string | null
+  /** The Monday 26 weeks back; active_on are the days since then they used Helpic. */
+  active_since: string
+  active_on: string[]
+}
+
+export interface AdminAccountsPage {
+  users: AdminAccount[]
+  page: number
+  limit: number
+  total: number
+}
+
+export type AdminActivity = '' | 'active' | 'idle' | 'never'
+export type AdminSort = 'created' | 'last_active' | 'tasks'
+
+export interface AdminAccountsQuery {
+  q?: string
+  role?: Role | ''
+  activity?: AdminActivity
+  sort?: AdminSort
+  page?: number
+  limit?: number
+}

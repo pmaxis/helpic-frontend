@@ -9,12 +9,13 @@ import { useBoardStore } from '@/stores/board'
 import { useReportsStore } from '@/stores/reports'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTimerStore } from '@/stores/timer'
+import { useAdminStore } from '@/admin/store'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import SidebarSection from '@/components/navigation/SidebarSection.vue'
 import SidebarItem from '@/components/navigation/SidebarItem.vue'
 import NotificationBell from '@/components/navigation/NotificationBell.vue'
 import RunningTimer from '@/components/navigation/RunningTimer.vue'
-import { NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
+import { ADMIN_SECTION, NAV_SECTIONS, OWNER_ONLY_PATHS } from '@/constants/mainNav'
 import { useI18n } from 'vue-i18n'
 
 withDefaults(
@@ -30,8 +31,10 @@ withDefaults(
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const timer = useTimerStore()
+const admin = useAdminStore()
 onMounted(() => {
   notifications.startPolling()
+  void admin.load()
   // Only a freelancer tracks time; the timer is loaded once per sign-in.
   if (auth.isFreelancer && !timer.loaded) void timer.load()
 })
@@ -65,7 +68,8 @@ const { t } = useI18n()
 /** The sidebar for this user's role, in the interface's language. */
 const navSections = computed(() => {
   if (!auth.user) return []
-  return NAV_SECTIONS[auth.user.role].map((s) => ({
+  const sections = admin.isAdmin ? [...NAV_SECTIONS[auth.user.role], ADMIN_SECTION] : NAV_SECTIONS[auth.user.role]
+  return sections.map((s) => ({
     label: s.label ? t(`nav.${s.label}`) : '',
     items: s.items
       .filter((i) => !auth.isTeamMember || !OWNER_ONLY_PATHS.includes(i.to))
@@ -92,6 +96,7 @@ async function handleLogout() {
     notifications.stopPolling()
     notifications.$reset()
     timer.reset()
+    admin.$reset()
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
