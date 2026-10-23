@@ -6,7 +6,8 @@
  * in on, each one signed out on its own, and the rate limits holding them
  * back, each lifted at once; on a tab of its own the
  * account's history, what admins did to it; and under both what an admin can
- * do to it, each asked for a reason and recorded. Escape or the close button
+ * do to it, each asked for a reason and the admin's two-factor code again,
+ * and recorded. Escape or the close button
  * closes it.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -22,6 +23,8 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import HistoryIllustration from '@/components/illustrations/HistoryIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
+import TwoFactorCodeInput from '@/components/auth/TwoFactorCodeInput.vue'
+import { ApiRequestError } from '@/services/api'
 import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import ActivityHeatmap from './ActivityHeatmap.vue'
 import AccountAvatar from './AccountAvatar.vue'
@@ -145,23 +148,37 @@ const TONES: Record<AdminActionPath, string> = {
 
 const asking = ref<AdminActionPath | null>(null)
 const reason = ref('')
+/** The admin's two-factor code, asked again for every change: a stolen session can't make one. */
+const code = ref('')
+const codeError = ref('')
 const acting = ref(false)
 
 function ask(action: AdminActionPath) {
   asking.value = action
   reason.value = ''
+  code.value = ''
+  codeError.value = ''
+}
+
+/** A refused code stays in the question, to try again; anything else is a toast. */
+function failed(e: unknown) {
+  if (e instanceof ApiRequestError && (e.fields?.code || e.status === 429)) {
+    codeError.value = e.fields?.code ?? e.message
+    return
+  }
+  toast.error(t('admin.manage.failed'))
 }
 
 async function act() {
   if (!asking.value || !account.value) return
   acting.value = true
   try {
-    account.value = await actOnAccount(account.value.id, asking.value, reason.value.trim())
+    account.value = await actOnAccount(account.value.id, asking.value, reason.value.trim(), code.value)
     asking.value = null
     toast.success(t('admin.manage.done'))
     refreshAfterChange()
-  } catch {
-    toast.error(t('admin.manage.failed'))
+  } catch (e) {
+    failed(e)
   } finally {
     acting.value = false
   }
@@ -175,18 +192,20 @@ const ending = ref<AdminSession | null>(null)
 function askEnd(s: AdminSession) {
   ending.value = s
   reason.value = ''
+  code.value = ''
+  codeError.value = ''
 }
 
 async function endSession() {
   if (!ending.value || !account.value) return
   acting.value = true
   try {
-    account.value = await endAccountSession(account.value.id, ending.value.id, reason.value.trim())
+    account.value = await endAccountSession(account.value.id, ending.value.id, reason.value.trim(), code.value)
     ending.value = null
     toast.success(t('admin.manage.done'))
     refreshAfterChange()
-  } catch {
-    toast.error(t('admin.manage.failed'))
+  } catch (e) {
+    failed(e)
   } finally {
     acting.value = false
   }
@@ -423,12 +442,13 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
 
   <Modal v-if="asking && account" :title="`${$t(ACTIONS[asking].label)}: ${account.name || account.email}`" @close="acting || (asking = null)">
     <p class="text-sm leading-relaxed text-neutral-600">{{ $t(ACTIONS[asking].text) }}</p>
-    <div class="mt-4">
+    <div class="mt-4 space-y-4">
       <BaseTextarea v-model="reason" :label="$t('admin.manage.reason')" :placeholder="$t('admin.manage.reasonHint')" :rows="3" />
+      <TwoFactorCodeInput v-model="code" :label="$t('admin.manage.code')" :hint="$t('admin.manage.codeHint')" :error="codeError" required />
     </div>
     <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="acting" @click="asking = null">{{ $t('common.cancel') }}</BaseButton>
-      <BaseButton :variant="ACTIONS[asking].tone" size="sm" :block="false" :loading="acting" :disabled="acting" @click="act">
+      <BaseButton :variant="ACTIONS[asking].tone" size="sm" :block="false" :loading="acting" :disabled="acting || !code.trim()" @click="act">
         {{ $t(ACTIONS[asking].label) }}
       </BaseButton>
     </template>
@@ -436,12 +456,13 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
 
   <Modal v-if="ending && account" :title="$t('admin.account.endSessionTitle', { device: deviceName(ending.user_agent) })" @close="acting || (ending = null)">
     <p class="text-sm leading-relaxed text-neutral-600">{{ $t('admin.account.endSessionText') }}</p>
-    <div class="mt-4">
+    <div class="mt-4 space-y-4">
       <BaseTextarea v-model="reason" :label="$t('admin.manage.reason')" :placeholder="$t('admin.manage.reasonHint')" :rows="3" />
+      <TwoFactorCodeInput v-model="code" :label="$t('admin.manage.code')" :hint="$t('admin.manage.codeHint')" :error="codeError" required />
     </div>
     <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="acting" @click="ending = null">{{ $t('common.cancel') }}</BaseButton>
-      <BaseButton variant="danger" size="sm" :block="false" :loading="acting" :disabled="acting" @click="endSession">
+      <BaseButton variant="danger" size="sm" :block="false" :loading="acting" :disabled="acting || !code.trim()" @click="endSession">
         {{ $t('admin.account.endSession') }}
       </BaseButton>
     </template>

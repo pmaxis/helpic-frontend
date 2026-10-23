@@ -1,5 +1,6 @@
 import { http } from '@/services/api'
 import type {
+  AdminAccountAdmin,
   AdminAccountDetail,
   AdminAccountsPage,
   AdminAccountsQuery,
@@ -11,6 +12,7 @@ import type {
   AdminEmailsQuery,
   AdminLimit,
   AdminSession,
+  AdminSignInsPage,
   AdminLogsPage,
   AdminLogsQuery,
   AdminSignupsPage,
@@ -45,9 +47,9 @@ export async function fetchAdminLogs(query: AdminLogsQuery): Promise<AdminLogsPa
   return data
 }
 
-/** Does an action to an account, recorded with the reason; returns the account as it is now. */
-export async function actOnAccount(id: string, action: AdminActionPath, reason: string): Promise<AdminAccountDetail> {
-  const { data } = await http.post<{ user: AdminAccountDetail }>(`/admin/users/${id}/${action}`, { reason })
+/** Does an action to an account, confirmed with the admin's two-factor code and recorded with the reason; returns the account as it is now. */
+export async function actOnAccount(id: string, action: AdminActionPath, reason: string, code: string): Promise<AdminAccountDetail> {
+  const { data } = await http.post<{ user: AdminAccountDetail }>(`/admin/users/${id}/${action}`, { reason, code })
   return data.user
 }
 
@@ -105,9 +107,9 @@ export async function fetchAccountSessions(id: string): Promise<AdminSession[]> 
   return data.sessions
 }
 
-/** Signs an account out of one device, recorded with the reason; returns the account as it is now. */
-export async function endAccountSession(id: string, session: string, reason: string): Promise<AdminAccountDetail> {
-  const { data } = await http.post<{ user: AdminAccountDetail }>(`/admin/users/${id}/sessions/${session}/end`, { reason })
+/** Signs an account out of one device, confirmed with the admin's two-factor code and recorded with the reason; returns the account as it is now. */
+export async function endAccountSession(id: string, session: string, reason: string, code: string): Promise<AdminAccountDetail> {
+  const { data } = await http.post<{ user: AdminAccountDetail }>(`/admin/users/${id}/sessions/${session}/end`, { reason, code })
   return data.user
 }
 
@@ -121,4 +123,17 @@ export async function fetchAdminLimits(query: { q?: string; account?: string }):
 /** Lifts a rate limit at once. */
 export async function clearAdminLimit(limit: Pick<AdminLimit, 'scope' | 'key'>): Promise<void> {
   await http.post('/admin/limits/clear', { scope: limit.scope, key: limit.key })
+}
+
+/** Every admin, the oldest first, with their devices. */
+export async function fetchAdmins(): Promise<AdminAccountAdmin[]> {
+  const { data } = await http.get<{ admins: AdminAccountAdmin[] }>('/admin/admins')
+  return data.admins
+}
+
+/** A page of sign-ins to admin accounts, the newest first; `failed` keeps only the ones that didn't go through. */
+export async function fetchAdminSignIns(query: { failed?: boolean; page?: number; limit?: number }): Promise<AdminSignInsPage> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== false && v !== undefined))
+  const { data } = await http.get<AdminSignInsPage>('/admin/sign-ins', { params })
+  return data
 }

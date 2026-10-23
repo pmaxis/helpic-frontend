@@ -296,3 +296,35 @@ export interface AdminLimit {
   /** When the next attempt is let through. */
   opens_at: string
 }
+
+/** An admin account and the devices it is signed in on. */
+export interface AdminAccountAdmin {
+  id: string
+  email: string
+  name: string
+  two_factor: boolean
+  created_at: string
+  last_sign_in: string | null
+  sessions: AdminSession[]
+}
+
+export type AdminSignInOutcome = 'ok' | 'wrong_password' | 'wrong_code' | 'limited'
+
+/** One sign-in to an admin account, or an attempt that got the password or the code wrong. */
+export interface AdminSignIn {
+  id: number
+  at: string
+  /** Null once the account is gone; the email stays. */
+  admin_id: string | null
+  admin_email: string
+  outcome: AdminSignInOutcome
+  ip: string
+  user_agent: string
+}
+
+export interface AdminSignInsPage {
+  sign_ins: AdminSignIn[]
+  page: number
+  limit: number
+  total: number
+}

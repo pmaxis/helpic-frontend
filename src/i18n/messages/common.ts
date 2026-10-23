@@ -103,6 +103,7 @@ const en = {
     adminEmails: 'Emails',
     adminSystem: 'Status',
     adminLimits: 'Limits',
+    adminAdmins: 'Admins',
   },
   notificationKinds: {
     groups: {
@@ -233,6 +234,7 @@ const uk: typeof en = {
     adminEmails: 'Листи',
     adminSystem: 'Стан системи',
     adminLimits: 'Ліміти',
+    adminAdmins: 'Адміни',
   },
   notificationKinds: {
     groups: {
