@@ -50,6 +50,10 @@ defineProps<{
       <path d="M3 3v16a2 2 0 0 0 2 2h16" />
       <path d="M18 17V9M13 17V5M8 17v-3" />
     </template>
+    <template v-else-if="name === 'logs'">
+      <path d="M4 6h16M4 12h10M4 18h13" />
+      <path d="M18 10.5v3M18 16.5h.01" />
+    </template>
     <circle v-else cx="12" cy="12" r="9" />
   </svg>
 </template>

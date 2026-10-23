@@ -91,6 +91,36 @@ export interface AdminAccountsPage {
   total: number
 }
 
+/** One of the server's warnings or errors. */
+export interface AdminLog {
+  id: number
+  at: string
+  level: 'WARN' | 'ERROR'
+  message: string
+  /** What was logged with it: for a request its method, route, status, IP and who made it; for a failure the error. */
+  attrs: Record<string, unknown>
+}
+
+export type AdminLogLevel = '' | 'warn' | 'error'
+
+export interface AdminLogsQuery {
+  level?: AdminLogLevel
+  q?: string
+  page?: number
+  limit?: number
+}
+
+export interface AdminLogsPage {
+  logs: AdminLog[]
+  page: number
+  limit: number
+  /** How many match the filters in all. */
+  total: number
+  /** Over the last 24 hours, whatever the filter. */
+  warnings: number
+  errors: number
+}
+
 export type AdminActivity = '' | 'active' | 'idle' | 'never'
 export type AdminSort = 'created' | 'last_active' | 'tasks'
 
