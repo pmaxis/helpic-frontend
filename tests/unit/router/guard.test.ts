@@ -65,7 +65,11 @@ describe('the router guard', () => {
     expect(await open('/reports/r-1')).toBe('/dashboard')
   })
 
-  it('sends an unknown path home', () => {
-    expect(router.resolve('/no/such/page').matched[0].redirect).toBe('/dashboard')
+  it('shows an unknown path as not found, to anyone', async () => {
+    expect(router.resolve('/no/such/page').name).toBe('not-found')
+    signedIn(null)
+    expect(await open('/no/such/page')).toBe(true)
+    signedIn(makeUser({ role: 'admin' }))
+    expect(await open('/no/such/page')).toBe(true)
   })
 })

@@ -149,7 +149,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, everyone: true },
   },
   ...adminRoutes,
-  { path: '/:pathMatch(.*)*', redirect: HOME },
+  {
+    // Open to everyone: it shows in the app when signed in, by sign-in when not.
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('@/views/NotFoundView.vue'),
+    meta: { everyone: true },
+  },
 ]
 
 const router = createRouter({
