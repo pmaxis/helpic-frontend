@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { version as vueVersion } from 'vue'
 import AdminStatsView from '@/admin/views/AdminStatsView.vue'
 import AdminUsersView from '@/admin/views/AdminUsersView.vue'
 import AdminSignupsView from '@/admin/views/AdminSignupsView.vue'
@@ -236,31 +237,32 @@ describe('AdminSystemView', () => {
     expect(page.text()).toContain('connection refused')
     expect(page.text()).toContain('1.4.0')
     expect(page.text()).toContain('go1.26')
+    // How long the server has been up sits in a chip by its name.
+    expect(page.text()).toContain(t('admin.system.uptime', { time: t('admin.system.every.h', { n: 2 }) }))
+    // This frontend's build too: its version and Vue's; the tests run it as Vite's dev server does, so it says since when it runs.
+    expect(page.text()).toContain(t('admin.system.frontend'))
+    expect(page.text()).toContain(__APP_VERSION__)
+    expect(page.text()).toContain(vueVersion)
+    expect(page.text()).not.toContain(t('admin.system.built'))
     await click(button(t('admin.system.testAlert')))
     expect(server.to('POST /admin/system/test-alert')).toHaveLength(1)
     expect(useToasts().toasts.at(-1)?.message).toBe(t('admin.system.testSent'))
   })
 
-  it('shows the files: how much they take, who is near the quota, who uploaded the most and the disk', async () => {
+  it('shows how much the uploaded files take of the room left for them, not the whole disk', async () => {
     api({ 'GET /admin/system': makeSystem() })
     const page = await render(AdminSystemView, { path: '/admin/system', user: admin() })
-    const text = page.text()
-    expect(text).toContain(t('admin.storage.limits', { quota: '1.0 GB', file: '25.0 MB' }))
-    expect(text).toContain('1.5 GB')
-    expect(text).toContain(t('admin.storage.diskFree', { free: '40.0 GB', total: '100.0 GB' }))
-    expect(page.find('a[href="/admin/users?account=u-big"]').text()).toBe('Big Uploader')
-    // An account without a name is shown by its email.
-    expect(page.find('a[href="/admin/users?account=u-small"]').text()).toBe('small@example.test')
-    expect(text).toContain(t('admin.storage.filesCount', { n: 9 }, 9))
-  })
+    expect(page.text()).toContain('10.0 GB')
+    expect(page.text()).toContain(t('admin.storage.filesCount', { n: 12 }, 12))
+    // 10 GB of files out of those and the 40 GB still free.
+    expect(page.text()).toContain('20%')
+    expect(page.text()).toContain('40.0 GB')
+    expect($('[role="meter"]')?.getAttribute('aria-valuenow')).toBe(String(10 * 1024 ** 3))
 
-  it('says when there are no files, no quota or no disk to read', async () => {
-    const system = makeSystem()
-    api({ 'GET /admin/system': makeSystem({ storage: { ...system.storage, files: 0, bytes: 0, accounts: 0, near_quota: 0, quota_bytes: 0, top: [], disk: null } }) })
-    const page = await render(AdminSystemView, { path: '/admin/system', user: admin() })
-    expect(page.text()).toContain(t('admin.storage.none'))
-    expect(page.text()).toContain(t('admin.storage.limitsNoQuota', { file: '25.0 MB' }))
-    expect(page.text()).toContain(t('admin.storage.diskUnknown'))
+    api({ 'GET /admin/system': makeSystem({ files: { count: 0, bytes: 0 }, disk: null }) })
+    const unread = await render(AdminSystemView, { path: '/admin/system', user: admin() })
+    expect(unread.text()).toContain('0 B')
+    expect(unread.text()).toContain(t('admin.system.diskUnknown'))
   })
 
   it('says when the status can’t load', async () => {

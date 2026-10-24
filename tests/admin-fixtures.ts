@@ -116,20 +116,8 @@ export function makeSystem(over: Partial<AdminSystem> = {}): AdminSystem {
       { name: 'reminders', interval_seconds: 3600, last_run: new Date().toISOString(), last_success: new Date().toISOString(), last_error: '', running: false, runs: 3, failures: 0, state: 'ok' },
       { name: 'mail', interval_seconds: 30, last_run: null, last_success: null, last_error: 'smtp', running: true, runs: 0, failures: 2, state: 'failing' },
     ],
-    emails: { queued: 1, failed: 2, sent: 30, last_sent: new Date().toISOString() },
-    storage: {
-      files: 12,
-      bytes: 1.5 * 1024 * 1024 * 1024,
-      accounts: 3,
-      near_quota: 1,
-      quota_bytes: 1024 * 1024 * 1024,
-      max_file_bytes: 25 * 1024 * 1024,
-      top: [
-        { id: 'u-big', email: 'big@example.test', name: 'Big Uploader', files: 9, bytes: 0.95 * 1024 * 1024 * 1024 },
-        { id: 'u-small', email: 'small@example.test', name: '', files: 3, bytes: 20 * 1024 * 1024 },
-      ],
-      disk: { total_bytes: 100 * 1024 ** 3, free_bytes: 40 * 1024 ** 3 },
-    },
+    files: { count: 12, bytes: 10 * 1024 ** 3 },
+    disk: { total_bytes: 100 * 1024 ** 3, free_bytes: 40 * 1024 ** 3 },
     ...over,
   }
 }

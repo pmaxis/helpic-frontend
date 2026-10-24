@@ -17,6 +17,9 @@ FROM base AS build
 # Optional. The running container's API_BASE_URL overrides this.
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# The build's version, as the backend's: .git isn't in the image to ask.
+ARG VERSION=dev
+ENV VERSION=$VERSION
 COPY . .
 RUN pnpm run build
 
