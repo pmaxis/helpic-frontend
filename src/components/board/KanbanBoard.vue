@@ -7,7 +7,7 @@
  * freelancer, or the project's author, manages the columns: reorders them by
  * dragging the header, renames them by clicking the name, and adds, edits and
  * removes them from the header menu. Anyone else only moves cards. A card's
- * pencil button edits the task, for whoever may.
+ * pencil button edits the task and its bin deletes it, for whoever may.
  */
 import { computed, ref } from 'vue'
 import BoardScroller from '@/components/board/BoardScroller.vue'
@@ -18,6 +18,7 @@ import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
+import { useTasksStore } from '@/stores/tasks'
 import { ApiRequestError } from '@/services/api'
 import { t as tr } from '@/i18n'
 import { toast } from '@/composables/useToasts'
@@ -49,6 +50,27 @@ const editingTask = ref<Task | null>(null)
 function onTaskSaved(t: Task) {
   editingTask.value = null
   board.replaceTask(t)
+}
+
+const tasks = useTasksStore()
+/** The task being deleted from its card's bin, while it's asked about. */
+const deletingTask = ref<Task | null>(null)
+const deleteBusy = ref(false)
+
+async function deleteTask() {
+  const t = deletingTask.value
+  if (!t) return
+  deleteBusy.value = true
+  try {
+    await tasks.deleteTask(t.id)
+    board.removeTask(t.id)
+    toast.success(tr('task.deleted'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.deleteFailed'))
+  } finally {
+    deleteBusy.value = false
+    deletingTask.value = null
+  }
 }
 
 // --- drag and drop ------------------------------------------------------------
@@ -275,6 +297,7 @@ async function remove() {
                     @dragstart="onDragStart($event, t)"
                     @dragend="onDragEnd"
                     @edit="editingTask = t"
+                    @delete="deletingTask = t"
                   />
                 </template>
                 <li
@@ -335,6 +358,18 @@ async function remove() {
         }
       "
       @confirm="remove"
+    />
+    <ConfirmDialog
+      :open="!!deletingTask"
+      :title="$t('task.confirmDelete')"
+      :description="$t('task.confirmDeleteText')"
+      :loading="deleteBusy"
+      @update:open="
+        (v) => {
+          if (!v) deletingTask = null
+        }
+      "
+      @confirm="deleteTask"
     />
   </div>
 </template>

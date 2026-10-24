@@ -6,7 +6,13 @@ import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
+import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import { useTasksStore } from '@/stores/tasks'
+import { ApiRequestError } from '@/services/api'
+import { toast } from '@/composables/useToasts'
 import { formatDate, isOverdue } from '@/utils/format'
+import { t as tr } from '@/i18n'
 import type { Task } from '@/types/tasks'
 
 const props = withDefaults(
@@ -24,12 +30,41 @@ const emit = defineEmits<{
   saved: [task: Task]
 }>()
 
-/** The task being edited from its row's pencil button. */
+/** The task being edited from its row's menu. */
 const editing = ref<Task | null>(null)
 
 function onSaved(t: Task) {
   editing.value = null
   emit('saved', t)
+}
+
+/** What the row's "⋯" menu offers: what the viewer may do to the task. */
+function actions(t: Task): MenuAction[] {
+  const out: MenuAction[] = []
+  if (t.can_edit) out.push({ label: tr('taskList.edit'), onSelect: () => (editing.value = t) })
+  if (t.can_delete) out.push({ label: tr('task.delete'), danger: true, onSelect: () => (deleting.value = t) })
+  return out
+}
+
+const tasksStore = useTasksStore()
+/** The task being deleted from its row's menu, while it's asked about. */
+const deleting = ref<Task | null>(null)
+const deleteBusy = ref(false)
+
+/** The tasks store drops it, and with it the row. */
+async function remove() {
+  const t = deleting.value
+  if (!t) return
+  deleteBusy.value = true
+  try {
+    await tasksStore.deleteTask(t.id)
+    toast.success(tr('task.deleted'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('task.deleteFailed'))
+  } finally {
+    deleteBusy.value = false
+    deleting.value = null
+  }
 }
 
 /** Task · Status · [Project] · People · Due — on md screens and up. */
@@ -50,9 +85,10 @@ function summary(t: Task): string {
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-xl border border-neutral-200" :class="loading ? 'opacity-60' : ''">
-    <!-- the last, unnamed column holds the row's edit button -->
-    <div class="hidden border-b border-neutral-200 bg-neutral-50 pr-10 md:block" aria-hidden="true">
+  <div class="rounded-xl border border-neutral-200" :class="loading ? 'opacity-60' : ''">
+    <!-- not clipped, so a row's menu can open past the list: the corners are the header's and the last row's -->
+    <!-- the last, unnamed column holds the row's menu -->
+    <div class="hidden rounded-t-xl border-b border-neutral-200 bg-neutral-50 pr-10 md:block" aria-hidden="true">
       <div class="grid gap-4 px-4 py-2 text-xs font-medium tracking-wide text-neutral-500 uppercase" :class="grid">
         <span>{{ $t('taskList.task') }}</span>
         <span>{{ $t('taskList.status') }}</span>
@@ -63,7 +99,7 @@ function summary(t: Task): string {
     </div>
 
     <ul class="divide-y divide-neutral-100">
-      <li v-for="t in tasks" :key="t.id" class="group flex items-center transition-colors hover:bg-neutral-50">
+      <li v-for="t in tasks" :key="t.id" class="group flex items-center transition-colors first:max-md:rounded-t-xl last:rounded-b-xl hover:bg-neutral-50">
         <RouterLink
           :to="{ name: 'task-detail', params: { id: t.id } }"
           class="grid min-w-0 flex-1 grid-cols-1 gap-x-4 gap-y-2 py-3 pl-4 md:items-center md:pr-4"
@@ -141,23 +177,30 @@ function summary(t: Task): string {
           </div>
         </RouterLink>
         <div class="flex w-10 shrink-0 justify-center self-stretch pr-2 md:items-center max-md:pt-2.5">
-          <button
-            v-if="t.can_edit"
-            type="button"
-            class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-200/70 hover:text-neutral-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-            :aria-label="$t('taskList.editNamed', { title: t.title })"
-            :title="$t('taskList.edit')"
-            @click="editing = t"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
-          </button>
+          <!-- shown on hover, and while its menu is open -->
+          <ActionMenu
+            v-if="actions(t).length"
+            variant="plain"
+            class="transition focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+            :actions="actions(t)"
+            :label="$t('taskList.optionsNamed', { title: t.title })"
+          />
         </div>
       </li>
     </ul>
 
     <TaskFormModal v-if="editing" :task="editing" @close="editing = null" @saved="onSaved" />
+    <ConfirmDialog
+      :open="!!deleting"
+      :title="$t('task.confirmDelete')"
+      :description="$t('task.confirmDeleteText')"
+      :loading="deleteBusy"
+      @update:open="
+        (v) => {
+          if (!v) deleting = null
+        }
+      "
+      @confirm="remove"
+    />
   </div>
 </template>
