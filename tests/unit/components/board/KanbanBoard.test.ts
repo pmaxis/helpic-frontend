@@ -205,6 +205,26 @@ describe('KanbanBoard', () => {
     expect(drag(columns()[2], 'dragover').defaultPrevented).toBe(false)
   })
 
+  it('deletes a task from its card after asking, and says when it can’t', async () => {
+    seed()
+    const server = api({ 'DELETE /tasks/a': {} })
+    await render(KanbanBoard, { user: me })
+    const confirm = () => click($$('[role="dialog"] button').find((b) => b.textContent?.trim() === t('common.delete'))!)
+    await click(button(t('board.deleteTaskNamed', { title: 'Alpha' })))
+    expect($('[role="dialog"]')!.textContent).toContain(t('task.confirmDelete'))
+    await confirm()
+    expect(server.to('DELETE /tasks/a')).toHaveLength(1)
+    expect(titles(0)).toEqual(['Beta'])
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('task.deleted'))
+
+    server.reply('DELETE /tasks/b', status(409, { error: { code: 'X', message: 'Work on it has started' } }))
+    await click(button(t('board.deleteTaskNamed', { title: 'Beta' })))
+    await confirm()
+    expect(titles(0)).toEqual(['Beta'])
+    expect(useToasts().toasts.at(-1)?.message).toBe('Work on it has started')
+    expect($('[role="dialog"]')).toBeNull()
+  })
+
   it('edits a task from its card and shows it saved', async () => {
     seed()
     api({ 'GET /projects': { projects: [] }, 'PUT /tasks/a': { task: makeTask({ id: 'a', title: 'Alpha 2', status_id: 'todo' }) } })

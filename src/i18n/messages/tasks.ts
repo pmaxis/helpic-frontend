@@ -27,7 +27,7 @@ const en = {
     people: 'People',
     due: 'Due',
     edit: 'Edit task',
-    editNamed: 'Edit {title}',
+    optionsNamed: 'Options for {title}',
   },
   taskPage: {
     breadcrumb: 'Breadcrumb',
@@ -278,8 +278,8 @@ const uk: typeof en = {
     project: 'Проєкт',
     people: 'Люди',
     due: 'Дедлайн',
-    edit: 'Змінити задачу',
-    editNamed: 'Змінити {title}',
+    edit: 'Редагувати задачу',
+    optionsNamed: 'Дії з {title}',
   },
   taskPage: {
     breadcrumb: 'Навігація',
@@ -304,7 +304,7 @@ const uk: typeof en = {
     hideDetails: 'Сховати деталі',
     details: 'Деталі',
     options: 'Дії із задачею',
-    edit: 'Змінити задачу',
+    edit: 'Редагувати задачу',
     delete: 'Видалити задачу',
     description: 'Опис',
     descriptionPlaceholder: 'Деталі, посилання, критерії приймання…',
@@ -346,7 +346,7 @@ const uk: typeof en = {
     priceFailed: 'Не вдалося зберегти ціну',
   },
   taskForm: {
-    edit: 'Змінити задачу',
+    edit: 'Редагувати задачу',
     new: 'Нова задача',
     newIn: 'Нова задача в «{column}»',
     nobody: 'Задачі отримує фрилансер, з яким ви працюєте, а у вас такого ще немає.',

@@ -6,8 +6,10 @@ import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import StatusBadge from '@/components/tasks/StatusBadge.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
 import { t } from '@/i18n'
-import { api, render } from '../../../helpers'
-import { button, click } from '../../../dom'
+import { useTasksStore } from '@/stores/tasks'
+import { useToasts } from '@/composables/useToasts'
+import { api, render, status } from '../../../helpers'
+import { $, $$, button, click } from '../../../dom'
 import { makeTask, makeUser } from '../../../fixtures'
 
 afterEach(() => {
@@ -33,13 +35,49 @@ describe('TaskList', () => {
     expect(noProject.text()).not.toContain('Landing')
   })
 
-  it('edits a task from its row', async () => {
+  /** Picks an action from the row's "⋯" menu. */
+  async function pick(title: string, action: string) {
+    await click(button(t('taskList.optionsNamed', { title })))
+    await click($$('[role="menuitem"]').find((b) => b.textContent?.trim() === action)!)
+  }
+
+  it('edits a task from its row’s menu', async () => {
     const server = api({ 'GET /projects': { projects: [] }, 'PUT /tasks/a': { task: makeTask({ id: 'a', title: 'Renamed' }) } })
     const list = await render(TaskList, { props: { tasks: [makeTask({ id: 'a', title: 'Hero' })] }, user: makeUser() })
-    await click(button(t('taskList.editNamed', { title: 'Hero' })))
+    await pick('Hero', t('taskList.edit'))
     await click(button(t('common.save')))
     expect(server.to('PUT /tasks/a')).toHaveLength(1)
     expect(list.emitted('saved')?.[0][0]).toMatchObject({ title: 'Renamed' })
+  })
+
+  it('deletes a task from its row’s menu after asking, and says when it can’t', async () => {
+    const tasks = [makeTask({ id: 'a', title: 'Hero' }), makeTask({ id: 'b', title: 'Footer' })]
+    const store = useTasksStore()
+    store.tasks = [...tasks]
+    const server = api({ 'DELETE /tasks/a': {} })
+    await render(TaskList, { props: { tasks }, user: makeUser() })
+    const confirm = () => click($$('[role="dialog"] button').find((b) => b.textContent?.trim() === t('common.delete'))!)
+
+    await pick('Hero', t('task.delete'))
+    expect($('[role="dialog"]')!.textContent).toContain(t('task.confirmDelete'))
+    await confirm()
+    expect(server.to('DELETE /tasks/a')).toHaveLength(1)
+    expect(store.tasks.map((x) => x.id)).toEqual(['b'])
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('task.deleted'))
+
+    server.reply('DELETE /tasks/b', status(409, { error: { code: 'X', message: 'Work on it has started' } }))
+    await pick('Footer', t('task.delete'))
+    await confirm()
+    expect(store.tasks.map((x) => x.id)).toEqual(['b'])
+    expect(useToasts().toasts.at(-1)?.message).toBe('Work on it has started')
+  })
+
+  it('offers only what the viewer may do, and no menu when that’s nothing', async () => {
+    const tasks = [makeTask({ id: 'a', title: 'Hero', can_delete: false }), makeTask({ id: 'b', title: 'Footer', can_edit: false, can_delete: false })]
+    await render(TaskList, { props: { tasks }, user: makeUser() })
+    await click(button(t('taskList.optionsNamed', { title: 'Hero' })))
+    expect($$('[role="menuitem"]').map((b) => b.textContent?.trim())).toEqual([t('taskList.edit')])
+    expect($(`[aria-label="${t('taskList.optionsNamed', { title: 'Footer' })}"]`)).toBeNull()
   })
 
   it('dims while loading', async () => {

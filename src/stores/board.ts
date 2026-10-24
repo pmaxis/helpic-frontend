@@ -128,6 +128,14 @@ export const useBoardStore = defineStore('board', {
       }
     },
 
+    /** Takes a deleted task off the board. */
+    removeTask(id: string): void {
+      for (const col of this.columns) {
+        const i = col.tasks.findIndex((t) => t.id === id)
+        if (i >= 0) col.tasks.splice(i, 1)
+      }
+    },
+
     /**
      * Puts a task into a column at an index, right away on screen, then asks
      * the backend. A refused move (e.g. a client can't mark a task done) puts

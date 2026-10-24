@@ -2,7 +2,7 @@
 /**
  * A task on the board: its title, project and labels, priority, due date and
  * people. The whole card opens the task and drags it (the board listens for
- * the drag); a pencil button edits it, for whoever may.
+ * the drag); a pencil button edits it and a bin deletes it, for whoever may.
  */
 import { RouterLink } from 'vue-router'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
@@ -17,7 +17,7 @@ defineProps<{
   /** This card is the one being dragged. */
   dragging: boolean
 }>()
-const emit = defineEmits<{ edit: [] }>()
+const emit = defineEmits<{ edit: []; delete: [] }>()
 
 /** Labels shown on a card; the rest fold into a "+N" chip. */
 const CARD_LABELS = 2
@@ -43,7 +43,7 @@ function open(t: Task) {
   >
     <RouterLink :to="{ name: 'task-detail', params: { id: task.id } }" class="block p-3" draggable="false">
       <!-- two lines at most; the whole title is on hover and on the task's page -->
-      <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="task.can_edit ? 'pr-6' : ''" :title="task.title">
+      <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="task.can_edit && task.can_delete ? 'pr-12' : task.can_edit || task.can_delete ? 'pr-6' : ''" :title="task.title">
         {{ task.title }}
       </p>
       <!-- the project first, then the labels -->
@@ -78,19 +78,40 @@ function open(t: Task) {
         </span>
       </div>
     </RouterLink>
-    <button
-      v-if="task.can_edit"
-      type="button"
-      draggable="false"
-      class="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white text-neutral-400 opacity-0 transition hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-      :aria-label="$t('board.editTaskNamed', { title: task.title })"
-      :title="$t('board.editTask')"
-      @click="emit('edit')"
+    <!-- shown on hover, or always where there's no hover -->
+    <div
+      v-if="task.can_edit || task.can_delete"
+      class="absolute top-2 right-2 flex gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-      </svg>
-    </button>
+      <button
+        v-if="task.can_edit"
+        type="button"
+        draggable="false"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-white text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
+        :aria-label="$t('board.editTaskNamed', { title: task.title })"
+        :title="$t('board.editTask')"
+        @click="emit('edit')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+      </button>
+      <button
+        v-if="task.can_delete"
+        type="button"
+        draggable="false"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-white text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+        :aria-label="$t('board.deleteTaskNamed', { title: task.title })"
+        :title="$t('board.deleteTask')"
+        @click="emit('delete')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+          <path d="M3 6h18" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+      </button>
+    </div>
   </li>
 </template>
