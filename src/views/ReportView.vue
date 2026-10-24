@@ -5,7 +5,7 @@
  * right what can be done with it: send, download, and for a draft its title,
  * summary and tasks. Every change re-prints the preview.
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { z } from 'zod'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -20,14 +20,15 @@ import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import PdfPreview from '@/components/reports/PdfPreview.vue'
 import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
-import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
+import ReportFacts from '@/components/reports/ReportFacts.vue'
+import ReportTaskList from '@/components/reports/ReportTaskList.vue'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
-import { formatDate, formatDuration } from '@/utils/format'
-import { formatMoney } from '@/utils/money'
+import { formatDate } from '@/utils/format'
 import { pdfFileName, renderReportPdf, savePdf } from '@/utils/reportPdf'
 import { toast } from '@/composables/useToasts'
 import { useForm } from '@/composables/useForm'
+import { useStoredFlag } from '@/composables/useStoredFlag'
 import { LIMITS, optionalText, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
 import type { Report, ReportKind } from '@/types/reports'
@@ -50,23 +51,8 @@ const printing = ref(false)
  * Each viewer picks it for themselves; it's remembered in this browser and
  * goes into the downloaded PDF too.
  */
-const UAH_KEY = 'helpic:report-in-uah'
-function readInUAH(): boolean {
-  try {
-    return localStorage.getItem(UAH_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-const inUAH = ref(readInUAH())
-watch(inUAH, (on) => {
-  try {
-    localStorage.setItem(UAH_KEY, on ? '1' : '0')
-  } catch {
-    // storage may be unavailable (private mode); the choice then lasts for this visit
-  }
-  void printPreview()
-})
+const inUAH = useStoredFlag('helpic:report-in-uah')
+watch(inUAH, () => void printPreview())
 
 async function printPreview() {
   if (!report.value) return
@@ -92,10 +78,10 @@ onMounted(async () => {
   await printPreview()
 })
 
-/** Takes a changed report and re-prints the preview. */
 /** Bumped on every change, so the history reloads. */
 const version = ref(0)
 
+/** Takes a changed report and re-prints the preview. */
 function changed(r: Report) {
   report.value = r
   version.value++
@@ -141,47 +127,6 @@ async function setKind(kind: ReportKind) {
     toast.error(error instanceof ApiRequestError ? error.message : t('report.kindFailed'))
   } finally {
     switchingKind.value = false
-  }
-}
-
-/** Tasks whose notes field is open; all start folded. */
-const openNotes = ref(new Set<string>())
-
-async function toggleNotes(itemId: string) {
-  const open = new Set(openNotes.value)
-  if (open.has(itemId)) open.delete(itemId)
-  else open.add(itemId)
-  openNotes.value = open
-  if (!open.has(itemId)) return
-  await nextTick()
-  const field = document.getElementById(`notes-${itemId}`) as HTMLTextAreaElement | null
-  field?.focus()
-  field?.setSelectionRange(field.value.length, field.value.length)
-}
-
-/** First line of the notes, as a hint on the folded toggle. */
-function notesPreview(notes: string): string {
-  return notes.split('\n').find((l) => l.trim())?.trim() ?? ''
-}
-
-/** Saves a task's notes when the field loses focus with a change. */
-async function saveNotes(itemId: string, value: string) {
-  const r = report.value
-  const item = r?.items?.find((it) => it.id === itemId)
-  if (!r || !item || value.trim() === item.notes) return
-  try {
-    changed(await reports.updateItemNotes(r.id, itemId, value))
-  } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : t('report.notesFailed'))
-  }
-}
-
-async function removeItem(itemId: string) {
-  if (!report.value) return
-  try {
-    changed(await reports.removeItem(report.value.id, itemId))
-  } catch (error) {
-    toast.error(error instanceof ApiRequestError ? error.message : t('report.removeFailed'))
   }
 }
 
@@ -270,12 +215,6 @@ const actions = computed<MenuAction[]>(() => {
   return list
 })
 
-const period = computed(() => {
-  const r = report.value
-  if (!r) return ''
-  return r.from === r.to ? formatDate(r.from) : `${formatDate(r.from)} – ${formatDate(r.to)}`
-})
-
 const status = computed(() => {
   const r = report.value
   if (!r) return { label: '', tone: '' }
@@ -356,38 +295,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           </div>
         </div>
 
-        <dl class="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 border-b border-neutral-200 px-5 py-4 text-sm">
-          <dt class="text-neutral-500">{{ report.client ? $t('report.client') : $t('report.for') }}</dt>
-          <dd class="truncate text-neutral-800">{{ report.client ? report.client.name || report.client.email : $t('report.personalWork') }}</dd>
-          <dt class="text-neutral-500">{{ $t('report.period') }}</dt>
-          <dd class="text-neutral-800">{{ period }}</dd>
-          <dt class="text-neutral-500">{{ report.projects.length > 1 ? $t('report.projects') : $t('report.project') }}</dt>
-          <dd class="text-neutral-800" :class="report.projects.length > 1 ? 'break-words' : 'truncate'">{{ report.projects.map((p) => p.name).join(', ') || $t('report.allProjects') }}</dd>
-          <template v-if="!report.can_edit">
-            <dt class="text-neutral-500">{{ $t('report.type') }}</dt>
-            <dd class="text-neutral-800">{{ report.kind === 'detailed' ? $t('report.detailed') : $t('report.basic') }}</dd>
-          </template>
-          <dt class="text-neutral-500">{{ $t('report.tasks') }}</dt>
-          <dd class="text-neutral-800">{{ report.items?.length ?? report.item_count }}</dd>
-          <template v-if="report.total_cents !== null">
-            <dt class="text-neutral-500">{{ $t('report.total') }}</dt>
-            <dd class="font-semibold text-neutral-900">{{ formatMoney(report.total_cents, report.currency) }}</dd>
-          </template>
-          <!-- for a client who pays in hryvnias -->
-          <template v-if="report.in_uah">
-            <dt class="text-neutral-500">{{ $t('report.inUAH') }}</dt>
-            <dd>
-              <span class="font-semibold text-neutral-900">≈ {{ formatMoney(report.in_uah.total_cents, 'UAH') }}</span>
-              <span class="block text-xs text-neutral-500">
-                {{ $t('report.inUAHRate', { rate: report.in_uah.rate, date: formatDate(report.in_uah.rate_on) }) }}
-              </span>
-              <label class="mt-2 flex items-center gap-2 text-xs text-neutral-600">
-                <ToggleSwitch v-model="inUAH" :label="$t('report.inUAHShow')" />
-                <span aria-hidden="true">{{ $t('report.inUAHShow') }}</span>
-              </label>
-            </dd>
-          </template>
-        </dl>
+        <ReportFacts v-model="inUAH" :report="report" />
 
         <template v-if="report.can_edit">
           <div class="border-b border-neutral-200 px-5 py-4">
@@ -405,82 +313,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
             </div>
           </form>
 
-          <section class="px-5 py-4" aria-labelledby="report-tasks">
-            <h3 id="report-tasks" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('report.tasksInReport') }}</h3>
-            <p v-if="report.items?.length" class="mt-1 text-xs text-neutral-400">
-              {{ report.client ? $t('report.pricesUntilSent') : $t('report.pricesFromTasks') }}
-            </p>
-            <p v-if="!report.items?.length" class="mt-2 text-sm text-neutral-400">
-              {{ report.client ? $t('report.noTasksForClient') : $t('report.noTasks') }}
-            </p>
-            <ul v-else class="mt-2 divide-y divide-neutral-100">
-              <li v-for="it in report.items" :key="it.id" class="py-2">
-                <div class="group flex items-start gap-2">
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-neutral-800">{{ it.title }}</p>
-                    <p class="text-xs text-neutral-400">
-                      {{ formatDate(it.completed_on) }}{{ it.project_name ? ` · ${it.project_name}` : '' }}{{ it.seconds !== null ? ` · ${formatDuration(it.seconds)}` : '' }}
-                    </p>
-                  </div>
-                  <span v-if="it.price_cents !== null" class="shrink-0 pt-px text-sm text-neutral-800 tabular-nums">
-                    {{ formatMoney(it.price_cents, report.currency) }}
-                  </span>
-                  <span v-else-if="report.total_cents !== null" class="shrink-0 pt-px text-xs text-neutral-400">{{ $t('report.noPrice') }}</span>
-                  <button
-                    type="button"
-                    class="shrink-0 rounded-md p-1 text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-700"
-                    :aria-label="$t('report.removeTask', { title: it.title })"
-                    :title="$t('report.removeFromReport')"
-                    @click="removeItem(it.id)"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-
-                <!-- the task's notes, folded until asked for; full width under the row -->
-                <div v-if="report.kind === 'detailed'" class="mt-1">
-                  <button
-                    type="button"
-                    class="-mx-1 flex w-[calc(100%+0.5rem)] min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-left text-xs transition-colors hover:bg-neutral-100"
-                    :aria-expanded="openNotes.has(it.id)"
-                    :aria-controls="`notes-${it.id}`"
-                    @click="toggleNotes(it.id)"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      class="h-3 w-3 shrink-0 text-neutral-400 transition-transform"
-                      :class="openNotes.has(it.id) ? 'rotate-90' : ''"
-                      aria-hidden="true"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                    <span class="shrink-0 font-medium text-neutral-600">{{ $t('report.notes') }}</span>
-                    <span v-if="!openNotes.has(it.id)" class="min-w-0 truncate text-neutral-400">
-                      {{ notesPreview(it.notes) || $t('report.notesEmpty') }}
-                    </span>
-                  </button>
-                  <template v-if="openNotes.has(it.id)">
-                    <label :for="`notes-${it.id}`" class="sr-only">{{ $t('report.notesFor', { title: it.title }) }}</label>
-                    <textarea
-                      :id="`notes-${it.id}`"
-                      :value="it.notes"
-                      rows="4"
-                      class="mt-1 block w-full resize-y rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs leading-relaxed text-neutral-800 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
-                      @change="saveNotes(it.id, ($event.target as HTMLTextAreaElement).value)"
-                    />
-                  </template>
-                </div>
-              </li>
-            </ul>
-          </section>
+          <ReportTaskList :report="report" @changed="changed" />
         </template>
 
         <ReportHistory :report-id="report.id" :version="version" />

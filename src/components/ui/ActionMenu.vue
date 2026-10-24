@@ -17,8 +17,10 @@ withDefaults(
     label: string
     /** sm matches toolbar icons; md matches a default select. */
     size?: 'sm' | 'md'
+    /** outline is a bordered button; plain is a bare icon, for a header on a tinted background. */
+    variant?: 'outline' | 'plain'
   }>(),
-  { size: 'sm' },
+  { size: 'sm', variant: 'outline' },
 )
 
 const open = ref(false)
@@ -58,8 +60,16 @@ function pick(action: MenuAction) {
   <div ref="root" class="relative">
     <button
       type="button"
-      class="inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900"
-      :class="[size === 'md' ? 'h-[38px] w-[38px]' : 'h-8 w-8', open ? 'bg-neutral-50 text-neutral-900' : '']"
+      class="inline-flex items-center justify-center transition-colors"
+      :class="
+        variant === 'plain'
+          ? ['rounded-md p-1 hover:bg-neutral-200 hover:text-neutral-900', open ? 'bg-neutral-200 text-neutral-900' : 'text-neutral-400']
+          : [
+              'rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-xs hover:bg-neutral-50 hover:text-neutral-900',
+              size === 'md' ? 'h-[38px] w-[38px]' : 'h-8 w-8',
+              open ? 'bg-neutral-50 text-neutral-900' : '',
+            ]
+      "
       :aria-label="label"
       :aria-expanded="open"
       aria-haspopup="menu"
