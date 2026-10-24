@@ -241,6 +241,28 @@ describe('AdminSystemView', () => {
     expect(useToasts().toasts.at(-1)?.message).toBe(t('admin.system.testSent'))
   })
 
+  it('shows the files: how much they take, who is near the quota, who uploaded the most and the disk', async () => {
+    api({ 'GET /admin/system': makeSystem() })
+    const page = await render(AdminSystemView, { path: '/admin/system', user: admin() })
+    const text = page.text()
+    expect(text).toContain(t('admin.storage.limits', { quota: '1.0 GB', file: '25.0 MB' }))
+    expect(text).toContain('1.5 GB')
+    expect(text).toContain(t('admin.storage.diskFree', { free: '40.0 GB', total: '100.0 GB' }))
+    expect(page.find('a[href="/admin/users?account=u-big"]').text()).toBe('Big Uploader')
+    // An account without a name is shown by its email.
+    expect(page.find('a[href="/admin/users?account=u-small"]').text()).toBe('small@example.test')
+    expect(text).toContain(t('admin.storage.filesCount', { n: 9 }, 9))
+  })
+
+  it('says when there are no files, no quota or no disk to read', async () => {
+    const system = makeSystem()
+    api({ 'GET /admin/system': makeSystem({ storage: { ...system.storage, files: 0, bytes: 0, accounts: 0, near_quota: 0, quota_bytes: 0, top: [], disk: null } }) })
+    const page = await render(AdminSystemView, { path: '/admin/system', user: admin() })
+    expect(page.text()).toContain(t('admin.storage.none'))
+    expect(page.text()).toContain(t('admin.storage.limitsNoQuota', { file: '25.0 MB' }))
+    expect(page.text()).toContain(t('admin.storage.diskUnknown'))
+  })
+
   it('says when the status can’t load', async () => {
     api({ 'GET /admin/system': status(500) })
     await render(AdminSystemView, { path: '/admin/system', user: admin() })

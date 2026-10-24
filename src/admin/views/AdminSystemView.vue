@@ -2,8 +2,9 @@
 /**
  * The server at a glance: the database, the mail server, the Telegram bot
  * and the admins' alert bot checked on the spot (with a test alert), the
- * outgoing email, the build, and how this server's background jobs ran and
- * when each runs next. It checks again every 30 seconds while open.
+ * outgoing email, the build, the files on tasks against the quota and the
+ * disk, and how this server's background jobs ran and when each runs next.
+ * It checks again every 30 seconds while open.
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -14,6 +15,8 @@ import { intlLocale } from '@/i18n'
 import { timeAgo } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
 import AdminShell from '../components/AdminShell.vue'
+import { meterClass, meterWidth, share } from '../storage'
+import { formatSize } from '@/services/attachments'
 import { fetchAdminSystem, sendTestAlert } from '../api'
 import type { AdminCheck, AdminJob, AdminSystem } from '../types'
 
@@ -112,6 +115,12 @@ function nextRun(j: AdminJob): string {
   const left = (new Date(j.last_run).getTime() + j.interval_seconds * 1000 - now.value) / 1000
   return left > 1 ? t('admin.system.nextRun', { when: span(left) }) : t('admin.system.nextRunSoon')
 }
+
+/** How full the files' disk is, 0…1; null when the server can't read it. */
+const diskShare = computed(() => {
+  const d = system.value?.storage.disk
+  return d && d.total_bytes ? (d.total_bytes - d.free_bytes) / d.total_bytes : null
+})
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
 </script>
@@ -244,6 +253,80 @@ const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'nu
         </dl>
       </section>
     </div>
+
+    <!-- the files on tasks: how much they take, against the quota and the disk -->
+    <section class="mt-6 rounded-xl border border-neutral-200">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 pt-3.5">
+        <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.storage.title') }}</h2>
+        <p v-if="system" class="text-xs text-neutral-500">
+          {{ system.storage.quota_bytes ? $t('admin.storage.limits', { quota: formatSize(system.storage.quota_bytes), file: formatSize(system.storage.max_file_bytes) }) : $t('admin.storage.limitsNoQuota', { file: formatSize(system.storage.max_file_bytes) }) }}
+        </p>
+      </div>
+      <dl class="mt-3 grid grid-cols-2 divide-neutral-100 border-y border-neutral-100 max-sm:divide-y sm:grid-cols-4 sm:divide-x">
+        <div class="px-4 py-3">
+          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.files') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? system.storage.files : '–' }}</dd>
+        </div>
+        <div class="px-4 py-3">
+          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.taken') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? formatSize(system.storage.bytes) : '–' }}</dd>
+        </div>
+        <div class="px-4 py-3">
+          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.accounts') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? system.storage.accounts : '–' }}</dd>
+        </div>
+        <div class="px-4 py-3">
+          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.nearQuota') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold tabular-nums" :class="system?.storage.near_quota ? 'text-amber-600' : 'text-neutral-900'">
+            {{ system ? (system.storage.quota_bytes ? system.storage.near_quota : '–') : '–' }}
+          </dd>
+        </div>
+      </dl>
+
+      <div class="grid gap-x-6 gap-y-4 px-4 py-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <!-- the disk the files are on -->
+        <div>
+          <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.storage.disk') }}</h3>
+          <template v-if="system?.storage.disk && diskShare !== null">
+            <div
+              class="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100"
+              role="meter"
+              :aria-valuenow="system.storage.disk.total_bytes - system.storage.disk.free_bytes"
+              aria-valuemin="0"
+              :aria-valuemax="system.storage.disk.total_bytes"
+              :aria-label="$t('admin.storage.disk')"
+            >
+              <div class="h-full rounded-full" :class="meterClass(diskShare)" :style="{ width: meterWidth(diskShare) }" />
+            </div>
+            <p class="mt-1.5 text-xs text-neutral-500 tabular-nums">
+              {{ $t('admin.storage.diskFree', { free: formatSize(system.storage.disk.free_bytes), total: formatSize(system.storage.disk.total_bytes) }) }}
+            </p>
+          </template>
+          <p v-else-if="system" class="mt-1 text-xs text-neutral-500">{{ $t('admin.storage.diskUnknown') }}</p>
+        </div>
+
+        <!-- who uploaded the most -->
+        <div>
+          <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.storage.top') }}</h3>
+          <p v-if="system && !system.storage.top.length" class="mt-1 text-xs text-neutral-500">{{ $t('admin.storage.none') }}</p>
+          <ul v-else-if="system" class="mt-2 space-y-2.5">
+            <li v-for="u in system.storage.top" :key="u.id">
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <RouterLink :to="{ path: '/admin/users', query: { account: u.id } }" class="min-w-0 truncate font-medium text-neutral-900 hover:underline" :title="u.email">
+                  {{ u.name || u.email }}
+                </RouterLink>
+                <span class="shrink-0 text-xs text-neutral-500 tabular-nums">
+                  {{ $t('admin.storage.filesCount', { n: u.files }, u.files) }} · <span class="font-semibold text-neutral-900">{{ formatSize(u.bytes) }}</span>
+                </span>
+              </div>
+              <div v-if="system.storage.quota_bytes" class="mt-1 h-1 overflow-hidden rounded-full bg-neutral-100" aria-hidden="true">
+                <div class="h-full rounded-full" :class="meterClass(share(u.bytes, system.storage.quota_bytes))" :style="{ width: meterWidth(share(u.bytes, system.storage.quota_bytes)) }" />
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
     <!-- the background jobs -->
     <section class="mt-6">

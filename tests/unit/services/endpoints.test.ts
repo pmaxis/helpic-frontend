@@ -183,7 +183,12 @@ describe('attachments', () => {
   })
 
   it('writes sizes in B, KB and MB', () => {
-    expect([attachments.formatSize(840), attachments.formatSize(12 * 1024), attachments.formatSize(3.4 * 1024 * 1024)]).toEqual(['840 B', '12 KB', '3.4 MB'])
+    expect([attachments.formatSize(840), attachments.formatSize(12 * 1024), attachments.formatSize(3.4 * 1024 * 1024), attachments.formatSize(1.2 * 1024 ** 3)]).toEqual([
+      '840 B',
+      '12 KB',
+      '3.4 MB',
+      '1.2 GB',
+    ])
   })
 })
 

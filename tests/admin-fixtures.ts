@@ -36,6 +36,9 @@ export function makeAccountDetail(over: Partial<AdminAccountDetail> = {}): Admin
     reports_paid: 1,
     seconds_logged: 5400,
     comments: 7,
+    files: 4,
+    files_bytes: 3 * 1024 * 1024,
+    quota_bytes: 1024 * 1024 * 1024,
     telegram: false,
     sessions: 1,
     last_sign_in: '2030-03-14T09:00:00Z',
@@ -114,6 +117,19 @@ export function makeSystem(over: Partial<AdminSystem> = {}): AdminSystem {
       { name: 'mail', interval_seconds: 30, last_run: null, last_success: null, last_error: 'smtp', running: true, runs: 0, failures: 2, state: 'failing' },
     ],
     emails: { queued: 1, failed: 2, sent: 30, last_sent: new Date().toISOString() },
+    storage: {
+      files: 12,
+      bytes: 1.5 * 1024 * 1024 * 1024,
+      accounts: 3,
+      near_quota: 1,
+      quota_bytes: 1024 * 1024 * 1024,
+      max_file_bytes: 25 * 1024 * 1024,
+      top: [
+        { id: 'u-big', email: 'big@example.test', name: 'Big Uploader', files: 9, bytes: 0.95 * 1024 * 1024 * 1024 },
+        { id: 'u-small', email: 'small@example.test', name: '', files: 3, bytes: 20 * 1024 * 1024 },
+      ],
+      disk: { total_bytes: 100 * 1024 ** 3, free_bytes: 40 * 1024 ** 3 },
+    },
     ...over,
   }
 }
