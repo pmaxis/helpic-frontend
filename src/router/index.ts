@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { adminRoutes } from '@/admin/routes'
 import type { Role } from '@/types/auth'
@@ -20,7 +20,7 @@ const HOME = '/dashboard'
 /** Where an admin starts: they have no work, so no dashboard. */
 const ADMIN_HOME = '/admin'
 
-const routes: RouteRecordRaw[] = [
+export const routes: RouteRecordRaw[] = [
   { path: '/', redirect: HOME },
   {
     path: '/login',
@@ -162,7 +162,7 @@ const router = createRouter({
  * decision is made, so a reload never flashes /login before landing on a
  * protected page.
  */
-router.beforeEach(async (to) => {
+export async function guard(to: RouteLocationNormalized): Promise<RouteLocationRaw | true> {
   const auth = useAuthStore()
 
   if (!auth.isInitialized) {
@@ -193,6 +193,8 @@ router.beforeEach(async (to) => {
   }
 
   return true
-})
+}
+
+router.beforeEach(guard)
 
 export default router

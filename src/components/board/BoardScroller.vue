@@ -151,8 +151,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- Fills the page's height; the scrollbar sits in the page's bottom padding below it. -->
   <div class="relative flex min-h-0 flex-1 flex-col">
+    <!-- Fills the page's height; the scrollbar sits in the page's bottom padding below it. -->
     <div
       ref="scroller"
       class="no-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-hidden"
