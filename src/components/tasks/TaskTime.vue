@@ -168,11 +168,17 @@ const inputClass =
 </script>
 
 <template>
-  <div class="min-w-0">
+  <!-- laid out by its own width: the task's column is narrow on a wide screen -->
+  <div class="@container min-w-0">
     <p v-if="billed" class="mt-3 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-500">{{ $t('timelog.billed') }}</p>
 
-    <!-- add time by hand, or change an entry -->
-    <form v-if="canTrack" class="mt-3 grid gap-2 sm:grid-cols-[11rem_6.5rem_minmax(0,1fr)_auto] sm:items-start" novalidate @submit.prevent="save">
+    <!-- add time by hand, or change an entry: the date and time, then the note, then the buttons; one row when there's room -->
+    <form
+      v-if="canTrack"
+      class="mt-3 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2 @2xl:grid-cols-[11rem_6.5rem_minmax(0,1fr)_auto] @2xl:items-start"
+      novalidate
+      @submit.prevent="save"
+    >
       <DateInput v-model="spentOn" :label="$t('timelog.date')" hide-label compact :error="fieldErrors.spent_on" :disabled="saving" />
       <div>
         <label for="time-duration" class="sr-only">{{ $t('timelog.duration') }}</label>
@@ -190,7 +196,7 @@ const inputClass =
           :class="[inputClass, fieldErrors.duration ? 'border-red-500' : 'border-neutral-300']"
         />
       </div>
-      <div>
+      <div class="col-span-2 @2xl:col-span-1">
         <label for="time-note" class="sr-only">{{ $t('timelog.note') }}</label>
         <input
           id="time-note"
@@ -202,19 +208,25 @@ const inputClass =
           :class="[inputClass, fieldErrors.note ? 'border-red-500' : 'border-neutral-300']"
         />
       </div>
-      <div class="flex gap-2">
+      <div class="col-span-2 flex gap-2 @2xl:col-span-1">
         <BaseButton type="submit" size="sm" :block="false" class="h-[38px]" :loading="saving" :disabled="!duration.trim()">
           {{ editingId ? $t('timelog.save') : $t('timelog.add') }}
         </BaseButton>
         <BaseButton v-if="editingId" variant="ghost" size="sm" :block="false" class="h-[38px]" :disabled="saving" @click="reset">{{ $t('common.cancel') }}</BaseButton>
       </div>
-      <p v-if="fieldErrors.duration || fieldErrors.note" id="time-duration-error" class="text-xs text-red-600 sm:col-span-4">
+      <p v-if="fieldErrors.duration || fieldErrors.note" id="time-duration-error" class="col-span-2 text-xs text-red-600 @2xl:col-span-4">
         {{ fieldErrors.duration || fieldErrors.note }}
       </p>
     </form>
 
     <ol v-if="entries.length" class="mt-4 divide-y divide-neutral-100 rounded-lg border border-neutral-200">
-      <li v-for="e in entries" :key="e.id" class="group flex items-center gap-3 px-3 py-2.5 text-sm" :class="editingId === e.id ? 'bg-neutral-50' : ''">
+      <!-- narrow, the note goes under the date and time, whole; wide, it sits between them and who wrote it -->
+      <li
+        v-for="e in entries"
+        :key="e.id"
+        class="group flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm @lg:flex-nowrap"
+        :class="editingId === e.id ? 'bg-neutral-50' : ''"
+      >
         <span class="w-24 shrink-0 text-neutral-500">{{ formatDate(e.spent_on) }}</span>
         <span class="w-20 shrink-0 font-medium tabular-nums text-neutral-900">
           <template v-if="e.running_since && timer.running?.id === e.id">
@@ -222,11 +234,17 @@ const inputClass =
           </template>
           <template v-else>{{ formatDuration(e.seconds) }}</template>
         </span>
-        <span class="min-w-0 flex-1 truncate text-neutral-700" :title="e.note">{{ e.note }}</span>
-        <span class="hidden shrink-0 text-xs text-neutral-400 sm:inline">{{ who(e) }}</span>
-        <span v-if="e.can_edit && canTrack && editingId !== e.id" class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-          <button v-if="!e.running_since" type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="startEdit(e)">{{ $t('timelog.edit') }}</button>
-          <button type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="removing = e">{{ $t('timelog.delete') }}</button>
+        <span
+          v-if="e.note"
+          class="order-last basis-full break-words text-neutral-700 @lg:order-none @lg:min-w-0 @lg:flex-1 @lg:basis-auto @lg:truncate"
+          :title="e.note"
+        >{{ e.note }}</span>
+        <span class="ml-auto flex shrink-0 items-center gap-3">
+          <span class="text-xs text-neutral-400">{{ who(e) }}</span>
+          <span v-if="e.can_edit && canTrack && editingId !== e.id" class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <button v-if="!e.running_since" type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" @click="startEdit(e)">{{ $t('timelog.edit') }}</button>
+            <button type="button" class="rounded px-1 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600" @click="removing = e">{{ $t('timelog.delete') }}</button>
+          </span>
         </span>
       </li>
       <li class="flex items-center gap-3 bg-neutral-50 px-3 py-2.5 text-sm">

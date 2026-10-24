@@ -8,7 +8,7 @@ import TaskProgressFields from '@/components/tasks/TaskProgressFields.vue'
 import TaskScheduleFields from '@/components/tasks/TaskScheduleFields.vue'
 import TaskPeople from '@/components/tasks/TaskPeople.vue'
 import { useAuthStore } from '@/stores/auth'
-import { formatDate } from '@/utils/format'
+import { formatDate, isOverdue } from '@/utils/format'
 import type { Task, TaskInput } from '@/types/tasks'
 
 const props = defineProps<{
@@ -27,6 +27,9 @@ const emit = defineEmits<{
 
 const auth = useAuthStore()
 
+/** Still open past its due date: said beside the heading, for the whole card. */
+const overdue = computed(() => (props.task.status === 'new' || props.task.status === 'in_progress') && !!props.task.due_on && isOverdue(props.task.due_on))
+
 /** Who created the task: either side, or a member of the client's team. */
 const creator = computed(() => (props.task.creator.id ? props.task.creator : null))
 
@@ -39,7 +42,12 @@ function initials(name: string): string {
 <template>
   <aside aria-labelledby="task-details">
     <div class="flex items-center justify-between gap-2 border-b border-neutral-200 py-3 pr-3 pl-5">
-      <h2 id="task-details" class="text-sm font-semibold text-neutral-900">{{ $t('task.details') }}</h2>
+      <div class="flex min-w-0 items-center gap-2">
+        <h2 id="task-details" class="text-sm font-semibold text-neutral-900">{{ $t('task.details') }}</h2>
+        <span v-if="overdue" class="rounded-full bg-red-50 px-1.5 py-px text-xs font-medium text-red-700 ring-1 ring-red-600/20 ring-inset">
+          {{ $t('task.overdue') }}
+        </span>
+      </div>
       <button
         type="button"
         class="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
@@ -59,10 +67,8 @@ function initials(name: string): string {
         <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.progress') }}</h3>
         <TaskProgressFields :task="task" @changed="emit('changed', $event)" @reload="emit('reload')" />
       </section>
-      <section class="px-5 py-4" :aria-label="$t('task.groups.schedule')">
-        <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.schedule') }}</h3>
-        <TaskScheduleFields :task="task" :saving="saving" :save="save" @changed="emit('changed', $event)" />
-      </section>
+      <!-- its own two blocks: the schedule, then the price -->
+      <TaskScheduleFields :task="task" :saving="saving" :save="save" @changed="emit('changed', $event)" />
       <section class="px-5 py-4" :aria-label="$t('task.groups.people')">
         <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.people') }}</h3>
         <dl class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">

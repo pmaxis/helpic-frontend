@@ -40,7 +40,7 @@ const en = {
     failed: 'Could not change who is on the task',
   },
   task: {
-    groups: { progress: 'Progress', schedule: 'Schedule & price', people: 'People' },
+    groups: { progress: 'Progress', schedule: 'Schedule', price: 'Price', people: 'People' },
     notFound: 'Task not found',
     notFoundText: "It may have been deleted, or it isn't one of yours.",
     titleLabel: 'Title',
@@ -284,7 +284,7 @@ const uk: typeof en = {
     failed: 'Не вдалося змінити учасників',
   },
   task: {
-    groups: { progress: 'Стан', schedule: 'Терміни й ціна', people: 'Люди' },
+    groups: { progress: 'Стан', schedule: 'Терміни', price: 'Ціна', people: 'Люди' },
     notFound: 'Задачу не знайдено',
     notFoundText: 'Можливо, її видалили, або вона не ваша.',
     titleLabel: 'Назва',
