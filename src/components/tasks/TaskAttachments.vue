@@ -2,13 +2,14 @@
 /**
  * A task's files — mockups, specs, results. Both sides add them (button or
  * drag and drop onto the section) and download them; images get a preview.
- * Only the uploader deletes a file.
+ * A file opens in the viewer, over the page. Only the uploader deletes a file.
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import AttachmentViewer from '@/components/tasks/AttachmentViewer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
-import { attachmentURL, deleteAttachment, downloadAttachment, formatSize, listAttachments, uploadAttachment } from '@/services/attachments'
+import { attachmentURL, deleteAttachment, downloadAttachment, fileExtension, formatSize, listAttachments, uploadAttachment } from '@/services/attachments'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
@@ -35,6 +36,9 @@ interface Upload {
 const uploads = ref<Upload[]>([])
 let uploadKey = 0
 
+/** Which file the viewer shows, by its place in the list; null while it's closed. */
+const viewing = ref<number | null>(null)
+
 /** Image previews as object URLs, by attachment id. */
 const previews = ref<Record<string, string>>({})
 
@@ -55,6 +59,7 @@ async function loadPreview(a: Attachment) {
 
 async function load(taskId: string) {
   loaded.value = false
+  viewing.value = null
   files.value = []
   revokePreviews()
   try {
@@ -153,15 +158,8 @@ function onDrop(e: DragEvent) {
 
 // --- opening and deleting -------------------------------------------------------
 
-/** Images open in a new tab; other files download. */
-async function open(a: Attachment) {
-  try {
-    const preview = previews.value[a.id]
-    if (preview) window.open(preview, '_blank', 'noopener')
-    else await downloadAttachment(a)
-  } catch {
-    toast.error(t('attachments.downloadFailed', { name: a.file_name }))
-  }
+function open(a: Attachment) {
+  viewing.value = files.value.indexOf(a)
 }
 
 const removing = ref<Attachment | null>(null)
@@ -176,18 +174,13 @@ async function remove() {
     files.value = files.value.filter((f) => f.id !== a.id)
     const url = previews.value[a.id]
     if (url) URL.revokeObjectURL(url)
+    viewing.value = null
   } catch (error) {
     toast.error(error instanceof ApiRequestError ? error.message : t('attachments.deleteFailed'))
   } finally {
     removeBusy.value = false
     removing.value = null
   }
-}
-
-/** "PDF", "DOCX" — shown instead of a preview. */
-function extension(name: string): string {
-  const i = name.lastIndexOf('.')
-  return i > 0 && name.length - i <= 6 ? name.slice(i + 1).toUpperCase() : 'FILE'
 }
 
 function uploader(a: Attachment): string {
@@ -205,8 +198,12 @@ function uploader(a: Attachment): string {
     @drop="onDrop"
   >
     <div class="flex items-center justify-between gap-2">
-      <h2 id="task-attachments" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
-        {{ $t('attachments.title') }}<span v-if="files.length" class="ml-1.5 font-normal text-neutral-400">{{ files.length }}</span>
+      <h2 id="task-attachments" class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+        {{ $t('attachments.title') }}
+        <span
+          v-if="files.length"
+          class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-200 px-1.5 text-[11px] font-semibold tracking-normal text-neutral-700 tabular-nums"
+        >{{ files.length }}</span>
       </h2>
       <button
         v-if="!readonly"
@@ -227,12 +224,12 @@ function uploader(a: Attachment): string {
         <button
           type="button"
           class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-neutral-100 text-[10px] font-semibold tracking-wide text-neutral-500"
-          :title="a.is_image ? $t('attachments.open') : $t('attachments.download')"
-          :aria-label="`${a.is_image ? $t('attachments.open') : $t('attachments.download')} ${a.file_name}`"
+          :title="$t('attachments.open')"
+          :aria-label="`${$t('attachments.open')} ${a.file_name}`"
           @click="open(a)"
         >
           <img v-if="previews[a.id]" :src="previews[a.id]" alt="" class="h-full w-full object-cover" />
-          <template v-else>{{ extension(a.file_name) }}</template>
+          <template v-else>{{ fileExtension(a.file_name) }}</template>
         </button>
         <div class="min-w-0 flex-1">
           <button
@@ -305,6 +302,8 @@ function uploader(a: Attachment): string {
     >
       {{ $t('attachments.dropToAttach') }}
     </div>
+
+    <AttachmentViewer v-if="viewing !== null" v-model:index="viewing" :files="files" :previews="previews" @close="viewing = null" />
 
     <ConfirmDialog
       :open="!!removing"

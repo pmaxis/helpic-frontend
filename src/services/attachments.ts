@@ -25,10 +25,39 @@ export async function deleteAttachment(id: string): Promise<void> {
   await http.delete(`/attachments/${id}`)
 }
 
+/** The file's bytes; inline asks for an image preview. */
+export async function attachmentBlob(id: string, inline = false): Promise<Blob> {
+  const { data } = await http.get<Blob>(`/attachments/${id}`, { params: inline ? { inline: 1 } : undefined, responseType: 'blob', timeout: 0 })
+  return data
+}
+
 /** The file's bytes as an object URL (revoke it when done); inline asks for an image preview. */
 export async function attachmentURL(id: string, inline = false): Promise<string> {
-  const { data } = await http.get<Blob>(`/attachments/${id}`, { params: inline ? { inline: 1 } : undefined, responseType: 'blob', timeout: 0 })
-  return URL.createObjectURL(data)
+  return URL.createObjectURL(await attachmentBlob(id, inline))
+}
+
+/** How the viewer shows a file in place. */
+export type PreviewKind = 'image' | 'pdf' | 'video' | 'audio' | 'text'
+
+/**
+ * How a file previews, by the type the server read from its bytes; null for
+ * one only downloaded. Anything shown runs through an element that can't run
+ * it as a page: an image, the PDF viewer, a player, or text.
+ */
+export function previewKind(a: Attachment): PreviewKind | null {
+  const type = a.content_type
+  if (a.is_image) return 'image'
+  if (type === 'application/pdf') return 'pdf'
+  if (type === 'video/mp4' || type === 'video/webm') return 'video'
+  if (type === 'audio/mpeg' || type === 'audio/wave') return 'audio'
+  if (type.startsWith('text/')) return 'text'
+  return null
+}
+
+/** "PDF", "DOCX" — shown where a file has no picture. */
+export function fileExtension(name: string): string {
+  const i = name.lastIndexOf('.')
+  return i > 0 && name.length - i <= 6 ? name.slice(i + 1).toUpperCase() : 'FILE'
 }
 
 /** Saves the file under its name. */

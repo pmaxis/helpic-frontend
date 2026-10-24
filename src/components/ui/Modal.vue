@@ -4,7 +4,8 @@ import { onBeforeUnmount, onMounted } from 'vue'
 withDefaults(
   defineProps<{
     title: string
-    size?: 'md' | 'lg'
+    /** xl is for what is looked at more than filled in, as a file. */
+    size?: 'md' | 'lg' | 'xl'
   }>(),
   { size: 'md' },
 )
@@ -12,6 +13,7 @@ withDefaults(
 const sizeClass = {
   md: 'max-w-md',
   lg: 'max-w-2xl',
+  xl: 'max-w-5xl',
 } as const
 
 const emit = defineEmits<{ close: [] }>()
@@ -37,11 +39,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         class="relative flex max-h-[85vh] w-full flex-col rounded-xl border border-neutral-200 bg-white shadow-xl"
         :class="sizeClass[size]"
       >
-        <div class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-5 py-4">
-          <h2 class="text-sm font-semibold text-neutral-900">{{ title }}</h2>
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 px-5 py-4">
+          <h2 class="min-w-0 truncate text-sm font-semibold text-neutral-900" :title="title">{{ title }}</h2>
+          <!-- what the page can do here, by the close button -->
+          <div v-if="$slots.actions" class="ml-auto flex shrink-0 items-center gap-1">
+            <slot name="actions" />
+          </div>
           <button
             type="button"
-            class="inline-flex rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+            class="inline-flex shrink-0 rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
             :aria-label="$t('ui.close')"
             @click="$emit('close')"
           >

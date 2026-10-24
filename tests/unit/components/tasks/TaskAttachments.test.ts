@@ -91,14 +91,64 @@ describe('TaskAttachments', () => {
     expect(useToasts().toasts.at(-1)?.message).toContain('Not allowed')
   })
 
-  it('opens an image in a new tab and downloads other files', async () => {
-    const { view } = mountFiles([file(), file({ id: 'img', file_name: 'mock.png', is_image: true })])
+  it('opens a file in the viewer and goes through the task’s files', async () => {
+    const { server, view } = mountFiles([file({ id: 'img', file_name: 'mock.png', is_image: true, content_type: 'image/png' }), file()])
     await view
-    const open = vi.spyOn(window, 'open').mockReturnValue(null)
-    const click_ = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    server.reply('GET /attachments/f1', new Blob(['%PDF']))
     await click(button(`${t('attachments.open')} mock.png`))
-    expect(open).toHaveBeenCalledWith('blob:preview', '_blank', 'noopener')
-    await click(button(`${t('attachments.download')} brief.pdf`))
+    const dialog = () => $('[role="dialog"]')!
+    expect(dialog().getAttribute('aria-label')).toBe('mock.png')
+    expect(dialog().querySelector('img[alt="mock.png"]')?.getAttribute('src')).toBe('blob:preview')
+    expect(dialog().textContent).toContain(t('attachments.counter', { n: 1, total: 2 }))
+    expect(server.to('GET /attachments/img')).toHaveLength(1)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await flushPromises()
+    expect(dialog().querySelector('iframe')?.getAttribute('src')).toBe('blob:preview')
+    expect(dialog().textContent).toContain(t('attachments.counter', { n: 2, total: 2 }))
+
+    await click(button(t('attachments.previous')))
+    expect(dialog().querySelector('img[alt="mock.png"]')).not.toBeNull()
+    await click(button('brief.pdf'))
+    expect(dialog().querySelector('iframe')).not.toBeNull()
+    expect(server.to('GET /attachments/f1')).toHaveLength(1)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect($('[role="dialog"]')).toBeNull()
+  })
+
+  it('shows a text file’s contents, and a way to download one it can’t show', async () => {
+    const { server, view } = mountFiles([file({ id: 'txt', file_name: 'notes.txt', content_type: 'text/plain' }), file({ id: 'zip', file_name: 'src.zip', content_type: 'application/zip' })])
+    await view
+    server.reply('GET /attachments/txt', new Blob(['line one\nline two']))
+    await click(button(`${t('attachments.open')} notes.txt`))
+    await vi.waitFor(() => expect($('[role="dialog"] pre')?.textContent).toBe('line one\nline two'))
+
+    await click(button(t('attachments.next')))
+    expect($('[role="dialog"]')!.textContent).toContain(t('attachments.noPreview'))
+    expect(server.to('GET /attachments/zip')).toHaveLength(0)
+    const click_ = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    server.reply('GET /attachments/zip', new Blob(['PK']))
+    await click($$('[role="dialog"] button').find((b) => b.textContent?.includes(t('attachments.download')))!)
+    expect(click_).toHaveBeenCalled()
+  })
+
+  it('says when a preview can’t load, offering the download', async () => {
+    const { server, view } = mountFiles([file()])
+    await view
+    server.reply('GET /attachments/f1', status(500))
+    await click(button(`${t('attachments.open')} brief.pdf`))
+    expect($('[role="dialog"]')!.textContent).toContain(t('attachments.previewFailed'))
+    expect($('[role="dialog"]')!.textContent).not.toContain(t('attachments.counter', { n: 1, total: 1 }))
+  })
+
+  it('downloads a file from the list', async () => {
+    const { server, view } = mountFiles([file()])
+    await view
+    server.reply('GET /attachments/f1', new Blob(['%PDF']))
+    const click_ = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    await click(button(t('attachments.downloadNamed', { name: 'brief.pdf' })))
     expect(click_).toHaveBeenCalled()
   })
 
