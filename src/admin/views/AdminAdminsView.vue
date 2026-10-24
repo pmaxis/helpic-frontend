@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Pagination from '@/components/ui/Pagination.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import { toast } from '@/composables/useToasts'
 import { intlLocale } from '@/i18n'
 import { deviceName, formatDate, timeAgo } from '@/utils/format'
@@ -72,6 +73,12 @@ function changed() {
 
 const LIMIT = 10
 const failedOnly = ref(false)
+/** The sign-ins filter as its select holds it. */
+const outcomeFilter = computed({
+  get: () => (failedOnly.value ? 'failed' : 'all'),
+  set: (v: string) => (failedOnly.value = v === 'failed'),
+})
+const outcomeOptions = computed(() => (['all', 'failed'] as const).map((f) => ({ value: f, label: t(`admin.admins.filter.${f}`) })))
 const page = ref(1)
 const signIns = ref<AdminSignInsPage | null>(null)
 const loading = ref(false)
@@ -170,19 +177,7 @@ const TONES: Record<AdminSignInOutcome, string> = {
 
     <section v-else>
       <div class="flex justify-end">
-        <div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group">
-          <button
-            v-for="f in [false, true]"
-            :key="String(f)"
-            type="button"
-            class="rounded-md px-2.5 py-1 font-medium transition-colors"
-            :class="failedOnly === f ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
-            :aria-pressed="failedOnly === f"
-            @click="failedOnly = f"
-          >
-            {{ $t(`admin.admins.filter.${f ? 'failed' : 'all'}`) }}
-          </button>
-        </div>
+        <SelectInput v-model="outcomeFilter" :options="outcomeOptions" class="w-44" :aria-label="$t('admin.admins.columns.outcome')" />
       </div>
 
       <div class="mt-3 overflow-x-auto rounded-xl border border-neutral-200 transition-opacity" :class="loading && signIns ? 'opacity-60' : ''">

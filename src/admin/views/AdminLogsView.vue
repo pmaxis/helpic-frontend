@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LogsIllustration from '@/components/illustrations/LogsIllustration.vue'
@@ -23,6 +24,7 @@ const auth = useAuthStore()
 
 const LIMIT = 10
 const LEVELS: AdminLogLevel[] = ['', 'warn', 'error']
+const levelOptions = computed(() => LEVELS.map((l) => ({ value: l, label: t(`admin.logs.level.${l || 'all'}`) })))
 
 const query = ref('')
 const level = ref<AdminLogLevel>('')
@@ -107,19 +109,7 @@ function toggle(id: number) {
 
     <div class="mt-4 flex flex-wrap items-end gap-3">
       <BaseInput v-model="query" :label="$t('admin.logs.search')" type="search" class="min-w-56 flex-1" />
-      <div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('admin.logs.levelFilter')">
-        <button
-          v-for="l in LEVELS"
-          :key="l || 'all'"
-          type="button"
-          class="rounded-md px-2.5 py-1 font-medium transition-colors"
-          :class="level === l ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
-          :aria-pressed="level === l"
-          @click="level = l"
-        >
-          {{ $t(`admin.logs.level.${l || 'all'}`) }}
-        </button>
-      </div>
+      <SelectInput v-model="level" :options="levelOptions" class="w-44" :aria-label="$t('admin.logs.levelFilter')" />
     </div>
 
     <EmptyState v-if="logs && !logs.length" class="mt-6 flex-1 justify-center" :title="$t('admin.logs.empty')" :description="$t('admin.logs.emptyText')">

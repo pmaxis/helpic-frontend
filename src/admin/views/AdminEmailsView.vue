@@ -8,6 +8,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import MailIllustration from '@/components/illustrations/MailIllustration.vue'
@@ -28,6 +29,7 @@ const route = useRoute()
 const MAX_ATTEMPTS = 8
 const LIMIT = 10
 const STATUSES: (AdminEmailStatus | '')[] = ['', 'queued', 'failed', 'sent']
+const statusOptions = computed(() => STATUSES.map((s) => ({ value: s, label: t(`admin.emails.filter.${s || 'all'}`) })))
 
 const query = ref('')
 const status = ref<AdminEmailStatus | ''>(STATUSES.includes(route.query.status as AdminEmailStatus) ? (route.query.status as AdminEmailStatus) : '')
@@ -113,19 +115,7 @@ const TONES: Record<AdminEmailStatus, string> = {
 
     <div class="mt-4 flex flex-wrap items-end gap-3">
       <BaseInput v-model="query" :label="$t('admin.emails.search')" type="search" class="min-w-56 flex-1" />
-      <div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('admin.emails.statusFilter')">
-        <button
-          v-for="s in STATUSES"
-          :key="s || 'all'"
-          type="button"
-          class="rounded-md px-2.5 py-1 font-medium transition-colors"
-          :class="status === s ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
-          :aria-pressed="status === s"
-          @click="status = s"
-        >
-          {{ $t(`admin.emails.filter.${s || 'all'}`) }}
-        </button>
-      </div>
+      <SelectInput v-model="status" :options="statusOptions" class="w-44" :aria-label="$t('admin.emails.statusFilter')" />
     </div>
 
     <EmptyState v-if="emails && !emails.length" class="mt-6 flex-1 justify-center" :title="$t('admin.emails.empty')" :description="$t('admin.emails.emptyText')">

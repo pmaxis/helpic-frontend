@@ -95,8 +95,9 @@ describe('AdminUsersView', () => {
 
     await choose(t('admin.columns.role'), t('admin.roles.client'))
     expect(server.to('GET /admin/users').at(-1)?.params).toMatchObject({ role: 'client' })
-    await click($$(`[aria-label="${t('admin.columns.activity')}"] button`)[4])
+    await choose(t('admin.activityFilter'), t('admin.activity.blocked'))
     expect(server.to('GET /admin/users').at(-1)?.params).toMatchObject({ activity: 'blocked' })
+    expect(page.text()).toContain(t('admin.activityHint.blocked'))
     await click($(`[aria-label="${t('admin.sortBy', { column: t('admin.columns.tasks') })}"]`))
     expect(server.to('GET /admin/users').at(-1)?.params).toMatchObject({ sort: 'tasks' })
   })
@@ -165,7 +166,7 @@ describe('AdminEmailsView', () => {
     expect(server.to('POST /admin/emails/e2/retry')).toHaveLength(1)
     expect(useToasts().toasts.at(-1)?.message).toBe(t('admin.emails.retried'))
 
-    await click($$(`[aria-label="${t('admin.emails.statusFilter')}"] button`).find((b) => b.textContent?.includes(t('admin.emails.filter.failed')))!)
+    await choose(t('admin.emails.statusFilter'), t('admin.emails.filter.failed'))
     expect(server.to('GET /admin/emails').at(-1)?.params).toMatchObject({ status: 'failed' })
   })
 
@@ -188,7 +189,7 @@ describe('AdminLogsView', () => {
     expect(page.text()).toContain('request failed')
     await click(byText('button', 'request failed'))
     expect(page.text()).toContain('db down')
-    await click($$(`[aria-label="${t('admin.logs.levelFilter')}"] button`)[2])
+    await choose(t('admin.logs.levelFilter'), t('admin.logs.level.error'))
     expect(server.to('GET /admin/logs').at(-1)?.params).toMatchObject({ level: 'error' })
     await type(search(t('admin.logs.search')), 'tasks')
     await vi.waitFor(() => expect(server.to('GET /admin/logs').at(-1)?.params).toMatchObject({ q: 'tasks' }))
@@ -303,7 +304,7 @@ describe('AdminAdminsView', () => {
     const server = serve()
     const page = await render(AdminAdminsView, { path: '/admin/admins?tab=sign-ins', user: admin() })
     expect(page.text()).toContain(t('admin.admins.outcomes.ok'))
-    await click($$('button').find((b) => b.textContent?.trim() === t('admin.admins.filter.failed'))!)
+    await choose(t('admin.admins.columns.outcome'), t('admin.admins.filter.failed'))
     expect(server.to('GET /admin/sign-ins').at(-1)?.params).toMatchObject({ failed: true })
     expect(page.text()).not.toContain(t('admin.admins.outcomes.ok'))
   })
