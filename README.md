@@ -15,7 +15,8 @@ make up                 # http://localhost:5180, hot reload
 
 - Production build behind nginx: `make prod` → http://localhost:8091
 - Without Docker: `pnpm install && pnpm dev` → http://localhost:5173
-- Type-check and build: `make test`
+- Tests: `pnpm test` (`pnpm test:watch` while working); coverage: `pnpm test:coverage` → `coverage/index.html`
+- Tests, type-check and build: `make test`
 
 ## Configuration
 
@@ -37,4 +38,7 @@ src/
   router/         routes and guards
   i18n/           English and Ukrainian messages
   admin/          admin panel, loaded only when opened
+tests/
+  unit/           Vitest tests, laid out as src/ is
+  fixtures.ts     made-up tasks, columns and time entries
 ```
