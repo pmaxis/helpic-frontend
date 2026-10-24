@@ -2,20 +2,22 @@
 /**
  * The server at a glance: the database, the mail server, the Telegram bot
  * and the admins' alert bot checked on the spot (with a test alert), the
- * outgoing email, the build, the files on tasks against the quota and the
- * disk, and how this server's background jobs ran and when each runs next.
+ * builds of the server and of this frontend and, beside them, how much the
+ * files uploaded to Helpic take of the room left for them, and how this
+ * server's background jobs ran and when each runs next. The outgoing email
+ * has a page of its own.
  * It checks again every 30 seconds while open.
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onBeforeUnmount, ref, version as vueVersion } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { toast } from '@/composables/useToasts'
 import { intlLocale } from '@/i18n'
 import { timeAgo } from '@/utils/format'
+import { BUILD } from '@/config'
 import { useAuthStore } from '@/stores/auth'
 import AdminShell from '../components/AdminShell.vue'
-import { meterClass, meterWidth, share } from '../storage'
+import { NEAR_QUOTA, meterClass, meterWidth } from '../storage'
 import { formatSize } from '@/services/attachments'
 import { fetchAdminSystem, sendTestAlert } from '../api'
 import type { AdminCheck, AdminJob, AdminSystem } from '../types'
@@ -108,6 +110,8 @@ function span(seconds: number): string {
 }
 
 const uptime = computed(() => (system.value ? span((now.value - new Date(system.value.started_at).getTime()) / 1000) : ''))
+/** How long ago this frontend was built, or its dev server started. */
+const builtAge = computed(() => span((now.value - new Date(BUILD.builtAt).getTime()) / 1000))
 
 /** When the job runs again: "next in 40 s", or any moment now. */
 function nextRun(j: AdminJob): string {
@@ -116,10 +120,16 @@ function nextRun(j: AdminJob): string {
   return left > 1 ? t('admin.system.nextRun', { when: span(left) }) : t('admin.system.nextRunSoon')
 }
 
-/** How full the files' disk is, 0…1; null when the server can't read it. */
-const diskShare = computed(() => {
-  const d = system.value?.storage.disk
-  return d && d.total_bytes ? (d.total_bytes - d.free_bytes) / d.total_bytes : null
+/**
+ * How much of the room for files the uploaded ones take, 0…1: theirs out of
+ * theirs and what's free on the disk, whatever else is on it. null when the
+ * server can't read the disk.
+ */
+const filesShare = computed(() => {
+  const s = system.value
+  if (!s?.disk) return null
+  const room = s.files.bytes + s.disk.free_bytes
+  return room ? s.files.bytes / room : 0
 })
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
@@ -201,129 +211,106 @@ const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'nu
       </div>
     </section>
 
-    <div class="mt-6 grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <!-- the outgoing email -->
-      <section class="rounded-xl border border-neutral-200">
-        <div class="flex items-center justify-between gap-2 px-4 pt-3.5">
-          <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.system.emails') }}</h2>
-          <RouterLink
-            :to="system?.emails.failed ? { path: '/admin/emails', query: { status: 'failed' } } : '/admin/emails'"
-            class="text-xs font-medium text-neutral-500 hover:text-neutral-900 hover:underline"
-          >
-            {{ $t('admin.system.openEmails') }} →
-          </RouterLink>
-        </div>
-        <dl class="mt-3 grid grid-cols-3 divide-x divide-neutral-100 border-y border-neutral-100">
-          <div v-for="s in (['queued', 'failed', 'sent'] as const)" :key="s" class="px-4 py-3">
-            <dt class="text-xs text-neutral-500">{{ $t(`admin.emails.counts.${s}`) }}</dt>
-            <dd
-              class="mt-1 text-2xl font-semibold tabular-nums"
-              :class="s === 'failed' && system?.emails.failed ? 'text-red-600' : s === 'queued' && system?.emails.queued ? 'text-amber-600' : 'text-neutral-900'"
-            >
-              {{ system ? system.emails[s] : '–' }}
-            </dd>
-          </div>
-        </dl>
-        <p class="px-4 py-2.5 text-xs text-neutral-500">
-          <template v-if="system">
-            {{ system.emails.last_sent ? $t('admin.emails.lastSent', { when: timeAgo(system.emails.last_sent) }) : $t('admin.emails.noneSent') }}
-          </template>
-        </p>
-      </section>
-
-      <!-- the build -->
-      <section class="rounded-xl border border-neutral-200 px-4 py-3.5">
-        <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.system.build') }}</h2>
-        <dl class="mt-3 space-y-2 text-sm">
-          <div class="flex justify-between gap-3">
-            <dt class="text-neutral-500">{{ $t('admin.system.version') }}</dt>
-            <dd class="truncate font-mono text-neutral-900">{{ system?.version ?? '–' }}</dd>
-          </div>
-          <div class="flex justify-between gap-3">
-            <dt class="text-neutral-500">Go</dt>
-            <dd class="font-mono text-neutral-900">{{ system?.go_version ?? '–' }}</dd>
-          </div>
-          <div class="flex justify-between gap-3">
-            <dt class="text-neutral-500">{{ $t('admin.system.started') }}</dt>
-            <dd class="text-right text-neutral-900 tabular-nums">
-              {{ system ? dateTime.format(new Date(system.started_at)) : '–' }}
-              <span v-if="system" class="block text-xs text-neutral-500">{{ $t('admin.system.uptime', { time: uptime }) }}</span>
-            </dd>
-          </div>
-        </dl>
-      </section>
-    </div>
-
-    <!-- the files on tasks: how much they take, against the quota and the disk -->
-    <section class="mt-6 rounded-xl border border-neutral-200">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 pt-3.5">
-        <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.storage.title') }}</h2>
-        <p v-if="system" class="text-xs text-neutral-500">
-          {{ system.storage.quota_bytes ? $t('admin.storage.limits', { quota: formatSize(system.storage.quota_bytes), file: formatSize(system.storage.max_file_bytes) }) : $t('admin.storage.limitsNoQuota', { file: formatSize(system.storage.max_file_bytes) }) }}
-        </p>
-      </div>
-      <dl class="mt-3 grid grid-cols-2 divide-neutral-100 border-y border-neutral-100 max-sm:divide-y sm:grid-cols-4 sm:divide-x">
-        <div class="px-4 py-3">
-          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.files') }}</dt>
-          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? system.storage.files : '–' }}</dd>
-        </div>
-        <div class="px-4 py-3">
-          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.taken') }}</dt>
-          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? formatSize(system.storage.bytes) : '–' }}</dd>
-        </div>
-        <div class="px-4 py-3">
-          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.accounts') }}</dt>
-          <dd class="mt-1 text-2xl font-semibold text-neutral-900 tabular-nums">{{ system ? system.storage.accounts : '–' }}</dd>
-        </div>
-        <div class="px-4 py-3">
-          <dt class="text-xs text-neutral-500">{{ $t('admin.storage.nearQuota') }}</dt>
-          <dd class="mt-1 text-2xl font-semibold tabular-nums" :class="system?.storage.near_quota ? 'text-amber-600' : 'text-neutral-900'">
-            {{ system ? (system.storage.quota_bytes ? system.storage.near_quota : '–') : '–' }}
-          </dd>
-        </div>
-      </dl>
-
-      <div class="grid gap-x-6 gap-y-4 px-4 py-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <!-- the disk the files are on -->
-        <div>
-          <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.storage.disk') }}</h3>
-          <template v-if="system?.storage.disk && diskShare !== null">
-            <div
-              class="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100"
-              role="meter"
-              :aria-valuenow="system.storage.disk.total_bytes - system.storage.disk.free_bytes"
-              aria-valuemin="0"
-              :aria-valuemax="system.storage.disk.total_bytes"
-              :aria-label="$t('admin.storage.disk')"
-            >
-              <div class="h-full rounded-full" :class="meterClass(diskShare)" :style="{ width: meterWidth(diskShare) }" />
+    <!-- in one row: the server's build, this frontend's and the files -->
+    <section class="mt-6">
+      <h2 class="text-sm font-semibold text-neutral-900">{{ $t('admin.system.build') }}</h2>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- the server: its version and how long it has been up, then Go and when it started -->
+        <div class="rounded-xl border border-neutral-200 px-4 py-3.5">
+          <div class="flex items-center gap-3">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
+                <rect x="3" y="4" width="18" height="7" rx="2" />
+                <rect x="3" y="13" width="18" height="7" rx="2" />
+                <path d="M7 7.5h.01M7 16.5h.01" />
+              </svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-sm leading-snug font-medium text-neutral-900">{{ $t('admin.system.server') }}</h3>
+              <p class="truncate font-mono text-xs text-neutral-500" :title="system?.version">{{ system?.version ?? '–' }}</p>
             </div>
-            <p class="mt-1.5 text-xs text-neutral-500 tabular-nums">
-              {{ $t('admin.storage.diskFree', { free: formatSize(system.storage.disk.free_bytes), total: formatSize(system.storage.disk.total_bytes) }) }}
-            </p>
-          </template>
-          <p v-else-if="system" class="mt-1 text-xs text-neutral-500">{{ $t('admin.storage.diskUnknown') }}</p>
+            <span v-if="system" class="shrink-0 self-start rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-neutral-600 tabular-nums">{{ $t('admin.system.uptime', { time: uptime }) }}</span>
+          </div>
+          <dl class="mt-3 space-y-2 border-t border-neutral-100 pt-3 text-sm">
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-500">Go</dt>
+              <dd class="truncate font-mono text-neutral-900">{{ system?.go_version ?? '–' }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-500">{{ $t('admin.system.started') }}</dt>
+              <dd class="text-right text-neutral-900 tabular-nums">{{ system ? dateTime.format(new Date(system.started_at)) : '–' }}</dd>
+            </div>
+          </dl>
         </div>
 
-        <!-- who uploaded the most -->
-        <div>
-          <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.storage.top') }}</h3>
-          <p v-if="system && !system.storage.top.length" class="mt-1 text-xs text-neutral-500">{{ $t('admin.storage.none') }}</p>
-          <ul v-else-if="system" class="mt-2 space-y-2.5">
-            <li v-for="u in system.storage.top" :key="u.id">
-              <div class="flex items-baseline justify-between gap-3 text-sm">
-                <RouterLink :to="{ path: '/admin/users', query: { account: u.id } }" class="min-w-0 truncate font-medium text-neutral-900 hover:underline" :title="u.email">
-                  {{ u.name || u.email }}
-                </RouterLink>
-                <span class="shrink-0 text-xs text-neutral-500 tabular-nums">
-                  {{ $t('admin.storage.filesCount', { n: u.files }, u.files) }} · <span class="font-semibold text-neutral-900">{{ formatSize(u.bytes) }}</span>
-                </span>
-              </div>
-              <div v-if="system.storage.quota_bytes" class="mt-1 h-1 overflow-hidden rounded-full bg-neutral-100" aria-hidden="true">
-                <div class="h-full rounded-full" :class="meterClass(share(u.bytes, system.storage.quota_bytes))" :style="{ width: meterWidth(share(u.bytes, system.storage.quota_bytes)) }" />
-              </div>
-            </li>
-          </ul>
+        <!-- this frontend: its version and how long ago it was built, then Vue and when -->
+        <div class="rounded-xl border border-neutral-200 px-4 py-3.5">
+          <div class="flex items-center gap-3">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+              </svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-sm leading-snug font-medium text-neutral-900">{{ $t('admin.system.frontend') }}</h3>
+              <p class="truncate font-mono text-xs text-neutral-500" :title="BUILD.version">{{ BUILD.version }}</p>
+            </div>
+            <span class="shrink-0 self-start rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-neutral-600 tabular-nums">
+              {{ BUILD.dev ? $t('admin.system.uptime', { time: builtAge }) : $t('admin.system.builtAgo', { time: builtAge }) }}
+            </span>
+          </div>
+          <dl class="mt-3 space-y-2 border-t border-neutral-100 pt-3 text-sm">
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-500">Vue</dt>
+              <dd class="truncate font-mono text-neutral-900">{{ vueVersion }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-500">{{ BUILD.dev ? $t('admin.system.started') : $t('admin.system.built') }}</dt>
+              <dd class="text-right text-neutral-900 tabular-nums">{{ dateTime.format(new Date(BUILD.builtAt)) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- the files uploaded to Helpic: how many, how much they take and the room left for them -->
+        <div class="rounded-xl border border-neutral-200 px-4 py-3.5 sm:col-span-2 lg:col-span-1">
+          <div class="flex items-center gap-3">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
+                <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                <path d="M14 3v5h5M9 13h6M9 17h4" />
+              </svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-sm leading-snug font-medium text-neutral-900">{{ $t('admin.system.files') }}</h3>
+              <p class="truncate text-xs text-neutral-500 tabular-nums">{{ system ? $t('admin.storage.filesCount', { n: system.files.count }, system.files.count) : '–' }}</p>
+            </div>
+            <span v-if="filesShare !== null" class="shrink-0 self-start text-xs font-semibold tabular-nums" :class="filesShare >= NEAR_QUOTA ? 'text-amber-700' : 'text-neutral-500'">
+              {{ Math.round(filesShare * 100) }}%
+            </span>
+          </div>
+          <dl class="mt-3 grid grid-cols-2 gap-3 border-t border-neutral-100 pt-3">
+            <div class="min-w-0">
+              <dt class="text-xs text-neutral-500">{{ $t('admin.system.filesTaken') }}</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-neutral-900 tabular-nums">{{ system ? formatSize(system.files.bytes) : '–' }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs text-neutral-500">{{ $t('admin.system.diskFree') }}</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-neutral-900 tabular-nums">{{ system?.disk ? formatSize(system.disk.free_bytes) : '–' }}</dd>
+            </div>
+          </dl>
+          <div
+            v-if="system?.disk && filesShare !== null"
+            class="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-100"
+            role="meter"
+            :aria-valuenow="system.files.bytes"
+            aria-valuemin="0"
+            :aria-valuemax="system.files.bytes + system.disk.free_bytes"
+            :aria-label="$t('admin.system.filesRoom')"
+          >
+            <div class="h-full rounded-full" :class="meterClass(filesShare)" :style="{ width: meterWidth(filesShare) }" />
+          </div>
+          <p v-else-if="system" class="mt-2 text-xs text-neutral-500">{{ $t('admin.system.diskUnknown') }}</p>
         </div>
       </div>
     </section>

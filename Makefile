@@ -1,5 +1,7 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
+# The build's version, as the backend names its own; the admin panel shows it.
+export VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 .PHONY: help dev up down build logs prod test
 

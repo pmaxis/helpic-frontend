@@ -254,39 +254,16 @@ export interface AdminJob {
   state: 'ok' | 'failing' | 'late' | 'waiting'
 }
 
-/** An account by what it has uploaded. */
-export interface AdminUploader {
-  id: string
-  email: string
-  name: string
-  files: number
-  bytes: number
-}
-
-/** The files on tasks: sizes and counts only. */
-export interface AdminStorage {
-  files: number
-  bytes: number
-  /** Accounts with a file at least; near_quota have used 90% of the quota or more. */
-  accounts: number
-  near_quota: number
-  /** 0 for no quota. */
-  quota_bytes: number
-  max_file_bytes: number
-  /** The accounts that uploaded the most, the most first. */
-  top: AdminUploader[]
-  /** null when the server can't read it. */
-  disk: { total_bytes: number; free_bytes: number } | null
-}
-
 export interface AdminSystem {
   version: string
   go_version: string
   started_at: string
   checks: AdminCheck[]
   jobs: AdminJob[]
-  emails: AdminEmailCounts
-  storage: AdminStorage
+  /** The files uploaded to tasks: how many, and how much they take. */
+  files: { count: number; bytes: number }
+  /** The disk keeping the files on tasks; null when the server can't read it. */
+  disk: { total_bytes: number; free_bytes: number } | null
 }
 
 /** A device an account is signed in on. */
