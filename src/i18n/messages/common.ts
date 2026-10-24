@@ -129,6 +129,13 @@ const en = {
     client_joined: 'A client accepts your invitation',
     member_joined: 'Someone joins your team',
   },
+  notFound: {
+    title: 'Page not found',
+    text: 'There is nothing at this address. The link may be mistyped, or the page has moved.',
+    toDashboard: 'Go to the dashboard',
+    toPanel: 'Go to the admin panel',
+    toSignIn: 'Go to sign in',
+  },
 }
 
 const uk: typeof en = {
@@ -259,6 +266,13 @@ const uk: typeof en = {
     report_paid: 'Звіт позначено оплаченим',
     client_joined: 'Клієнт прийняв запрошення',
     member_joined: 'Хтось приєднався до команди',
+  },
+  notFound: {
+    title: 'Сторінку не знайдено',
+    text: 'За цією адресою нічого немає. Можливо, у посиланні помилка або сторінку перенесли.',
+    toDashboard: 'На головну',
+    toPanel: 'До адмінки',
+    toSignIn: 'До входу',
   },
 }
 
