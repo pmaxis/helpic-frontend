@@ -157,24 +157,27 @@ const activePoint = computed(() => (active.value === null ? null : { ...props.po
       </template>
     </div>
 
-    <table class="sr-only">
-      <caption>{{ label }}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{{ currentName }}</th>
-          <th scope="col">{{ label }}</th>
-          <th scope="col">{{ previousName }}</th>
-          <th scope="col">{{ label }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in points" :key="p.key">
-          <th scope="row">{{ p.title }}</th>
-          <td>{{ p.current }}</td>
-          <td>{{ p.previousTitle }}</td>
-          <td>{{ p.previous }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- the numbers for screen readers; sr-only sits on a div, since a table grows to its rows whatever its height and would stretch the page -->
+    <div class="sr-only">
+      <table>
+        <caption>{{ label }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{{ currentName }}</th>
+            <th scope="col">{{ label }}</th>
+            <th scope="col">{{ previousName }}</th>
+            <th scope="col">{{ label }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in points" :key="p.key">
+            <th scope="row">{{ p.title }}</th>
+            <td>{{ p.current }}</td>
+            <td>{{ p.previousTitle }}</td>
+            <td>{{ p.previous }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
