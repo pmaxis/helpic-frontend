@@ -46,6 +46,7 @@ const roleOptions = computed(() => [
 ])
 
 const ACTIVITIES: AdminActivity[] = ['', 'active', 'idle', 'never', 'blocked']
+const activityOptions = computed(() => ACTIVITIES.map((a) => ({ value: a, label: t(`admin.activity.${a || 'all'}`) })))
 
 /** Answers that come back after a newer request was sent are dropped. */
 let latest = 0
@@ -123,22 +124,9 @@ function activeShare(days: number): number {
     <div class="flex flex-wrap items-end gap-3">
       <BaseInput v-model="query" :label="$t('admin.search')" type="search" class="min-w-56 flex-1" />
       <SelectInput v-model="role" :options="roleOptions" class="w-44" :aria-label="$t('admin.columns.role')" />
+      <SelectInput v-model="activity" :options="activityOptions" class="w-52" :aria-label="$t('admin.activityFilter')" />
     </div>
-
-    <div class="mt-3 inline-flex flex-wrap rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('admin.columns.activity')">
-      <button
-        v-for="a in ACTIVITIES"
-        :key="a || 'all'"
-        type="button"
-        class="rounded-md px-2.5 py-1 font-medium transition-colors"
-        :class="activity === a ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
-        :aria-pressed="activity === a"
-        :title="a ? $t(`admin.activityHint.${a}`) : undefined"
-        @click="activity = a"
-      >
-        {{ $t(`admin.activity.${a || 'all'}`) }}
-      </button>
-    </div>
+    <p v-if="activity" class="mt-2 text-xs text-neutral-500">{{ $t(`admin.activityHint.${activity}`) }}</p>
 
     <EmptyState v-if="result && !result.users.length" class="mt-6 flex-1 justify-center" :title="$t('admin.noAccounts')" :description="$t('admin.noAccountsText')">
       <template #illustration>
