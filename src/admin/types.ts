@@ -77,6 +77,10 @@ export interface AdminAccountDetail extends AdminAccount {
   reports_paid: number
   seconds_logged: number
   comments: number
+  /** What they uploaded to tasks, and how much; quota_bytes is how much they may, 0 for no limit. */
+  files: number
+  files_bytes: number
+  quota_bytes: number
   telegram: boolean
   /** Signed-in devices now. */
   sessions: number
@@ -250,6 +254,31 @@ export interface AdminJob {
   state: 'ok' | 'failing' | 'late' | 'waiting'
 }
 
+/** An account by what it has uploaded. */
+export interface AdminUploader {
+  id: string
+  email: string
+  name: string
+  files: number
+  bytes: number
+}
+
+/** The files on tasks: sizes and counts only. */
+export interface AdminStorage {
+  files: number
+  bytes: number
+  /** Accounts with a file at least; near_quota have used 90% of the quota or more. */
+  accounts: number
+  near_quota: number
+  /** 0 for no quota. */
+  quota_bytes: number
+  max_file_bytes: number
+  /** The accounts that uploaded the most, the most first. */
+  top: AdminUploader[]
+  /** null when the server can't read it. */
+  disk: { total_bytes: number; free_bytes: number } | null
+}
+
 export interface AdminSystem {
   version: string
   go_version: string
@@ -257,6 +286,7 @@ export interface AdminSystem {
   checks: AdminCheck[]
   jobs: AdminJob[]
   emails: AdminEmailCounts
+  storage: AdminStorage
 }
 
 /** A device an account is signed in on. */

@@ -49,6 +49,27 @@ describe('AccountPanel', () => {
     expect(text).toContain('12')
   })
 
+  it('shows the files the account uploaded against its quota, warning when it’s near or used up', async () => {
+    serve()
+    const panel = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })
+    expect(panel.text()).toContain(t('admin.storage.filesCount', { n: 4 }, 4))
+    expect(panel.text()).toContain('3.0 MB')
+    expect(panel.text()).toContain(t('admin.storage.of', { size: '1.0 GB' }))
+    expect($('[role="meter"]')?.getAttribute('aria-valuenow')).toBe(String(3 * 1024 * 1024))
+    expect(panel.text()).not.toContain(t('admin.storage.nearFull'))
+
+    const gb = 1024 * 1024 * 1024
+    serve({ 'GET /admin/users/u1': { user: makeAccountDetail({ files_bytes: 0.95 * gb, quota_bytes: gb }) } })
+    const near = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })
+    expect(near.text()).toContain(t('admin.storage.nearFull'))
+    serve({ 'GET /admin/users/u1': { user: makeAccountDetail({ files_bytes: gb, quota_bytes: gb }) } })
+    const full = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })
+    expect(full.text()).toContain(t('admin.storage.full'))
+    serve({ 'GET /admin/users/u1': { user: makeAccountDetail({ quota_bytes: 0 }) } })
+    const free = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })
+    expect(free.text()).toContain(t('admin.storage.noQuota'))
+  })
+
   it('blocks the account with a reason and the admin’s code, keeping a wrong code in the question', async () => {
     const server = serve({ 'POST /admin/users/u1/block': status(422, { error: { code: 'V', message: 'x', fields: { code: 'Wrong code' } } }) })
     const panel = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })

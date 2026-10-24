@@ -2,7 +2,8 @@
 /**
  * An account's overview in the admin's card: the rate limits holding it
  * back, the days it used Helpic, its team, how much it has done (counts
- * only), when it joined and signed in, and the devices it's signed in on.
+ * only), the files it uploaded against its quota, when it joined and signed
+ * in, and the devices it's signed in on.
  */
 import { useI18n } from 'vue-i18n'
 import { deviceName, formatDate, formatDuration, parseDevice, timeAgo } from '@/utils/format'
@@ -10,6 +11,8 @@ import { timeAgoDay } from '../chart'
 import DeviceIcon from '@/components/account/DeviceIcon.vue'
 import ActivityHeatmap from './ActivityHeatmap.vue'
 import { untilText } from '../limits'
+import { NEAR_QUOTA, meterClass, meterWidth, share } from '../storage'
+import { formatSize } from '@/services/attachments'
 import type { AdminAccountDetail, AdminLimit, AdminSession } from '../types'
 
 defineProps<{
@@ -89,6 +92,32 @@ function usage(a: AdminAccountDetail): { label: string; value: string | number }
           <dd class="mt-0.5 text-sm font-semibold text-neutral-900">{{ item.value }}</dd>
         </div>
       </dl>
+    </section>
+
+    <section>
+      <h3 class="text-xs font-semibold text-neutral-900">{{ $t('admin.account.files') }}</h3>
+      <p class="mt-1 flex items-baseline justify-between gap-3 text-sm">
+        <span class="text-neutral-700">{{ $t('admin.storage.filesCount', { n: account.files }, account.files) }}</span>
+        <span class="inline-flex shrink-0 items-baseline gap-1 text-neutral-900 tabular-nums">
+          <span class="font-semibold">{{ formatSize(account.files_bytes) }}</span>
+          <span v-if="account.quota_bytes" class="text-neutral-500">{{ $t('admin.storage.of', { size: formatSize(account.quota_bytes) }) }}</span>
+        </span>
+      </p>
+      <template v-if="account.quota_bytes">
+        <div
+          class="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"
+          role="meter"
+          :aria-valuenow="account.files_bytes"
+          aria-valuemin="0"
+          :aria-valuemax="account.quota_bytes"
+          :aria-label="$t('admin.storage.quotaUsed')"
+        >
+          <div class="h-full rounded-full" :class="meterClass(share(account.files_bytes, account.quota_bytes))" :style="{ width: meterWidth(share(account.files_bytes, account.quota_bytes)) }" />
+        </div>
+        <p v-if="share(account.files_bytes, account.quota_bytes) >= 1" class="mt-1.5 text-xs font-medium text-red-600">{{ $t('admin.storage.full') }}</p>
+        <p v-else-if="share(account.files_bytes, account.quota_bytes) >= NEAR_QUOTA" class="mt-1.5 text-xs font-medium text-amber-700">{{ $t('admin.storage.nearFull') }}</p>
+      </template>
+      <p v-else class="mt-1 text-xs text-neutral-500">{{ $t('admin.storage.noQuota') }}</p>
     </section>
 
     <section>
