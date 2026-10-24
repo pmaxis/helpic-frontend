@@ -21,6 +21,16 @@ window.matchMedia ??= (query: string) =>
 Element.prototype.scrollIntoView ??= () => {}
 Element.prototype.scrollTo ??= () => {}
 
+// …nor reading a Blob as text, which the file viewer does for a text file.
+Blob.prototype.text ??= function (this: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(this)
+  })
+}
+
 // …nor ResizeObserver: nothing is laid out, so nothing ever resizes.
 globalThis.ResizeObserver ??= class {
   observe() {}
