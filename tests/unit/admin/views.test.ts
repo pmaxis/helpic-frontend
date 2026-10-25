@@ -235,7 +235,12 @@ describe('AdminSystemView', () => {
   it('shows each service, the jobs and the build, sending a test alert', async () => {
     const server = api({ 'GET /admin/system': makeSystem() })
     const page = await render(AdminSystemView, { path: '/admin/system', user: admin() })
-    expect(page.text()).toContain('connection refused')
+    // A service's error waits behind an "i" by its state.
+    const hint = $(`[aria-label="${t('admin.system.errorDetails')}"]`)!
+    expect(document.getElementById(hint.getAttribute('aria-describedby')!)?.textContent?.trim()).toBe('connection refused')
+    expect(document.getElementById(hint.getAttribute('aria-describedby')!)?.className).toContain('invisible')
+    await click(hint)
+    expect(document.getElementById(hint.getAttribute('aria-describedby')!)?.className).toContain('visible opacity-100')
     expect(page.text()).toContain('1.4.0')
     expect(page.text()).toContain('go1.26')
     // How long the server has been up sits in a chip by its name.

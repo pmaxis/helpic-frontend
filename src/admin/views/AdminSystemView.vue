@@ -17,6 +17,7 @@ import { timeAgo } from '@/utils/format'
 import { BUILD } from '@/config'
 import { useAuthStore } from '@/stores/auth'
 import AdminShell from '../components/AdminShell.vue'
+import ErrorHint from '../components/ErrorHint.vue'
 import { NEAR_QUOTA, meterClass, meterWidth } from '../storage'
 import { formatSize } from '@/services/attachments'
 import { fetchAdminSystem, sendTestAlert } from '../api'
@@ -189,11 +190,11 @@ const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'nu
               <span class="inline-flex items-center gap-1.5 font-semibold" :class="TEXT[c.state]">
                 <span class="h-2 w-2 rounded-full" :class="DOTS[c.state]" aria-hidden="true" />
                 {{ $t(`admin.system.state.${c.state}`) }}
+                <ErrorHint v-if="c.error" :error="c.error" />
               </span>
               <span v-if="c.state !== 'off'" class="text-neutral-500 tabular-nums">{{ $t('admin.system.latency', { ms: c.latency_ms }) }}</span>
             </div>
             <p v-if="c.state === 'off' && $t(`admin.system.off.${c.name}`)" class="mt-2 text-xs text-neutral-500">{{ $t(`admin.system.off.${c.name}`) }}</p>
-            <p v-if="c.error" class="mt-2 rounded-md bg-red-50 px-2 py-1.5 font-mono text-[11px] break-words text-red-700">{{ c.error }}</p>
             <button
               v-if="c.name === 'alerts' && c.state !== 'off'"
               type="button"
@@ -335,14 +336,14 @@ const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'nu
             </p>
           </div>
           <div class="text-right text-xs">
-            <p class="font-semibold" :class="TEXT[j.state]">
+            <p class="inline-flex items-center gap-1.5 font-semibold" :class="TEXT[j.state]">
               {{ j.running ? $t('admin.system.running') : $t(`admin.system.state.${j.state}`) }}
+              <ErrorHint v-if="j.last_error" :error="j.last_error" />
             </p>
             <p class="text-neutral-500 tabular-nums">
               <template v-if="j.last_run && !j.running">{{ timeAgo(j.last_run) }} · {{ nextRun(j) }}</template>
             </p>
           </div>
-          <p v-if="j.last_error" class="w-full rounded-md bg-red-50 px-2 py-1.5 font-mono text-[11px] break-words text-red-700">{{ j.last_error }}</p>
         </li>
         <li v-if="system && !system.jobs.length" class="px-4 py-6 text-center text-sm text-neutral-500">{{ $t('admin.system.noJobs') }}</li>
         <template v-if="!system">
