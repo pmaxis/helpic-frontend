@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * A task on the board: its title, project and labels, priority, due date and
- * people. The whole card opens the task and drags it (the board listens for
+ * A task on the board: its parent when it's a subtask, its title, project and
+ * labels, priority, how many subtasks are done, due date and people. The whole card opens the task and drags it (the board listens for
  * the drag); a pencil button edits it and a bin deletes it, for whoever may.
  */
 import { RouterLink } from 'vue-router'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
+import SubtaskCount from '@/components/tasks/SubtaskCount.vue'
 import { formatDate, isOverdue } from '@/utils/format'
 import type { Task } from '@/types/tasks'
 
@@ -42,6 +43,9 @@ function open(t: Task) {
     :class="[dragging ? 'opacity-40' : '', 'ring-1 ring-neutral-200']"
   >
     <RouterLink :to="{ name: 'task-detail', params: { id: task.id } }" class="block p-3" draggable="false">
+      <p v-if="task.parent" class="mb-0.5 truncate text-[11px] text-neutral-400" :class="task.can_edit || task.can_delete ? 'pr-12' : ''" :title="$t('subtasks.of', { title: task.parent.title })">
+        ↳ {{ task.parent.title }}
+      </p>
       <!-- two lines at most; the whole title is on hover and on the task's page -->
       <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="task.can_edit && task.can_delete ? 'pr-12' : task.can_edit || task.can_delete ? 'pr-6' : ''" :title="task.title">
         {{ task.title }}
@@ -69,7 +73,10 @@ function open(t: Task) {
       </div>
       <div class="mt-2 flex items-center justify-between gap-2 text-xs text-neutral-500">
         <!-- the priority on the left, a grey dash when there's none; the due date and people on the right -->
-        <PriorityIcon :priority="task.priority" show-none />
+        <span class="flex items-center gap-2">
+          <PriorityIcon :priority="task.priority" show-none />
+          <SubtaskCount v-if="task.subtasks.total" :count="task.subtasks" />
+        </span>
         <span class="flex min-w-0 items-center gap-2">
           <span v-if="task.due_on" class="truncate" :class="open(task) && isOverdue(task.due_on) ? 'font-medium text-red-600' : ''">
             {{ formatDate(task.due_on) }}

@@ -10,6 +10,9 @@
  *
  * An archived task is closed: it's shown as it was, and nothing on it —
  * status, priority, labels, people, comments, files — changes any more.
+ *
+ * A top-level task lists its subtasks under the description; a subtask's
+ * page names its parent in the breadcrumbs.
  */
 import { computed, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -22,6 +25,7 @@ import TaskTitle from '@/components/tasks/TaskTitle.vue'
 import TaskDescription from '@/components/tasks/TaskDescription.vue'
 import TaskArchivedNote from '@/components/tasks/TaskArchivedNote.vue'
 import TaskAttachments from '@/components/tasks/TaskAttachments.vue'
+import TaskSubtasks from '@/components/tasks/TaskSubtasks.vue'
 import TaskActivity from '@/components/tasks/TaskActivity.vue'
 import TaskDetailsPanel from '@/components/tasks/TaskDetailsPanel.vue'
 import { useTasksStore } from '@/stores/tasks'
@@ -205,6 +209,7 @@ function onSaved(t: Task) {
 
         <TaskArchivedNote v-if="task.archived_at" :archived-at="task.archived_at" :archived-by="task.archived_by" />
         <TaskDescription :task="task" :saving="saving" :save="save" />
+        <TaskSubtasks v-if="!task.parent_id && (task.can_add_subtask || task.subtasks.total)" :task="task" @changed="reloadTask" />
         <TaskAttachments :task-id="task.id" :readonly="archived" />
         <TaskActivity
           :task-id="task.id"

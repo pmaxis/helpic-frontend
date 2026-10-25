@@ -1,4 +1,4 @@
-/** Tasks: the list, a task's page and its details, comments, files, history, labels, the form. */
+/** Tasks: the list, a task's page and its details, subtasks, comments, files, history, labels, the form. */
 const en = {
   tasks: {
     title: 'Tasks',
@@ -119,6 +119,19 @@ const en = {
     noPrice: 'No price',
     create: 'Create task',
   },
+  subtasks: {
+    title: 'Subtasks',
+    add: 'Add subtask',
+    placeholder: 'What needs to be done?',
+    hint: 'Enter to add, then the next one · Esc to finish',
+    empty: 'Split the task into steps: each gets its own status, freelancer, price and time.',
+    none: 'No subtasks.',
+    progress: '{done} of {total} subtasks done',
+    total: 'Together',
+    of: 'Subtask of {title}',
+    loadFailed: 'Could not load the subtasks',
+    createFailed: 'Could not add the subtask',
+  },
   activity: {
     label: 'Activity',
     comments: 'Comments',
@@ -200,6 +213,8 @@ const en = {
     attachmentRemoved: '{who} removed the file {value}',
     archived: '{who} moved it to the archive',
     archivedPaid: '{who} paid {value} — the task went to the archive',
+    subtaskAdded: '{who} added the subtask {value}',
+    subtaskRemoved: '{who} deleted the subtask {value}',
     other: '{who} changed the task',
   },
   archive: {
@@ -371,6 +386,19 @@ const uk: typeof en = {
     noPrice: 'Без ціни',
     create: 'Створити задачу',
   },
+  subtasks: {
+    title: 'Підзадачі',
+    add: 'Додати підзадачу',
+    placeholder: 'Що треба зробити?',
+    hint: 'Enter — додати й одразу наступну · Esc — завершити',
+    empty: 'Розбийте задачу на кроки: у кожного свій статус, фрилансер, ціна й час.',
+    none: 'Підзадач немає.',
+    progress: 'Виконано {done} з {total} підзадач',
+    total: 'Разом',
+    of: 'Підзадача задачі {title}',
+    loadFailed: 'Не вдалося завантажити підзадачі',
+    createFailed: 'Не вдалося додати підзадачу',
+  },
   activity: {
     label: 'Активність',
     comments: 'Коментарі',
@@ -451,6 +479,8 @@ const uk: typeof en = {
     attachmentRemoved: '{who}: файл {value} видалено',
     archived: '{who}: задачу перенесено в архів',
     archivedPaid: '{who}: звіт {value} оплачено — задача в архіві',
+    subtaskAdded: '{who}: додано підзадачу {value}',
+    subtaskRemoved: '{who}: підзадачу {value} видалено',
     other: '{who}: задачу змінено',
   },
   archive: {

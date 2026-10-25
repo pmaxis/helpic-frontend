@@ -45,6 +45,10 @@ export function makeTask(over: Partial<Task> = {}): Task {
     updated_at: '2030-01-10T09:00:00Z',
     archived_at: null,
     archived_by: null,
+    parent_id: null,
+    parent: null,
+    subtasks: { total: 0, done: 0 },
+    can_add_subtask: true,
     ...over,
   }
 }
@@ -124,6 +128,7 @@ export function makeReportItem(over: Partial<ReportItem> = {}): ReportItem {
     id: 'i-1',
     task_id: 't-1',
     title: 'Write the landing page',
+    parent_title: '',
     project_name: '',
     status_name: 'Done',
     completed_on: '2030-01-20',

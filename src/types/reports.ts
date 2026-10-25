@@ -8,6 +8,8 @@ export interface ReportItem {
   /** Null once the task itself was deleted; the report keeps its snapshot. */
   task_id: string | null
   title: string
+  /** The title of the task a subtask belongs to, as it was then; '' for a top-level task. */
+  parent_title: string
   project_name: string
   status_name: string
   /** YYYY-MM-DD */

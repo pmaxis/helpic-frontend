@@ -32,6 +32,14 @@ describe('KanbanCard', () => {
     expect(done.classes()).toContain('opacity-40')
   })
 
+  it('names a subtask’s parent, and counts a parent’s done subtasks', async () => {
+    const sub = await render(KanbanCard, { props: { task: makeTask({ parent_id: 'p', parent: { id: 'p', title: 'Landing' } }), hideProject: false, dragging: false }, user: makeUser() })
+    expect(sub.text()).toContain('↳ Landing')
+    const parent = await render(KanbanCard, { props: { task: makeTask({ subtasks: { total: 3, done: 1 } }), hideProject: false, dragging: false }, user: makeUser() })
+    expect(parent.get(`[aria-label="${t('subtasks.progress', { done: 1, total: 3 })}"]`).text()).toBe('1/3')
+    expect(parent.text()).not.toContain('↳')
+  })
+
   it('has a pencil for whoever may edit, and a bin for whoever may delete', async () => {
     const view = await render(KanbanCard, { props: { task: makeTask({ title: 'Logo' }), hideProject: false, dragging: false }, user: makeUser() })
     await view.get(`[aria-label="${t('board.editTaskNamed', { title: 'Logo' })}"]`).trigger('click')

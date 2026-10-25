@@ -45,12 +45,14 @@ describe('TaskHistory', () => {
       event('attachment_removed', { name: 'brief.pdf' }),
       event('archived', { report: 'January' }),
       event('archived'),
+      event('subtask_added', { title: 'Header' }),
+      event('subtask_removed', { title: 'Footer' }),
       event('something new' as TaskEvent['kind']),
     ]
     api({ 'GET /tasks/t-1/history': { events } })
     const history = await render(TaskHistory, { props: { taskId: 't-1' }, user: me })
     const text = history.text()
-    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”']) {
+    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”', '“Header”', '“Footer”']) {
       expect(text).toContain(value)
     }
     expect(history.findAll('li')).toHaveLength(events.length)

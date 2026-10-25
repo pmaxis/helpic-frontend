@@ -238,7 +238,8 @@ function submit() {
           :placeholder="auth.isClient ? choosePerson() : undefined"
           :options="personOptions"
         />
-        <BaseSelect v-if="projectOptions.length > 1" v-bind="form.field('project_id')" :label="$t('taskForm.project')" :options="projectOptions" />
+        <!-- a subtask stays in its parent's project -->
+        <BaseSelect v-if="projectOptions.length > 1 && !task?.parent_id" v-bind="form.field('project_id')" :label="$t('taskForm.project')" :options="projectOptions" />
         <p v-if="personal" class="text-sm text-neutral-500">
           {{ $t('taskForm.personalNote') }}
         </p>

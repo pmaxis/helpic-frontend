@@ -93,6 +93,10 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       return { key: 'history.attachmentAdded', values: { value: quote(e.data.name) } }
     case 'attachment_removed':
       return { key: 'history.attachmentRemoved', values: { value: quote(e.data.name) } }
+    case 'subtask_added':
+      return { key: 'history.subtaskAdded', values: { value: quote(e.data.title) } }
+    case 'subtask_removed':
+      return { key: 'history.subtaskRemoved', values: { value: quote(e.data.title) } }
     case 'archived':
       if (e.data.report) return { key: 'history.archivedPaid', values: { value: quote(e.data.report) } }
       return { key: 'history.archived', values: {} }

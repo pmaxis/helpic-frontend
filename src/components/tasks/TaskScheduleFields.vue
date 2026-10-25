@@ -163,7 +163,7 @@ async function toggleTimer() {
       <dt class="text-neutral-500">{{ $t('task.project') }}</dt>
       <dd class="min-w-0">
         <SelectInput
-          v-if="task.can_edit && projectOptions.length > 1"
+          v-if="task.can_edit && projectOptions.length > 1 && !task.parent_id"
           :model-value="task.project?.id ?? ''"
           :options="projectOptions"
           :disabled="busy"

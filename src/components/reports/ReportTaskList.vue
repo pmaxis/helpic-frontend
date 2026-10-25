@@ -74,6 +74,7 @@ async function removeItem(itemId: string) {
       <li v-for="it in report.items" :key="it.id" class="py-2">
         <div class="group flex items-start gap-2">
           <div class="min-w-0 flex-1">
+            <p v-if="it.parent_title" class="truncate text-xs text-neutral-400">{{ it.parent_title }} ›</p>
             <p class="truncate text-sm text-neutral-800">{{ it.title }}</p>
             <p class="text-xs text-neutral-400">
               {{ formatDate(it.completed_on) }}{{ it.project_name ? ` · ${it.project_name}` : '' }}{{ it.seconds !== null ? ` · ${formatDuration(it.seconds)}` : '' }}

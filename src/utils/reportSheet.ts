@@ -6,6 +6,8 @@ import type { Report } from '@/types/reports'
 
 export interface SheetItem {
   title: string
+  /** The task a subtask belongs to, over its title; '' for a top-level task. */
+  parentTitle: string
   projectName: string
   completed: string
   /** '' for a task without a price. */
@@ -108,6 +110,7 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
       const notes = r.kind === 'detailed' ? splitText(it.notes) : { text: '', bullets: [] }
       return {
         title: it.title,
+        parentTitle: it.parent_title,
         projectName: it.project_name,
         completed: formatDocumentDate(it.completed_on),
         price: it.price_cents !== null ? formatMoney(it.price_cents, r.currency) : '',

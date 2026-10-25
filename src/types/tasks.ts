@@ -73,6 +73,14 @@ export interface Task {
   archived_at: string | null
   /** The paid report that archived it; null when its owner put it away. */
   archived_by: { id: string; title: string } | null
+  /** The task a subtask belongs to; null on a top-level task. */
+  parent_id: string | null
+  /** Names the parent; null when the viewer doesn't see it (another freelancer's task on the project). */
+  parent: { id: string; title: string } | null
+  /** The subtasks the viewer sees, and how many of them are done or archived. */
+  subtasks: { total: number; done: number }
+  /** The task can be split: it's on the boards and isn't a subtask itself. */
+  can_add_subtask: boolean
 }
 
 export interface TaskInput {
@@ -86,6 +94,8 @@ export interface TaskInput {
   project_id?: string
   /** Create the task straight in this board column. */
   status_id?: string
+  /** Create it as a subtask of this task: with its client, in its project, by default for its freelancer. */
+  parent_id?: string
   title: string
   description: string
   due_on: string | null

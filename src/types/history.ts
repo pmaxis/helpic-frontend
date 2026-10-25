@@ -12,6 +12,8 @@ export type TaskEventKind =
   | 'attachment_added'
   | 'attachment_removed'
   | 'archived'
+  | 'subtask_added'
+  | 'subtask_removed'
 
 /** One change in a task's history. */
 export interface TaskEvent {
@@ -30,6 +32,8 @@ export interface TaskEvent {
     category?: string
     /** The paid report's title, on an "archived" event a payment made. */
     report?: string
+    /** The subtask's title, on a "subtask_added" or "subtask_removed" event. */
+    title?: string
     /** Label names, on a "labels" event. */
     added?: string[]
     removed?: string[]

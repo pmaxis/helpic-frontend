@@ -57,6 +57,14 @@ function goBack() {
               {{ task.project.name }}
             </RouterLink>
           </template>
+          <template v-if="task?.parent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-neutral-300" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <RouterLink :to="{ name: 'task-detail', params: { id: task.parent.id } }" class="truncate hover:text-neutral-900" :title="task.parent.title">
+              {{ task.parent.title }}
+            </RouterLink>
+          </template>
         </nav>
       </template>
     </TaskDetails>

@@ -113,6 +113,7 @@ function summary(s: ReportSheet): Content[] {
 function taskCell(it: SheetItem): TableCell {
   const stack: Content[] = [{ text: it.title, font: 'InterMedium', color: INK }]
   const notes = { fontSize: 9, color: INK_2, margin: [0, 2, 0, 0] as [number, number, number, number] }
+  if (it.parentTitle) stack.unshift({ text: it.parentTitle, fontSize: 8, color: INK_3, margin: [0, 0, 0, 1] })
   if (it.notesText) stack.push({ text: it.notesText, ...notes })
   if (it.notesBullets.length) {
     stack.push({ ul: it.notesBullets.map((b, i) => ({ text: b, margin: [0, i ? 1 : 0, 0, 0] })), markerColor: INK_3, ...notes })
@@ -187,7 +188,7 @@ function rowsFitPage(items: SheetItem[], taskWidth: number): boolean {
   const lines = (text: string) => Math.ceil(text.length / perLine) || 1
   return items.every((it) => {
     const notes = [it.notesText, ...it.notesBullets].filter(Boolean)
-    const height = lines(it.title) * 15 + notes.reduce((sum, n) => sum + lines(n) * 13, 0)
+    const height = lines(it.title) * 15 + (it.parentTitle ? 11 : 0) + notes.reduce((sum, n) => sum + lines(n) * 13, 0)
     return height < 500
   })
 }

@@ -5,6 +5,7 @@ import StatusBadge from '@/components/tasks/StatusBadge.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
+import SubtaskCount from '@/components/tasks/SubtaskCount.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -116,8 +117,10 @@ function summary(t: Task): string {
                 <LabelChip v-for="l in t.labels.slice(0, 3)" :key="l.id" :name="l.name" :color="l.color" size="xs" />
                 <span v-if="t.labels.length > 3" class="text-[10px] leading-5 text-neutral-400">+{{ t.labels.length - 3 }}</span>
               </span>
+              <SubtaskCount v-if="t.subtasks.total" :count="t.subtasks" />
             </div>
-            <p v-if="summary(t)" class="mt-0.5 truncate text-xs text-neutral-500">{{ summary(t) }}</p>
+            <p v-if="t.parent" class="mt-0.5 truncate text-xs text-neutral-500" :title="$t('subtasks.of', { title: t.parent.title })">↳ {{ t.parent.title }}</p>
+            <p v-else-if="summary(t)" class="mt-0.5 truncate text-xs text-neutral-500">{{ summary(t) }}</p>
           </div>
 
           <!-- status -->

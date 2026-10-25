@@ -34,6 +34,12 @@ export const useTasksStore = defineStore('tasks', {
       return data.task
     },
 
+    /** A task's subtasks the user sees, archived ones too, the oldest first. */
+    async fetchSubtasks(id: string): Promise<Task[]> {
+      const { data } = await http.get<{ tasks: Task[] }>(`/tasks/${id}/subtasks`)
+      return data.tasks ?? []
+    },
+
     async createTask(input: TaskInput): Promise<Task> {
       const { data } = await http.post<{ task: Task }>('/tasks', input)
       this.tasks = [data.task, ...this.tasks]
