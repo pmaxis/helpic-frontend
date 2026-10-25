@@ -9,6 +9,7 @@ import reports from './reports'
 import dashboard from './dashboard'
 import settings from './settings'
 import timelog from './timelog'
+import policies from './policies'
 import admin from '@/admin/messages'
 
 export const en = {
@@ -22,6 +23,7 @@ export const en = {
   ...dashboard.en,
   ...settings.en,
   ...timelog.en,
+  ...policies.en,
   ...admin.en,
 }
 
@@ -38,5 +40,6 @@ export const uk: MessageSchema = {
   ...dashboard.uk,
   ...settings.uk,
   ...timelog.uk,
+  ...policies.uk,
   ...admin.uk,
 }

@@ -71,6 +71,10 @@ defineProps<{
     <template v-else-if="name === 'status'">
       <path d="M3 12h4l3-8 4 16 3-8h4" />
     </template>
+    <template v-else-if="name === 'policies'">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h4" />
+    </template>
     <template v-else-if="name === 'limits'">
       <circle cx="12" cy="13" r="8" />
       <path d="M12 9v4l2 2M10 2h4" />

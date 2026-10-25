@@ -1,4 +1,6 @@
 import { http } from '@/services/api'
+import type { Locale } from '@/i18n'
+import type { AdminPolicy, PolicyKind } from '@/types/policies'
 import type {
   AdminAccountAdmin,
   AdminAccountDetail,
@@ -141,4 +143,22 @@ export async function fetchAdminSignIns(query: { failed?: boolean; admin?: strin
 /** Signs an admin out of one device, confirmed with your own two-factor code; they get an email and the alert chat hears of it. */
 export async function endAdminSession(id: string, session: string, reason: string, code: string): Promise<void> {
   await http.post(`/admin/admins/${id}/sessions/${session}/end`, { reason, code })
+}
+
+/** Every policy in every language, with who wrote it last. */
+export async function fetchAdminPolicies(): Promise<AdminPolicy[]> {
+  const { data } = await http.get<{ policies: AdminPolicy[] }>('/admin/policies')
+  return data.policies
+}
+
+/** Makes `body` the policy in `locale`; readers see it at once. */
+export async function saveAdminPolicy(kind: PolicyKind, locale: Locale, body: string): Promise<AdminPolicy> {
+  const { data } = await http.put<{ policy: AdminPolicy }>(`/admin/policies/${kind}/${locale}`, { body })
+  return data.policy
+}
+
+/** Puts Helpic's own text back for the policy in `locale`. */
+export async function resetAdminPolicy(kind: PolicyKind, locale: Locale): Promise<AdminPolicy> {
+  const { data } = await http.delete<{ policy: AdminPolicy }>(`/admin/policies/${kind}/${locale}`)
+  return data.policy
 }

@@ -4,8 +4,7 @@ import { ref } from 'vue'
 import AuthShowcase from '@/components/auth/AuthShowcase.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 import LocaleSwitcher from '@/components/ui/LocaleSwitcher.vue'
-
-const year = new Date().getFullYear()
+import LegalFooter from '@/components/policies/LegalFooter.vue'
 
 /** Where the soft light over the product side is: it follows the pointer. */
 const light = ref({ x: '75%', y: '15%' })
@@ -33,9 +32,7 @@ const FEATURES = ['invite', 'tasks', 'projects', 'personal'] as const
       <div class="flex flex-1 items-center justify-center py-10">
         <slot />
       </div>
-      <footer class="text-xs text-neutral-400">
-        <p>{{ $t('authLayout.rights', { year, app: APP_NAME }) }}</p>
-      </footer>
+      <LegalFooter />
     </div>
 
     <!-- Product side -->

@@ -86,6 +86,14 @@ function onSubmit() {
           <BaseButton type="submit" class="h-10" :loading="form.submitting" :disabled="form.submitting">
             {{ $t('register.submit') }}
           </BaseButton>
+          <i18n-t keypath="policies.agree" tag="p" scope="global" class="mt-3 text-center text-xs leading-relaxed text-neutral-500">
+            <template #terms>
+              <RouterLink to="/terms" class="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">{{ $t('policies.agreeTerms') }}</RouterLink>
+            </template>
+            <template #privacy>
+              <RouterLink to="/privacy" class="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">{{ $t('policies.agreePrivacy') }}</RouterLink>
+            </template>
+          </i18n-t>
         </div>
       </form>
 

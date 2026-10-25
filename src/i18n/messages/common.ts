@@ -104,6 +104,7 @@ const en = {
     adminSystem: 'Status',
     adminLimits: 'Limits',
     adminAdmins: 'Admins',
+    adminPolicies: 'Policies',
   },
   notificationKinds: {
     groups: {
@@ -242,6 +243,7 @@ const uk: typeof en = {
     adminSystem: 'Стан системи',
     adminLimits: 'Ліміти',
     adminAdmins: 'Адміни',
+    adminPolicies: 'Політики',
   },
   notificationKinds: {
     groups: {

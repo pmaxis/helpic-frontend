@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteLocationNormalized, type Rout
 import { useAuthStore } from '@/stores/auth'
 import { adminRoutes } from '@/admin/routes'
 import type { Role } from '@/types/auth'
+import { POLICY_KINDS } from '@/types/policies'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -148,6 +149,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/SettingsView.vue'),
     meta: { requiresAuth: true, everyone: true },
   },
+  // Open to everyone: the policies are for reading before signing up too.
+  ...POLICY_KINDS.map((kind) => ({
+    path: `/${kind}`,
+    name: `policy-${kind}`,
+    component: () => import('@/views/PolicyView.vue'),
+    props: { kind },
+    meta: { everyone: true },
+  })),
   ...adminRoutes,
   {
     // Open to everyone: it shows in the app when signed in, by sign-in when not.
