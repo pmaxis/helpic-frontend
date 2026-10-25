@@ -1,5 +1,10 @@
 <script setup lang="ts">
-defineProps<{ modelValue: boolean; label: string }>()
+defineProps<{
+  modelValue: boolean
+  label: string
+  /** Shown as it is, and can't be switched. */
+  disabled?: boolean
+}>()
 defineEmits<{ 'update:modelValue': [value: boolean] }>()
 </script>
 
@@ -9,7 +14,8 @@ defineEmits<{ 'update:modelValue': [value: boolean] }>()
     role="switch"
     :aria-checked="modelValue"
     :aria-label="label"
-    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-neutral-900/20 focus-visible:outline-none"
+    :disabled="disabled"
+    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-neutral-900/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
     :class="modelValue ? 'bg-neutral-900' : 'bg-neutral-300'"
     @click="$emit('update:modelValue', !modelValue)"
   >
