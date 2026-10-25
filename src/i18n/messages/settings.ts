@@ -1,9 +1,9 @@
-/** Settings: profile, email, password, notifications, sessions. */
+/** Settings: profile, email, password, notifications, sessions, integrations. */
 const en = {
   settings: {
     title: 'Settings',
     sections: 'Settings sections',
-    tabs: { profile: 'Profile', security: 'Security', notifications: 'Notifications' },
+    tabs: { profile: 'Profile', security: 'Security', notifications: 'Notifications', integrations: 'Integrations' },
     groups: {
       profile: 'Profile',
       profileText: 'Who you are to the people you work with.',
@@ -26,7 +26,7 @@ const en = {
       devices: 'Sessions',
       devicesText: "Where your account is signed in. End a session you don't recognise.",
       channels: 'Where notifications arrive',
-      channelsText: 'Helpic tells you when something happens on your work. Pick where, and what about.',
+      integrations: 'Integrations',
     },
     profile: {
       firstNameOrCompany: 'First name or company',
@@ -123,16 +123,16 @@ const en = {
   notificationSettings: {
     loadFailed: 'Could not load. Reload the page to try again.',
     saveFailed: 'Could not save your choice',
-    onOf: '{on} of {total} on',
+    event: 'Notification',
+    where: 'Where it goes',
+    all: 'All notifications',
+    allIn: 'All notifications, by {channel}',
+    inChannel: '{kind}, by {channel}',
+    app: {
+      title: 'App',
+    },
     email: {
       title: 'Email',
-      off: 'Off: nothing is emailed to {email}.',
-      on: 'On',
-      to: 'to {email}',
-      turnOff: 'Turn off',
-      turnOn: 'Turn on',
-      what: 'What gets emailed',
-      explain: "Emailed a few minutes after they happen, several in one email, and not if you've already seen them in Helpic.",
     },
     telegram: {
       title: 'Telegram',
@@ -142,18 +142,32 @@ const en = {
       since: 'since {date}',
       pressStart: 'Press {start} in the bot to finish…',
       start: 'Start',
-      intro: 'Get important notifications in a chat with the Helpic bot.',
+      toIntegrations: 'Connect in Integrations',
       disconnect: 'Disconnect',
       disconnecting: 'Disconnecting…',
       open: 'Open Telegram',
       connect: 'Connect Telegram',
-      what: 'What goes to Telegram',
-      explain: 'Sent to the chat as they happen. Everything still shows up in the app.',
       connectFailed: 'Could not connect Telegram',
       expired: 'The Telegram link expired. Connect again when you’re ready.',
       connectedToast: 'Telegram connected',
       disconnected: 'Telegram disconnected',
       disconnectFailed: 'Could not disconnect Telegram',
+    },
+  },
+  integrations: {
+    telegram: {
+      tagline: 'Run your work right from the chat.',
+      can: 'What the bot does',
+      does: {
+        notify: 'Notifications about your work',
+        reply: 'A reply is a comment',
+        timer: 'The timer in one tap',
+        task: 'A task from any message',
+        approve: 'Sending work back, and paying a report',
+      },
+      commands: 'Commands:',
+      kinds: 'Which notifications come to the chat is up to you:',
+      toNotifications: 'choose in Notifications',
     },
   },
 }
@@ -162,7 +176,7 @@ const uk: typeof en = {
   settings: {
     title: 'Налаштування',
     sections: 'Розділи налаштувань',
-    tabs: { profile: 'Профіль', security: 'Безпека', notifications: 'Сповіщення' },
+    tabs: { profile: 'Профіль', security: 'Безпека', notifications: 'Сповіщення', integrations: 'Інтеграції' },
     groups: {
       profile: 'Профіль',
       profileText: 'Хто ви для людей, з якими працюєте.',
@@ -185,7 +199,7 @@ const uk: typeof en = {
       devices: 'Сесії',
       devicesText: 'Де зараз відкрито ваш акаунт. Завершіть сесію, якої не впізнаєте.',
       channels: 'Куди надходять сповіщення',
-      channelsText: 'Helpic повідомляє, коли у вашій роботі щось відбувається. Оберіть куди й про що.',
+      integrations: 'Інтеграції',
     },
     profile: {
       firstNameOrCompany: 'Імʼя або компанія',
@@ -282,16 +296,16 @@ const uk: typeof en = {
   notificationSettings: {
     loadFailed: 'Не вдалося завантажити. Оновіть сторінку.',
     saveFailed: 'Не вдалося зберегти вибір',
-    onOf: 'увімкнено {on} з {total}',
+    event: 'Сповіщення',
+    where: 'Куди надходить',
+    all: 'Усі сповіщення',
+    allIn: 'Усі сповіщення: {channel}',
+    inChannel: '{kind}: {channel}',
+    app: {
+      title: 'Застосунок',
+    },
     email: {
       title: 'Пошта',
-      off: 'Вимкнено: на {email} нічого не надсилається.',
-      on: 'Увімкнено',
-      to: 'на {email}',
-      turnOff: 'Вимкнути',
-      turnOn: 'Увімкнути',
-      what: 'Що надсилати поштою',
-      explain: 'Надходять за кілька хвилин після події, по кілька в одному листі, і не надходять, якщо ви вже побачили їх у Helpic.',
     },
     telegram: {
       title: 'Telegram',
@@ -301,18 +315,32 @@ const uk: typeof en = {
       since: 'з {date}',
       pressStart: 'Натисніть {start} у боті, щоб завершити…',
       start: 'Start',
-      intro: 'Отримуйте важливі сповіщення в чаті з ботом Helpic.',
+      toIntegrations: 'Підключити в Інтеграціях',
       disconnect: 'Відключити',
       disconnecting: 'Відключаємо…',
       open: 'Відкрити Telegram',
       connect: 'Підключити Telegram',
-      what: 'Що надсилати в Telegram',
-      explain: 'Надходять у чат одразу. У застосунку все так само видно.',
       connectFailed: 'Не вдалося підключити Telegram',
       expired: 'Посилання для Telegram прострочене. Підключіть знову, коли будете готові.',
       connectedToast: 'Telegram підключено',
       disconnected: 'Telegram відключено',
       disconnectFailed: 'Не вдалося відключити Telegram',
+    },
+  },
+  integrations: {
+    telegram: {
+      tagline: 'Керуйте роботою просто з чату.',
+      can: 'Що вміє бот',
+      does: {
+        notify: 'Сповіщення про вашу роботу',
+        reply: 'Відповідь — це коментар',
+        timer: 'Таймер однією кнопкою',
+        task: 'Задача з будь-якого повідомлення',
+        approve: 'Повернення на доопрацювання і оплата звіту',
+      },
+      commands: 'Команди:',
+      kinds: 'Які сповіщення надходять у чат, вирішуєте ви:',
+      toNotifications: 'оберіть у Сповіщеннях',
     },
   },
 }

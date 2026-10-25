@@ -20,6 +20,7 @@ function serve(extra: Record<string, Reply> = {}) {
   return api({
     'GET /me/sessions': { sessions: [session(), session({ id: 's2', user_agent: IPHONE, current: false, ip: '' }), session({ id: 's3', current: false, last_used_at: '2030-01-01T00:00:00Z' })] },
     'GET /me/two-factor': { enabled: false, recovery_codes_left: 0 },
+    'GET /me/app-notifications': { app_notifications: { kinds: ['task_created', 'comment_added'], available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } },
     'GET /me/email-notifications': { email_notifications: { kinds: ['task_created'], available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } },
     'GET /me/telegram': { telegram: { enabled: true, connected: false, username: '', kinds: [], linked_at: null, available: ['task_created'], default_kinds: [] } },
     ...extra,
@@ -268,23 +269,47 @@ describe('Settings › Notifications', () => {
   it('switches the emailed kinds, only those this user can get, and turns email off', async () => {
     const server = serve({ 'PUT /me/email-notifications': (c: { body: { kinds: string[] } }) => ({ email_notifications: { kinds: c.body.kinds, available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } }) })
     const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser({ role: 'client' }) })
-    await click(byTextContains(t('notificationSettings.email.what')))
-    expect($$('[role="switch"]').map((s) => s.getAttribute('aria-label'))).not.toContain(t('notificationKinds.report_paid'))
-    await click(`[role="switch"][aria-label="${t('notificationKinds.comment_added')}"]`)
+    // a client never gets "report paid": it's the freelancer's
+    expect(page.text()).not.toContain(t('notificationKinds.report_paid'))
+    await click(sw('comment_added', 'email'))
     expect(server.to('PUT /me/email-notifications')[0].body).toEqual({ kinds: ['task_created', 'comment_added'] })
-    expect(localStorage.getItem('helpic:notification-kinds-open:email')).toBe('1')
 
-    await click(button(t('notificationSettings.email.turnOff')))
+    // The first row turns the whole channel off, and back on to its defaults.
+    await click(all('email'))
     expect(server.to('PUT /me/email-notifications')[1].body).toEqual({ kinds: [] })
-    expect(page.text()).toContain(t('notificationSettings.email.off', { email: 'olena@example.test' }))
+    expect(sw('comment_added', 'email').getAttribute('aria-checked')).toBe('false')
+    expect(all('email').getAttribute('aria-checked')).toBe('false')
+    expect(page.text()).toContain('olena@example.test')
+  })
+
+  it('turns every channel off and on from the first row, Telegram once connected', async () => {
+    const server = serve({
+      'PUT /me/app-notifications': (c: { body: { kinds: string[] } }) => ({ app_notifications: { kinds: c.body.kinds, available: ['task_created', 'comment_added'], default_kinds: ['task_created', 'comment_added'] } }),
+    })
+    await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    await click(all('app'))
+    expect(server.to('PUT /me/app-notifications')[0].body).toEqual({ kinds: [] })
+    await click(all('app'))
+    expect(server.to('PUT /me/app-notifications')[1].body).toEqual({ kinds: ['task_created', 'comment_added'] })
+    // not connected: nothing to switch
+    expect(all('telegram').hasAttribute('disabled')).toBe(true)
+  })
+
+  it('switches what the bell shows', async () => {
+    const server = serve({ 'PUT /me/app-notifications': (c: { body: { kinds: string[] } }) => ({ app_notifications: { kinds: c.body.kinds, available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } }) })
+    await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    expect(sw('comment_added', 'app').getAttribute('aria-checked')).toBe('true')
+    await click(sw('comment_added', 'app'))
+    expect(server.to('PUT /me/app-notifications')[0].body).toEqual({ kinds: ['task_created'] })
+    expect(sw('comment_added', 'app').getAttribute('aria-checked')).toBe('false')
   })
 
   it('puts a refused choice back', async () => {
     serve({ 'PUT /me/email-notifications': status(500, { error: { code: 'X', message: 'Nope' } }) })
     await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
-    await click(button(t('notificationSettings.email.turnOff')))
+    await click(all('email'))
     expect(useToasts().toasts.at(-1)?.message).toBe('Nope')
-    expect(() => button(t('notificationSettings.email.turnOff'))).not.toThrow()
+    expect(all('email').getAttribute('aria-checked')).toBe('true')
   })
 
   it('connects Telegram through a one-time link, waiting for the bot', async () => {
@@ -292,7 +317,8 @@ describe('Settings › Notifications', () => {
     const server = serve({ 'POST /me/telegram/link': { link: { url: 'https://t.me/helpic_bot?start=x', expires_at: '2099-01-01T00:00:00Z' } } })
     const tab = { opener: {}, location: { href: '' }, close: vi.fn() }
     vi.spyOn(window, 'open').mockReturnValue(tab as never)
-    const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    const page = await render(SettingsView, { path: '/settings?tab=integrations', user: makeUser() })
+    expect(page.text()).toContain(t('integrations.telegram.does.reply'))
     await click(button(t('notificationSettings.telegram.connect')))
     expect(tab.location.href).toBe('https://t.me/helpic_bot?start=x')
     expect(tab.opener).toBeNull()
@@ -302,13 +328,17 @@ describe('Settings › Notifications', () => {
     await flushPromises()
     expect(page.text()).toContain(t('notificationSettings.telegram.as', { name: 'olena' }))
     expect(useToasts().toasts.at(-1)?.message).toBe(t('notificationSettings.telegram.connectedToast'))
+    // Which kinds go there is picked under Notifications.
+    await click(byLink(t('integrations.telegram.toNotifications')))
+    await flushPromises()
+    expect(page.router.currentRoute.value.query.tab).toBe('notifications')
   })
 
   it('gives up on an expired link, and closes the tab when no link comes', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     const server = serve({ 'POST /me/telegram/link': { link: { url: 'https://t.me/x', expires_at: '2000-01-01T00:00:00Z' } } })
     vi.spyOn(window, 'open').mockReturnValue(null)
-    await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    await render(SettingsView, { path: '/settings?tab=integrations', user: makeUser() })
     await click(button(t('notificationSettings.telegram.connect')))
     window.dispatchEvent(new Event('focus'))
     await flushPromises()
@@ -330,27 +360,47 @@ describe('Settings › Notifications', () => {
       'DELETE /me/telegram': {},
     })
     const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
-    await click(byTextContains(t('notificationSettings.telegram.what')))
-    // the email section lists the same kind first
-    await click($$(`[role="switch"][aria-label="${t('notificationKinds.task_created')}"]`).at(-1)!)
+    expect(page.text()).toContain('olena')
+    await click(sw('task_created', 'telegram'))
     expect(server.to('PUT /me/telegram/kinds')[0].body).toEqual({ kinds: ['task_created'] })
+    expect(page.text()).not.toContain(t('notificationSettings.telegram.disconnect'))
 
+    // The bot is disconnected under Integrations.
+    await click(byTab(t('settings.tabs.integrations')))
+    await flushPromises()
     server.reply('GET /me/telegram', { telegram: { ...connected, connected: false } })
     await click(button(t('notificationSettings.telegram.disconnect')))
     expect(server.to('DELETE /me/telegram')).toHaveLength(1)
     expect(page.text()).toContain(t('notificationSettings.telegram.connect'))
   })
 
+  it('points to Integrations from Notifications while the bot isn’t connected', async () => {
+    serve()
+    const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    // the column is there, waiting, switched off
+    const telegram = sw('task_created', 'telegram')
+    expect(telegram.hasAttribute('disabled')).toBe(true)
+    expect(telegram.getAttribute('aria-checked')).toBe('false')
+    await click(`a[aria-label="${t('notificationSettings.telegram.toIntegrations')}"]`)
+    await flushPromises()
+    expect(page.router.currentRoute.value.query.tab).toBe('integrations')
+  })
+
   it('says Telegram isn’t set up on a server without a bot', async () => {
     serve({ 'GET /me/telegram': { telegram: { enabled: false, connected: false, username: '', kinds: [], linked_at: null, available: [], default_kinds: [] } } })
     const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser() })
+    expect($$('[role="columnheader"]').map((h) => h.textContent)).not.toContainEqual(expect.stringContaining(t('notificationSettings.telegram.title')))
+    expect(() => sw('task_created', 'email')).not.toThrow()
+    await click(byTab(t('settings.tabs.integrations')))
+    await flushPromises()
     expect(page.text()).toContain(t('notificationSettings.telegram.notSetUp'))
   })
 
-  it('has no notifications tab for an admin', async () => {
+  it('has no notifications or integrations tab for an admin', async () => {
     serve()
-    const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser({ role: 'admin' }) })
+    const page = await render(SettingsView, { path: '/settings?tab=integrations', user: makeUser({ role: 'admin' }) })
     expect($$('nav button').map((b) => b.textContent?.trim())).not.toContain(t('settings.tabs.notifications'))
+    expect($$('nav button').map((b) => b.textContent?.trim())).not.toContain(t('settings.tabs.integrations'))
     expect(page.text()).toContain(t('settings.groups.profile'))
   })
 })
@@ -359,6 +409,23 @@ function byTab(label: string): HTMLElement {
   return $$('nav button').find((b) => b.textContent?.trim() === label)!
 }
 
-function byTextContains(text: string): HTMLElement {
-  return $$('button').find((b) => b.textContent?.includes(text))!
+
+function byLink(text: string): HTMLElement {
+  return $$('a').find((a) => a.textContent?.trim() === text)!
+}
+
+/** The switch for a kind of notification in a channel's column. */
+function sw(kind: string, channel: 'app' | 'email' | 'telegram'): HTMLElement {
+  const label = t('notificationSettings.inChannel', { kind: t(`notificationKinds.${kind}`), channel: t(`notificationSettings.${channel}.title`) })
+  const el = $(`[role="switch"][aria-label="${label}"]`)
+  if (!el) throw new Error(`no switch: ${label}`)
+  return el
+}
+
+/** The switch for a whole channel, in the first row. */
+function all(channel: 'app' | 'email' | 'telegram'): HTMLElement {
+  const label = t('notificationSettings.allIn', { channel: t(`notificationSettings.${channel}.title`) })
+  const el = $(`[role="switch"][aria-label="${label}"]`)
+  if (!el) throw new Error(`no switch: ${label}`)
+  return el
 }

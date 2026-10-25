@@ -6,20 +6,20 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import ProfileSettings from '@/components/account/ProfileSettings.vue'
 import SignInSettings from '@/components/account/SignInSettings.vue'
 import SessionsSettings from '@/components/account/SessionsSettings.vue'
-import TelegramSettings from '@/components/account/TelegramSettings.vue'
+import TelegramIntegration from '@/components/account/TelegramIntegration.vue'
 import TwoFactorSettings from '@/components/account/TwoFactorSettings.vue'
-import EmailNotificationsSettings from '@/components/account/EmailNotificationsSettings.vue'
+import NotificationMatrix from '@/components/account/NotificationMatrix.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-/** Three groups: who you are, how and where you sign in, and what you hear about. */
-const ALL_TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }] as const
+/** Four groups: who you are, how and where you sign in, what you hear about, and the apps Helpic works with. */
+const ALL_TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }, { value: 'integrations' }] as const
 type Tab = (typeof ALL_TABS)[number]['value']
-/** An admin has no work to hear about, so no notifications. */
-const TABS = computed(() => (auth.isAdmin ? ALL_TABS.filter((t) => t.value !== 'notifications') : ALL_TABS))
+/** An admin has no work to hear about or act on, so no notifications or integrations. */
+const TABS = computed(() => (auth.isAdmin ? ALL_TABS.filter((t) => t.value === 'profile' || t.value === 'security') : ALL_TABS))
 
 /** The old tabs, still in links (an email confirmation goes to ?tab=email), now live under security. */
 const MOVED: Record<string, Tab> = { email: 'security', password: 'security', sessions: 'security' }
@@ -65,12 +65,17 @@ const sessions = ref<InstanceType<typeof SessionsSettings> | null>(null)
           <SessionsSettings ref="sessions" />
         </template>
 
+        <section v-else-if="tab === 'integrations'">
+          <h2 class="text-base font-semibold text-neutral-900">{{ $t('settings.groups.integrations') }}</h2>
+          <div class="mt-3 space-y-3">
+            <TelegramIntegration />
+          </div>
+        </section>
+
         <section v-else>
           <h2 class="text-base font-semibold text-neutral-900">{{ $t('settings.groups.channels') }}</h2>
-          <p class="mt-0.5 text-sm text-neutral-500">{{ $t('settings.groups.channelsText') }}</p>
-          <div class="mt-3 space-y-3">
-            <EmailNotificationsSettings />
-            <TelegramSettings />
+          <div class="mt-3">
+            <NotificationMatrix />
           </div>
         </section>
       </div>

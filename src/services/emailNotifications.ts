@@ -18,3 +18,20 @@ export async function setEmailNotificationKinds(kinds: NotificationKind[]): Prom
   const { data } = await http.put<{ email_notifications: EmailNotificationPrefs }>('/me/email-notifications', { kinds })
   return data.email_notifications
 }
+
+/** What the bell shows: all kinds until the user chooses. */
+export interface AppNotificationPrefs {
+  kinds: NotificationKind[]
+  available: NotificationKind[]
+  default_kinds: NotificationKind[]
+}
+
+export async function fetchAppNotifications(): Promise<AppNotificationPrefs> {
+  const { data } = await http.get<{ app_notifications: AppNotificationPrefs }>('/me/app-notifications')
+  return data.app_notifications
+}
+
+export async function setAppNotificationKinds(kinds: NotificationKind[]): Promise<AppNotificationPrefs> {
+  const { data } = await http.put<{ app_notifications: AppNotificationPrefs }>('/me/app-notifications', { kinds })
+  return data.app_notifications
+}
