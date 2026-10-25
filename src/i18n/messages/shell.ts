@@ -62,6 +62,11 @@ const en = {
     selected: '{n} selected',
     removeTag: 'Remove {tag}',
   },
+  cookies: {
+    label: 'Cookies',
+    text: 'We use cookies to improve your experience on our site. By using our site, you agree to our use of cookies.',
+    ok: 'Accept',
+  },
 }
 
 const uk: typeof en = {
@@ -125,6 +130,11 @@ const uk: typeof en = {
     clear: 'Очистити',
     selected: 'Обрано: {n}',
     removeTag: 'Прибрати {tag}',
+  },
+  cookies: {
+    label: 'Файли cookie',
+    text: 'Ми використовуємо файли cookie, щоб покращити ваш досвід роботи на нашому сайті. Використовуючи наш сайт, ви погоджуєтеся на файли cookie.',
+    ok: 'Прийняти',
   },
 }
 

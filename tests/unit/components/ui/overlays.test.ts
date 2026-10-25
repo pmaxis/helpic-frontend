@@ -7,6 +7,7 @@ import Pagination from '@/components/ui/Pagination.vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
 import ViewToggle from '@/components/ui/ViewToggle.vue'
 import ToastHost from '@/components/ui/ToastHost.vue'
+import CookieNotice from '@/components/ui/CookieNotice.vue'
 import LocaleSwitcher from '@/components/ui/LocaleSwitcher.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
@@ -15,6 +16,7 @@ import { currentLocale } from '@/i18n'
 import { http, ApiRequestError } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { $, click, pressOutside, texts } from '../../../dom'
+import { makeRouter } from '../../../helpers'
 import { makeUser } from '../../../fixtures'
 
 afterEach(() => {
@@ -120,6 +122,19 @@ describe('ToastHost', () => {
     expect(texts('[role="status"], [role="alert"]').join(' ')).toMatch(/Saved.*Failed/)
     await host.findAll('button')[0].trigger('click')
     expect(useToasts().toasts.map((t) => t.message)).toEqual(['Failed'])
+  })
+})
+
+describe('CookieNotice', () => {
+  it('tells about cookies until it is accepted, then stays away', async () => {
+    localStorage.removeItem('helpic:cookie-notice-seen')
+    const global = { plugins: [makeRouter()] }
+    const notice = mount(CookieNotice, { global })
+    expect(notice.text()).toContain('We use cookies')
+    expect(notice.find('a').attributes('href')).toBe('/cookies')
+    await notice.find('button').trigger('click')
+    expect(notice.find('section').exists()).toBe(false)
+    expect(mount(CookieNotice, { global }).find('section').exists()).toBe(false)
   })
 })
 
