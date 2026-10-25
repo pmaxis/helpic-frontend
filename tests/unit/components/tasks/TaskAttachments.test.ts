@@ -19,6 +19,7 @@ const file = (over: Partial<Attachment> = {}): Attachment => ({
   uploaded_by: { id: me.id, name: me.name, email: me.email },
   can_delete: true,
   created_at: '2030-01-10T09:00:00Z',
+  scan: 'clean',
   ...over,
 })
 
@@ -167,6 +168,53 @@ describe('TaskAttachments', () => {
     expect(files.text()).toContain(t('attachments.none'))
     expect(files.text()).not.toContain(t('attachments.add'))
     expect(drop(files.element, [], 'dragover').defaultPrevented).toBe(false)
+  })
+
+  it('holds a file back while it’s checked for viruses, then lets it open', async () => {
+    vi.useFakeTimers()
+    try {
+      const { server, view } = mountFiles([file({ scan: 'pending' })])
+      const files = await view
+      expect(files.text()).toContain(t('attachments.checking'))
+      expect($$('button').some((b) => b.getAttribute('aria-label') === t('attachments.downloadNamed', { name: 'brief.pdf' }))).toBe(false)
+      expect($$('button').some((b) => b.getAttribute('aria-label') === `${t('attachments.open')} brief.pdf`)).toBe(false)
+      // Its uploader may still take it off.
+      expect(button(t('attachments.deleteNamed', { name: 'brief.pdf' }))).toBeTruthy()
+
+      // Still pending at the next ask; clean at the one after.
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(server.to('GET /attachments')).toHaveLength(2)
+      expect(files.text()).toContain(t('attachments.checking'))
+      server.reply('GET /attachments', { attachments: [file({ scan: 'clean' })], max_size_bytes: 1024 * 1024 })
+      await vi.advanceTimersByTimeAsync(3000)
+      await flushPromises()
+      expect(files.text()).not.toContain(t('attachments.checking'))
+      expect(button(t('attachments.downloadNamed', { name: 'brief.pdf' }))).toBeTruthy()
+
+      // Nothing waits any more: no more asking.
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(server.to('GET /attachments')).toHaveLength(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('marks a file the virus check removed, offering neither preview nor download', async () => {
+    vi.useFakeTimers()
+    try {
+      const { server, view } = mountFiles([
+        file({ id: 'bad', file_name: 'invoice.png', is_image: true, content_type: 'image/png', scan: 'infected', threat: 'Eicar-Test-Signature' }),
+      ])
+      const files = await view
+      expect(files.text()).toContain(t('attachments.infected', { threat: 'Eicar-Test-Signature' }))
+      expect(server.to('GET /attachments/bad')).toHaveLength(0)
+      expect($$('button').some((b) => b.getAttribute('aria-label') === t('attachments.downloadNamed', { name: 'invoice.png' }))).toBe(false)
+      expect(button(t('attachments.deleteNamed', { name: 'invoice.png' }))).toBeTruthy()
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(server.to('GET /attachments')).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('says when the files can’t load', async () => {

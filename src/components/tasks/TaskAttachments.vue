@@ -3,8 +3,10 @@
  * A task's files — mockups, specs, results. Both sides add them (button or
  * drag and drop onto the section) and download them; images get a preview.
  * A file opens in the viewer, over the page. Only the uploader deletes a file.
+ * With a virus scanner on the server a new file is checked first: until then
+ * it neither opens nor downloads, and the list asks again every few seconds.
  */
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import AttachmentViewer from '@/components/tasks/AttachmentViewer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -36,8 +38,25 @@ interface Upload {
 const uploads = ref<Upload[]>([])
 let uploadKey = 0
 
-/** Which file the viewer shows, by its place in the list; null while it's closed. */
+/** Whether a file may be opened and downloaded: checked, or from before checks. */
+function downloadable(a: Attachment): boolean {
+  return a.scan === 'clean' || a.scan === 'unscanned'
+}
+
+/** The files the viewer goes through: those that download. */
+const viewable = computed(() => files.value.filter(downloadable))
+
+/** Which file the viewer shows, by its place in viewable; null while it's closed. */
 const viewing = ref<number | null>(null)
+
+// A file passing its check joins viewable, maybe before the one open: the
+// viewer stays on the file it shows.
+watch(viewable, (now, before) => {
+  if (viewing.value === null) return
+  const id = before[viewing.value]?.id
+  const i = now.findIndex((a) => a.id === id)
+  viewing.value = i >= 0 ? i : null
+})
 
 /** Image previews as object URLs, by attachment id. */
 const previews = ref<Record<string, string>>({})
@@ -48,7 +67,7 @@ function revokePreviews() {
 }
 
 async function loadPreview(a: Attachment) {
-  if (!a.is_image || previews.value[a.id]) return
+  if (!a.is_image || !downloadable(a) || previews.value[a.id]) return
   try {
     const url = await attachmentURL(a.id, true)
     previews.value = { ...previews.value, [a.id]: url }
@@ -75,12 +94,44 @@ async function load(taskId: string) {
   }
 }
 
+// --- files being checked for viruses ------------------------------------------------
+
+/** How often the list is asked again while a file is being checked. */
+const CHECK_POLL_MS = 3000
+let pollTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Asks for the list again while any file waits for its check, taking the new states. */
+function pollChecks() {
+  clearTimeout(pollTimer)
+  if (!files.value.some((a) => a.scan === 'pending')) return
+  pollTimer = setTimeout(async () => {
+    const taskId = props.taskId
+    try {
+      const data = await listAttachments(taskId)
+      if (taskId !== props.taskId) return
+      const now = new Map(data.attachments.map((a) => [a.id, a]))
+      files.value = files.value.map((a) => {
+        const fresh = now.get(a.id)
+        return fresh && fresh.scan !== a.scan ? { ...a, scan: fresh.scan, threat: fresh.threat } : a
+      })
+      files.value.forEach((a) => void loadPreview(a))
+    } catch {
+      // Asked again on the next round.
+    }
+    pollChecks()
+  }, CHECK_POLL_MS)
+}
+
 watch(
   () => props.taskId,
   (id) => void load(id),
   { immediate: true },
 )
-onBeforeUnmount(revokePreviews)
+watch(() => files.value.some((a) => a.scan === 'pending'), (any) => (any ? pollChecks() : clearTimeout(pollTimer)))
+onBeforeUnmount(() => {
+  clearTimeout(pollTimer)
+  revokePreviews()
+})
 
 // --- adding files -------------------------------------------------------------
 
@@ -159,7 +210,8 @@ function onDrop(e: DragEvent) {
 // --- opening and deleting -------------------------------------------------------
 
 function open(a: Attachment) {
-  viewing.value = files.value.indexOf(a)
+  if (!downloadable(a)) return
+  viewing.value = viewable.value.indexOf(a)
 }
 
 const removing = ref<Attachment | null>(null)
@@ -222,6 +274,7 @@ function uploader(a: Attachment): string {
     <ul v-if="files.length || uploads.length" class="mt-3 grid gap-2 sm:grid-cols-2">
       <li v-for="a in files" :key="a.id" class="group flex min-w-0 items-center gap-3 rounded-lg border border-neutral-200 bg-white p-2 pr-1.5">
         <button
+          v-if="downloadable(a)"
           type="button"
           class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-neutral-100 text-[10px] font-semibold tracking-wide text-neutral-500"
           :title="$t('attachments.open')"
@@ -231,8 +284,22 @@ function uploader(a: Attachment): string {
           <img v-if="previews[a.id]" :src="previews[a.id]" alt="" class="h-full w-full object-cover" />
           <template v-else>{{ fileExtension(a.file_name) }}</template>
         </button>
+        <span
+          v-else
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold tracking-wide"
+          :class="a.scan === 'infected' ? 'bg-red-50 text-red-600' : 'bg-neutral-50 text-neutral-400'"
+          aria-hidden="true"
+        >
+          <span v-if="a.scan === 'pending'" class="h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+          </svg>
+        </span>
         <div class="min-w-0 flex-1">
           <button
+            v-if="downloadable(a)"
             type="button"
             class="block max-w-full truncate text-left text-sm font-medium text-neutral-800 underline-offset-4 hover:text-neutral-950 hover:underline"
             :title="a.file_name"
@@ -240,9 +307,15 @@ function uploader(a: Attachment): string {
           >
             {{ a.file_name }}
           </button>
-          <p class="truncate text-xs text-neutral-400">{{ formatSize(a.size_bytes) }} · {{ uploader(a) }} · {{ formatDate(a.created_at) }}</p>
+          <p v-else class="truncate text-sm font-medium" :class="a.scan === 'infected' ? 'text-neutral-400 line-through' : 'text-neutral-700'" :title="a.file_name">
+            {{ a.file_name }}
+          </p>
+          <p v-if="a.scan === 'pending'" class="truncate text-xs text-neutral-500" role="status">{{ $t('attachments.checking') }}</p>
+          <p v-else-if="a.scan === 'infected'" class="truncate text-xs text-red-600" :title="a.threat">{{ $t('attachments.infected', { threat: a.threat ?? '' }) }}</p>
+          <p v-else class="truncate text-xs text-neutral-400">{{ formatSize(a.size_bytes) }} · {{ uploader(a) }} · {{ formatDate(a.created_at) }}</p>
         </div>
         <button
+          v-if="downloadable(a)"
           type="button"
           class="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
           :aria-label="$t('attachments.downloadNamed', { name: a.file_name })"
@@ -303,7 +376,7 @@ function uploader(a: Attachment): string {
       {{ $t('attachments.dropToAttach') }}
     </div>
 
-    <AttachmentViewer v-if="viewing !== null" v-model:index="viewing" :files="files" :previews="previews" @close="viewing = null" />
+    <AttachmentViewer v-if="viewing !== null" v-model:index="viewing" :files="viewable" :previews="previews" @close="viewing = null" />
 
     <ConfirmDialog
       :open="!!removing"

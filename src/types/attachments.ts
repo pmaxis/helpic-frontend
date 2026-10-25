@@ -12,4 +12,11 @@ export interface Attachment {
   /** Only the uploader deletes a file. */
   can_delete: boolean
   created_at: string
+  /**
+   * The check for malware: "pending" doesn't download yet, "infected" never
+   * does (threat names what was found); "clean" and "unscanned" (stored
+   * before a scanner was set up) download.
+   */
+  scan: 'pending' | 'clean' | 'infected' | 'unscanned'
+  threat?: string
 }
