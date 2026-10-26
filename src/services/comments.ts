@@ -1,10 +1,16 @@
 import { http } from '@/services/api'
-import type { Comment } from '@/types/comments'
+import type { Comment, CommentPerson } from '@/types/comments'
 
 /** A task's comments, oldest first. */
 export async function listComments(taskId: string): Promise<Comment[]> {
   const { data } = await http.get<{ comments: Comment[] }>('/comments', { params: { task: taskId } })
   return data.comments ?? []
+}
+
+/** Who a comment on the task can mention: everyone who sees it. */
+export async function listCommentPeople(taskId: string): Promise<CommentPerson[]> {
+  const { data } = await http.get<{ people: CommentPerson[] }>('/comments/people', { params: { task: taskId } })
+  return data.people ?? []
 }
 
 export async function createComment(taskId: string, body: string): Promise<Comment> {

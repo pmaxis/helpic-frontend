@@ -12,6 +12,7 @@ export type NotificationKind =
   | 'report_paid'
   | 'attachment_added'
   | 'comment_added'
+  | 'comment_mention'
   | 'task_due_soon'
   | 'task_overdue'
 

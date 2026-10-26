@@ -82,6 +82,7 @@ const PHRASED = new Set([
   'report_sent',
   'report_paid',
   'comment_added',
+  'comment_mention',
   'attachment_added',
 ])
 
@@ -204,7 +205,7 @@ async function openNotification(n: AppNotification) {
                 <template #detail>{{ phrase(n).detail }}</template>
                 <template #date>{{ phrase(n).date }}</template>
               </i18n-t>
-              <span v-if="n.kind === 'comment_added' && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
+              <span v-if="(n.kind === 'comment_added' || n.kind === 'comment_mention') && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
               <span class="mt-0.5 block text-xs text-neutral-400">{{ timeAgo(n.created_at) }}</span>
             </span>
             <span v-if="!n.read" class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-sky-500" :aria-label="$t('bell.unread')" />

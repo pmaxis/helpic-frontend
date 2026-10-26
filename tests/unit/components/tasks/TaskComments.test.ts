@@ -102,3 +102,66 @@ describe('TaskComments', () => {
     expect(view.text()).not.toContain(t('common.edit'))
   })
 })
+
+describe('TaskComments mentions and Markdown', () => {
+  const anna = { id: '0b6e2c1a-7f43-4c2e-9d55-3a1f6c8e2b10', name: 'Anna Kovalenko', email: 'anna@example.com' }
+
+  function mountWithPeople(list: Comment[] = []) {
+    const server = api({
+      'GET /comments': { comments: list },
+      'GET /comments/people': { people: [{ id: me.id, name: me.name, email: me.email }, anna] },
+    })
+    return { server, comments: render(TaskComments, { props: { taskId: 't-1' }, user: me }) }
+  }
+
+  it('shows comments as Markdown, mentions highlighted', async () => {
+    const { comments } = mountWithPeople([comment({ body: `**Done**, @[Anna](${anna.id}) <b>x</b>` })])
+    const view = await comments
+    await new Promise((r) => setTimeout(r))
+    expect(view.find('.comment-body strong').text()).toBe('Done')
+    expect(view.find('.comment-body .mention').text()).toBe('@Anna')
+    expect(view.find('.comment-body b').exists()).toBe(false)
+  })
+
+  it('lists who to mention after @ and sends the mention', async () => {
+    const { server, comments } = mountWithPeople()
+    const view = await comments
+    await new Promise((r) => setTimeout(r))
+    server.reply('POST /comments', { comment: comment({ id: 'new' }) })
+    const box = view.get('textarea').element as HTMLTextAreaElement
+    await type(box, 'Hi @ko')
+    box.setSelectionRange(6, 6)
+    box.dispatchEvent(new KeyboardEvent('keyup', { key: 'o' }))
+    await new Promise((r) => setTimeout(r))
+    const options = view.findAll('[role="option"]')
+    // You aren't offered to yourself.
+    expect(options.map((o) => o.text())).toEqual([`${anna.name}${anna.email}`])
+    expect(box.getAttribute('aria-expanded')).toBe('true')
+
+    await press('Enter', box)
+    expect(box.value).toBe('Hi @Anna Kovalenko ')
+    expect(view.find('[role="listbox"]').exists()).toBe(false)
+    expect(server.to('POST /comments')).toHaveLength(0)
+
+    await press('Enter', box, { metaKey: true })
+    await new Promise((r) => setTimeout(r))
+    expect(server.to('POST /comments')[0].body).toEqual({ body: `Hi @[Anna Kovalenko](${anna.id}) ` })
+  })
+
+  it('closes the list with Esc without leaving the edit', async () => {
+    const { comments } = mountWithPeople([comment({ body: `Ping @[Anna](${anna.id})` })])
+    const view = await comments
+    await new Promise((r) => setTimeout(r))
+    await click(button(t('common.edit')))
+    const edit = document.getElementById('comment-edit-c1') as HTMLTextAreaElement
+    expect(edit.value).toBe('Ping @Anna Kovalenko')
+    await type(edit, 'Ping @')
+    edit.setSelectionRange(6, 6)
+    edit.dispatchEvent(new KeyboardEvent('keyup', { key: '@' }))
+    await new Promise((r) => setTimeout(r))
+    expect(view.find('[role="listbox"]').exists()).toBe(true)
+    await press('Escape', edit)
+    expect(view.find('[role="listbox"]').exists()).toBe(false)
+    expect(document.getElementById('comment-edit-c1')).not.toBeNull()
+  })
+})

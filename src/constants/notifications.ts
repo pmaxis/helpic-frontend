@@ -32,6 +32,7 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
     group: 'discussion',
     kinds: [
       { kind: 'comment_added' },
+      { kind: 'comment_mention' },
       { kind: 'attachment_added' },
     ],
   },

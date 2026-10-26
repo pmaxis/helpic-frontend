@@ -2,18 +2,21 @@
 /**
  * The discussion on a task: its freelancer and client write here instead of
  * rewriting the description. Oldest first, the box to write at the bottom;
- * ⌘/Ctrl + Enter sends. Authors edit and delete their own comments.
+ * ⌘/Ctrl + Enter sends. A comment is Markdown and mentions people who see
+ * the task with @. Authors edit and delete their own comments.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import CommentEditor from '@/components/tasks/CommentEditor.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
-import { createComment, deleteComment, listComments, updateComment } from '@/services/comments'
+import { createComment, deleteComment, listCommentPeople, listComments, updateComment } from '@/services/comments'
+import { renderComment, toBody, toEditable } from '@/utils/commentText'
 import { formatDate, timeAgo } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
-import type { Comment } from '@/types/comments'
+import type { Comment, CommentPerson } from '@/types/comments'
 
 const props = defineProps<{
   taskId: string
@@ -26,10 +29,23 @@ const auth = useAuthStore()
 
 const comments = ref<Comment[]>([])
 const loaded = ref(false)
+/** Who the comments can mention; without them, @ is plain text. */
+const people = ref<CommentPerson[]>([])
+
+async function loadPeople(taskId: string) {
+  people.value = []
+  try {
+    const list = await listCommentPeople(taskId)
+    if (taskId === props.taskId) people.value = list
+  } catch {
+    // Mentions are a nicety: the discussion works without them.
+  }
+}
 
 async function load(taskId: string) {
   loaded.value = false
   comments.value = []
+  if (!props.readonly) void loadPeople(taskId)
   try {
     const list = await listComments(taskId)
     if (taskId === props.taskId) comments.value = list
@@ -60,13 +76,6 @@ function authorName(c: Comment): string {
   return c.author.id === auth.user?.id ? t('common.you_capital') : c.author.name || c.author.email
 }
 
-/** Grows a textarea with its text, up to its max-height. */
-function grow(el: HTMLTextAreaElement | null) {
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${el.scrollHeight}px`
-}
-
 function errorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof ApiRequestError)) return fallback
   return Object.values(error.fields ?? {})[0] ?? error.message
@@ -76,7 +85,6 @@ function errorMessage(error: unknown, fallback: string): string {
 
 const draft = ref('')
 const sending = ref(false)
-const composer = ref<HTMLTextAreaElement | null>(null)
 const canSend = computed(() => !!draft.value.trim() && !sending.value)
 
 async function send() {
@@ -84,11 +92,9 @@ async function send() {
   const taskId = props.taskId
   sending.value = true
   try {
-    const c = await createComment(taskId, draft.value)
+    const c = await createComment(taskId, toBody(draft.value, people.value))
     if (taskId === props.taskId) comments.value = [...comments.value, c]
     draft.value = ''
-    await nextTick()
-    grow(composer.value)
   } catch (error) {
     toast.error(errorMessage(error, t('comments.postFailed')))
   } finally {
@@ -104,10 +110,9 @@ const savingEdit = ref(false)
 
 async function startEdit(c: Comment) {
   editingId.value = c.id
-  editDraft.value = c.body
+  editDraft.value = toEditable(c.body, people.value)
   await nextTick()
   const el = document.getElementById(`comment-edit-${c.id}`) as HTMLTextAreaElement | null
-  grow(el)
   el?.focus()
   el?.setSelectionRange(el.value.length, el.value.length)
 }
@@ -116,13 +121,14 @@ async function saveEdit() {
   const id = editingId.value
   const c = comments.value.find((x) => x.id === id)
   if (!id || !c || savingEdit.value) return
-  if (editDraft.value.trim() === c.body) {
+  const body = toBody(editDraft.value, people.value)
+  if (body.trim() === c.body) {
     editingId.value = null
     return
   }
   savingEdit.value = true
   try {
-    const updated = await updateComment(id, editDraft.value)
+    const updated = await updateComment(id, body)
     comments.value = comments.value.map((x) => (x.id === id ? updated : x))
     editingId.value = null
   } catch (error) {
@@ -176,14 +182,14 @@ async function remove() {
 
           <div v-if="editingId === c.id" class="mt-1.5">
             <label :for="`comment-edit-${c.id}`" class="sr-only">{{ $t('comments.editYours') }}</label>
-            <textarea
+            <CommentEditor
               :id="`comment-edit-${c.id}`"
               v-model="editDraft"
-              rows="2"
-              maxlength="10000"
+              :people="people"
+              :self-id="auth.user?.id"
+              :rows="2"
               :disabled="savingEdit"
-              class="block max-h-72 w-full resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm leading-relaxed text-neutral-900 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
-              @input="grow($event.target as HTMLTextAreaElement)"
+              textarea-class="block max-h-72 w-full resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm leading-relaxed text-neutral-900 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
               @keydown.esc.prevent="editingId = null"
               @keydown.meta.enter.prevent="saveEdit"
               @keydown.ctrl.enter.prevent="saveEdit"
@@ -193,7 +199,8 @@ async function remove() {
               <BaseButton variant="ghost" size="sm" :block="false" :disabled="savingEdit" @click="editingId = null">{{ $t('common.cancel') }}</BaseButton>
             </div>
           </div>
-          <p v-else class="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-neutral-800">{{ c.body }}</p>
+          <!-- Markdown rendered with HTML of its own off: the text can't add markup. -->
+          <div v-else class="comment-body mt-0.5 text-sm leading-relaxed break-words text-neutral-800" v-html="renderComment(c.body, auth.user?.id)" />
         </div>
       </li>
     </ol>
@@ -210,19 +217,19 @@ async function remove() {
       </span>
       <div class="min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/10">
         <label for="comment-new" class="sr-only">{{ $t('comments.write') }}</label>
-        <textarea
+        <CommentEditor
           id="comment-new"
-          ref="composer"
           v-model="draft"
-          rows="1"
-          maxlength="10000"
+          :people="people"
+          :self-id="auth.user?.id"
+          placement="above"
           :placeholder="$t('comments.placeholder')"
-          class="block max-h-72 w-full resize-none rounded-lg bg-transparent px-3 py-2 text-sm leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
-          @input="grow($event.target as HTMLTextAreaElement)"
+          textarea-class="block max-h-72 w-full resize-none rounded-lg bg-transparent px-3 py-2 text-sm leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
           @keydown.meta.enter.prevent="send"
           @keydown.ctrl.enter.prevent="send"
         />
         <div v-if="draft" class="flex items-center justify-end gap-2 px-2 pb-2">
+          <span class="mr-auto hidden truncate pl-1 text-xs text-neutral-400 sm:block">{{ $t('comments.formatting') }}</span>
           <span class="text-xs text-neutral-400">{{ $t('comments.shortcut') }}</span>
           <BaseButton type="submit" size="sm" :block="false" :loading="sending" :disabled="!canSend">{{ $t('comments.send') }}</BaseButton>
         </div>
