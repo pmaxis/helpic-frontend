@@ -111,7 +111,7 @@ const uk: typeof en = {
       halfYearHint: 'Оплачено разом',
     },
     people: {
-      clients: 'Клієнти',
+      clients: 'Замовники',
       freelancers: 'Фрилансери',
       open: '{n} відкрита | {n} відкриті | {n} відкритих',
       overdue: 'прострочено: {n}',
@@ -119,7 +119,7 @@ const uk: typeof en = {
       byPaid: 'Кому ви сплатили найбільше за пів року',
       byOpen: 'У кого найбільше відкритих задач',
       others: 'Ще {n} | Ще {n} | Ще {n}',
-      noClients: 'Ще немає клієнтів.',
+      noClients: 'Ще немає замовників.',
       noFreelancers: 'Ще немає фрилансерів.',
       invite: 'Запросити',
     },
