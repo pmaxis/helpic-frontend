@@ -19,15 +19,30 @@ import { currentPassword, LIMITS, newPassword, passwordsMatch, requiredText, two
 import { t } from '@/i18n'
 import { linkToken } from '@/utils/linkToken'
 import { TWO_FACTOR_REQUIRED } from '@/types/auth'
-import type { InvitationLookup } from '@/types/people'
+import type { FreelancerInvitationLookup, InvitationLookup } from '@/types/people'
 
 const auth = useAuthStore()
 const people = usePeopleStore()
 const route = useRoute()
 const router = useRouter()
 const token = linkToken(route)
+/** A client's invitation, opened by the freelancer; otherwise a freelancer's, opened by the client. */
+const forFreelancer = route.name === 'freelancer-invite'
 
-const invitation = ref<InvitationLookup | null>(null)
+const invitation = ref<InvitationLookup | FreelancerInvitationLookup | null>(null)
+/** Who sent it, as the page names them: a client with their company. */
+const inviter = computed(() => {
+  const inv = invitation.value
+  if (!inv) return ''
+  if ('freelancer' in inv) return inv.freelancer.name || inv.freelancer.email
+  const name = inv.client.name || inv.client.email
+  return inv.company ? t('invite.fromCompany', { name, company: inv.company }) : name
+})
+const subtitle = computed(() => {
+  const existing = invitation.value?.account_exists
+  if (forFreelancer) return existing ? t('invite.freelancerSubtitleExisting') : t('invite.freelancerSubtitleNew')
+  return existing ? t('invite.subtitleExisting') : t('invite.subtitleNew')
+})
 const invalid = ref('')
 /** A 404 means the link itself is dead; anything else is a failed lookup. */
 const linkGone = ref(false)
@@ -55,7 +70,7 @@ const form = useForm(schema, { name: '', password: '', password_confirmation: ''
 
 onMounted(async () => {
   try {
-    invitation.value = await people.lookupInvitation(token)
+    invitation.value = await (forFreelancer ? people.lookupFreelancerInvitation(token) : people.lookupInvitation(token))
     form.values.name = invitation.value.name
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) {
@@ -71,12 +86,10 @@ function onSubmit() {
   void form.submit(async (data) => {
     let user
     try {
-      user = await people.acceptInvitation(
-        token,
-        invitation.value?.account_exists
-          ? { password: data.password, ...(needsCode.value ? { code: data.code } : {}) }
-          : { name: data.name, password: data.password, password_confirmation: data.password_confirmation },
-      )
+      const payload = invitation.value?.account_exists
+        ? { password: data.password, ...(needsCode.value ? { code: data.code } : {}) }
+        : { name: data.name, password: data.password, password_confirmation: data.password_confirmation }
+      user = await (forFreelancer ? people.acceptFreelancerInvitation(token, payload) : people.acceptInvitation(token, payload))
     } catch (error) {
       if (error instanceof ApiRequestError && error.code === TWO_FACTOR_REQUIRED) {
         needsCode.value = true
@@ -87,7 +100,7 @@ function onSubmit() {
     }
     people.$reset()
     auth.setUser(user)
-    toast.success(t('invite.accepted', { name: invitation.value?.freelancer.name || t('invite.yourFreelancer') }))
+    toast.success(t('invite.accepted', { name: inviter.value || t(forFreelancer ? 'invite.yourClient' : 'invite.yourFreelancer') }))
     await router.replace('/dashboard')
   })
 }
@@ -99,8 +112,8 @@ function onSubmit() {
 
     <AuthCard
       v-else-if="invitation"
-      :title="$t('invite.title', { name: invitation.freelancer.name || invitation.freelancer.email })"
-      :subtitle="invitation.account_exists ? $t('invite.subtitleExisting') : $t('invite.subtitleNew')"
+      :title="$t('invite.title', { name: inviter })"
+      :subtitle="subtitle"
     >
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <p
@@ -115,7 +128,7 @@ function onSubmit() {
         <BaseInput
           v-if="!invitation.account_exists"
           v-bind="form.field('name')"
-          :label="$t('invite.nameOrCompany')"
+          :label="forFreelancer ? $t('register.name') : $t('invite.nameOrCompany')"
           autocomplete="name"
           size="lg"
         />

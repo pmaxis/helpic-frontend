@@ -178,6 +178,11 @@ const en = {
     acceptNew: 'Create account',
     accepted: "You're now working with {name}",
     yourFreelancer: 'your freelancer',
+    // a client's invitation, opened by the freelancer
+    fromCompany: '{name} from {company}',
+    freelancerSubtitleExisting: 'Enter your password to accept. Their tasks join your other work.',
+    freelancerSubtitleNew: 'Set a password to create your freelancer account and see the tasks they give you.',
+    yourClient: 'your client',
   },
   joinTeam: {
     title: 'Join {company}',
@@ -373,6 +378,11 @@ const uk: typeof en = {
     acceptNew: 'Створити акаунт',
     accepted: 'Тепер ви працюєте з {name}',
     yourFreelancer: 'вашим фрилансером',
+    // запрошення замовника, яке відкрив фрилансер
+    fromCompany: '{name} з {company}',
+    freelancerSubtitleExisting: 'Введіть пароль, щоб прийняти запрошення. Задачі цього замовника зʼявляться поруч з іншою вашою роботою.',
+    freelancerSubtitleNew: 'Задайте пароль, щоб створити акаунт фрилансера й бачити задачі, які вам ставлять.',
+    yourClient: 'вашим замовником',
   },
   joinTeam: {
     title: 'Приєднатися до {company}',

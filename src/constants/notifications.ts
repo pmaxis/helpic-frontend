@@ -49,6 +49,7 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
     group: 'people',
     kinds: [
       { kind: 'client_joined', for: 'freelancer' },
+      { kind: 'freelancer_joined', for: 'owner' },
       { kind: 'member_joined', for: 'owner' },
     ],
   },

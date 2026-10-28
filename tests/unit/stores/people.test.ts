@@ -39,6 +39,33 @@ describe('people store', () => {
     expect(people.freelancersLoaded).toBe(true)
   })
 
+  it('invites a freelancer, listing the client’s invitations and revoking one', async () => {
+    const people = usePeopleStore()
+    vi.spyOn(http, 'get').mockResolvedValue({ data: { invitations: [invitation({ id: 'old' })] } })
+    await people.fetchFreelancerInvitations()
+    const post = vi.spyOn(http, 'post').mockResolvedValue({ data: { invitation: invitation({ id: 'fresh' }) } })
+    await people.inviteFreelancer({ email: 'new@example.test', name: 'Fay' })
+    expect(post).toHaveBeenLastCalledWith('/freelancer-invitations', { email: 'new@example.test', name: 'Fay' })
+    expect(people.freelancerInvitations.map((i) => i.id)).toEqual(['fresh'])
+
+    const del = vi.spyOn(http, 'delete').mockResolvedValue({ data: {} })
+    await people.revokeFreelancerInvitation('fresh')
+    expect(del).toHaveBeenLastCalledWith('/freelancer-invitations/fresh')
+    expect(people.freelancerInvitations).toEqual([])
+  })
+
+  it('looks up and accepts a client’s invitation by its token', async () => {
+    const people = usePeopleStore()
+    const post = vi.spyOn(http, 'post').mockResolvedValueOnce({ data: { invitation: { email: 'dev@example.test' } } })
+    expect(await people.lookupFreelancerInvitation('tok')).toEqual({ email: 'dev@example.test' })
+    expect(post).toHaveBeenLastCalledWith('/freelancer-invites/lookup', { token: 'tok' })
+
+    post.mockResolvedValueOnce({ data: { user: makeUser() } })
+    const user = await people.acceptFreelancerInvitation('tok', { password: 'p' })
+    expect(post).toHaveBeenLastCalledWith('/freelancer-invites/accept', { token: 'tok', password: 'p' })
+    expect(user.role).toBe('freelancer')
+  })
+
   it('looks up and accepts an invitation by its token', async () => {
     const people = usePeopleStore()
     const post = vi.spyOn(http, 'post').mockResolvedValueOnce({ data: { invitation: { email: 'new@example.test' } } })

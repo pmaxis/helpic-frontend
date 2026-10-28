@@ -62,6 +62,42 @@ describe('InviteView', () => {
   })
 })
 
+describe('InviteView for a client’s invitation', () => {
+  const freelancerLookup = (account_exists: boolean, company = 'Acme Inc') => ({
+    invitation: { email: 'dev@example.test', name: 'Oleh', client: { id: 'c', name: 'Olena', email: 'o@x' }, company, account_exists, expires_at: '2099-01-01' },
+  })
+
+  it('creates a freelancer account from the invitation and signs in', async () => {
+    const server = api({
+      'POST /freelancer-invites/lookup': freelancerLookup(false),
+      'POST /freelancer-invites/accept': { user: makeUser() },
+    })
+    const page = await render(InviteView, { path: '/freelancer-invite/tok', user: null })
+    expect(server.to('POST /freelancer-invites/lookup')[0].body).toEqual({ token: 'tok' })
+    const from = t('invite.fromCompany', { name: 'Olena', company: 'Acme Inc' })
+    expect(page.text()).toContain(t('invite.title', { name: from }))
+    expect(page.text()).toContain(t('invite.freelancerSubtitleNew'))
+    expect(field(t('register.name')).value).toBe('Oleh')
+    await type(field(t('login.password')), 'secret2030')
+    await type(field(t('register.confirmPassword')), 'secret2030')
+    await submit()
+    expect(server.to('POST /freelancer-invites/accept')[0].body).toEqual({ token: 'tok', name: 'Oleh', password: 'secret2030', password_confirmation: 'secret2030' })
+    expect(useAuthStore().isFreelancer).toBe(true)
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('invite.accepted', { name: from }))
+    await vi.waitFor(() => expect(page.router.currentRoute.value.path).toBe('/dashboard'))
+  })
+
+  it('signs an existing freelancer in to accept, naming a client without a company', async () => {
+    const server = api({ 'POST /freelancer-invites/lookup': freelancerLookup(true, ''), 'POST /freelancer-invites/accept': { user: makeUser() } })
+    const page = await render(InviteView, { path: '/freelancer-invite/tok', user: null })
+    expect(page.text()).toContain(t('invite.title', { name: 'Olena' }))
+    expect(page.text()).toContain(t('invite.freelancerSubtitleExisting'))
+    await type(field(t('login.password')), 'secret')
+    await submit()
+    expect(server.to('POST /freelancer-invites/accept')[0].body).toEqual({ token: 'tok', password: 'secret' })
+  })
+})
+
 describe('JoinTeamView', () => {
   const invite = (role: 'member' | 'contractor', company = 'Acme') => ({
     invite: { email: 'm@x', name: 'Mo', company, role, owner: { id: 'o', name: 'Owner', email: 'o@x' }, expires_at: '2099-01-01' },

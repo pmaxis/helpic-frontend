@@ -19,8 +19,8 @@ describe('ClientsView', () => {
     const page = await render(ClientsView, { path: '/clients', user: makeUser() })
     expect(page.text()).toContain('Acme')
     expect(page.text()).toContain(t('people.openTasks', { n: 2 }, 2))
-    expect(page.text()).toContain(t('clients.pending'))
-    expect(page.text()).toContain(t('clients.expired'))
+    expect(page.text()).toContain(t('invitations.pending'))
+    expect(page.text()).toContain(t('invitations.expired'))
   })
 
   it('invites a client by email, confirming it was sent', async () => {
@@ -38,15 +38,15 @@ describe('ClientsView', () => {
   it('revokes an invitation after asking, saying when it can’t', async () => {
     const server = api({ 'GET /clients': { clients: [] }, 'GET /invitations': { invitations: [invitation('a'), invitation('b')] } })
     await render(ClientsView, { path: '/clients', user: makeUser() })
-    await click($$('button').filter((b) => b.textContent?.trim() === t('clients.revoke'))[0])
-    await click(confirmIn(t('clients.revoke')))
+    await click($$('button').filter((b) => b.textContent?.trim() === t('invitations.revoke'))[0])
+    await click(confirmIn(t('invitations.revoke')))
     expect(server.to('DELETE /invitations/a')).toHaveLength(1)
-    expect(useToasts().toasts.at(-1)?.message).toBe(t('clients.revoked'))
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('invitations.revoked'))
 
     server.reply('DELETE /invitations/b', status(500))
-    await click($$('button').filter((b) => b.textContent?.trim() === t('clients.revoke'))[0])
-    await click(confirmIn(t('clients.revoke')))
-    expect(useToasts().toasts.at(-1)?.message).toBe(t('clients.revokeFailed'))
+    await click($$('button').filter((b) => b.textContent?.trim() === t('invitations.revoke'))[0])
+    await click(confirmIn(t('invitations.revoke')))
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('invitations.revokeFailed'))
   })
 
   it('says when the clients can’t load', async () => {
@@ -57,14 +57,48 @@ describe('ClientsView', () => {
 })
 
 describe('FreelancersView', () => {
+  const invitation = (id: string) => ({ id, email: `${id}@x`, name: id, expired: false, expires_at: '2099-01-01', created_at: '2030-01-01' })
+  const member = () => makeUser({ role: 'client', member_of: { owner_id: 'o', name: 'Acme', role: 'member' } })
+
+  it('lets the owner invite a freelancer by email, and revoke the invitation', async () => {
+    const server = api({
+      'GET /freelancers': { freelancers: [] },
+      'GET /freelancer-invitations': { invitations: [] },
+      'POST /freelancer-invitations': { invitation: invitation('fay') },
+    })
+    const page = await render(FreelancersView, { path: '/freelancers', user: makeUser({ role: 'client' }) })
+    expect(page.text()).toContain(t('freelancers.noneYetText'))
+    await click(button(t('freelancers.invite')))
+    await type(field(t('inviteModal.freelancer.name')), 'Fay')
+    await type(field(t('inviteModal.freelancer.email')), 'fay@example.test')
+    await click(button(t('inviteModal.create')))
+    expect(server.to('POST /freelancer-invitations')[0].body).toEqual({ name: 'Fay', email: 'fay@example.test' })
+    expect($('[role="dialog"]')?.textContent).toContain(t('inviteModal.emailed', { email: 'fay@example.test' }))
+    await click(button(t('common.done')))
+    expect(page.text()).toContain(t('invitations.pending'))
+
+    await click($$('button').filter((b) => b.textContent?.trim() === t('invitations.revoke'))[0])
+    await click(confirmIn(t('invitations.revoke')))
+    expect(server.to('DELETE /freelancer-invitations/fay')).toHaveLength(1)
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('invitations.revoked'))
+  })
+
+  it('leaves inviting to the owner: a member neither invites nor loads the invitations', async () => {
+    const server = api({ 'GET /freelancers': { freelancers: [] } })
+    const page = await render(FreelancersView, { path: '/freelancers', user: member() })
+    expect(page.text()).toContain(t('freelancers.noneYetMember'))
+    expect($$('button').some((b) => b.textContent?.trim() === t('freelancers.invite'))).toBe(false)
+    expect(server.to('GET /freelancer-invitations')).toHaveLength(0)
+  })
+
   it('lists a client’s freelancers, or says there are none yet', async () => {
-    api({ 'GET /freelancers': { freelancers: [makeLink({ id: 'f', name: 'Fay Lee' })] } })
+    api({ 'GET /freelancers': { freelancers: [makeLink({ id: 'f', name: 'Fay Lee' })] }, 'GET /freelancer-invitations': { invitations: [] } })
     const page = await render(FreelancersView, { path: '/freelancers', user: makeUser({ role: 'client' }) })
     expect(page.text()).toContain('Fay Lee')
     expect(page.text()).toContain('FL')
 
     document.body.innerHTML = ''
-    api({ 'GET /freelancers': { freelancers: [] } })
+    api({ 'GET /freelancers': { freelancers: [] }, 'GET /freelancer-invitations': { invitations: [] } })
     expect((await render(FreelancersView, { path: '/freelancers', user: makeUser({ role: 'client' }) })).text()).toContain(t('freelancers.noneYet'))
 
     api({ 'GET /freelancers': status(500) })

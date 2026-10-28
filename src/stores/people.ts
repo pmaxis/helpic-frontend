@@ -3,6 +3,7 @@ import { http } from '@/services/api'
 import type { User, UserResponse } from '@/types/auth'
 import type {
   AcceptInvitationPayload,
+  FreelancerInvitationLookup,
   Invitation,
   InvitationInput,
   InvitationLookup,
@@ -17,11 +18,13 @@ interface PeopleState {
   /** The client's freelancers. */
   freelancers: Link[]
   freelancersLoaded: boolean
+  /** The client's pending invitations for freelancers; a company's owner's alone. */
+  freelancerInvitations: Invitation[]
 }
 
-/** Who works with whom: a freelancer's clients and invitations, a client's freelancers. */
+/** Who works with whom: a freelancer's clients, a client's freelancers, and the invitations each sends. */
 export const usePeopleStore = defineStore('people', {
-  state: (): PeopleState => ({ clients: [], invitations: [], freelancers: [], freelancersLoaded: false }),
+  state: (): PeopleState => ({ clients: [], invitations: [], freelancers: [], freelancersLoaded: false, freelancerInvitations: [] }),
 
   actions: {
     async fetchClients(): Promise<void> {
@@ -51,6 +54,22 @@ export const usePeopleStore = defineStore('people', {
       return this.freelancers
     },
 
+    async fetchFreelancerInvitations(): Promise<void> {
+      const { data } = await http.get<{ invitations: Invitation[] }>('/freelancer-invitations')
+      this.freelancerInvitations = data.invitations ?? []
+    },
+
+    async inviteFreelancer(input: InvitationInput): Promise<Invitation> {
+      const { data } = await http.post<{ invitation: Invitation }>('/freelancer-invitations', input)
+      this.freelancerInvitations = [data.invitation, ...this.freelancerInvitations.filter((i) => i.email !== data.invitation.email)]
+      return data.invitation
+    },
+
+    async revokeFreelancerInvitation(id: string): Promise<void> {
+      await http.delete(`/freelancer-invitations/${id}`)
+      this.freelancerInvitations = this.freelancerInvitations.filter((i) => i.id !== id)
+    },
+
     async lookupInvitation(token: string): Promise<InvitationLookup> {
       const { data } = await http.post<{ invitation: InvitationLookup }>('/invites/lookup', { token })
       return data.invitation
@@ -59,6 +78,17 @@ export const usePeopleStore = defineStore('people', {
     /** Accepts an invitation; the backend signs the client in and returns them. */
     async acceptInvitation(token: string, payload: AcceptInvitationPayload): Promise<User> {
       const { data } = await http.post<UserResponse>('/invites/accept', { token, ...payload })
+      return data.user
+    },
+
+    async lookupFreelancerInvitation(token: string): Promise<FreelancerInvitationLookup> {
+      const { data } = await http.post<{ invitation: FreelancerInvitationLookup }>('/freelancer-invites/lookup', { token })
+      return data.invitation
+    },
+
+    /** Accepts a client's invitation; the backend signs the freelancer in and returns them. */
+    async acceptFreelancerInvitation(token: string, payload: AcceptInvitationPayload): Promise<User> {
+      const { data } = await http.post<UserResponse>('/freelancer-invites/accept', { token, ...payload })
       return data.user
     },
   },

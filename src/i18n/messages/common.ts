@@ -129,6 +129,7 @@ const en = {
     report_sent: 'A report is sent to you',
     report_paid: 'A report is marked paid',
     client_joined: 'A client accepts your invitation',
+    freelancer_joined: 'A freelancer accepts your invitation',
     member_joined: 'Someone joins your team',
   },
   notFound: {
@@ -269,6 +270,7 @@ const uk: typeof en = {
     report_sent: 'Вам надіслали звіт',
     report_paid: 'Звіт позначено оплаченим',
     client_joined: 'Замовник прийняв запрошення',
+    freelancer_joined: 'Фрилансер прийняв запрошення',
     member_joined: 'Хтось приєднався до команди',
   },
   notFound: {

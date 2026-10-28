@@ -55,6 +55,7 @@ describe('NotificationBell', () => {
       [{ task_id: 't1' }, '/tasks/t1'],
       [{ project_id: 'p1' }, '/projects/p1'],
       [{ kind: 'client_joined' }, '/clients'],
+      [{ kind: 'freelancer_joined' }, '/freelancers'],
       [{ kind: 'member_joined' }, '/team'],
     ]
     for (const [over, path] of targets) {

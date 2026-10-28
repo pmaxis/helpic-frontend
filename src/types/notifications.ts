@@ -7,6 +7,7 @@ export type NotificationKind =
   | 'project_created'
   | 'project_invited'
   | 'client_joined'
+  | 'freelancer_joined'
   | 'member_joined'
   | 'report_sent'
   | 'report_paid'

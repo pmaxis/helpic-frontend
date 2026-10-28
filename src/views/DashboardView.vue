@@ -264,7 +264,7 @@ function onCreated(t: Task) {
         :currency="seesMoney ? leadCurrency : undefined"
         :loaded="loaded"
         :empty-text="auth.isClient ? $t('dashboard.people.noFreelancers') : $t('dashboard.people.noClients')"
-        :add-text="auth.isFreelancer ? $t('dashboard.people.invite') : undefined"
+        :add-text="auth.isFreelancer || auth.isTeamOwner ? $t('dashboard.people.invite') : undefined"
       />
       <ProjectsCard :loaded="loaded" />
       <!-- reports: the freelancer's and the owner's -->

@@ -161,6 +161,7 @@ function onSaved(task: Task) {
           <template #illustration>
             <PeopleIllustration />
           </template>
+          <RouterLink v-if="auth.isTeamOwner" to="/freelancers" class="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">{{ $t('freelancers.invite') }}</RouterLink>
         </EmptyState>
       </div>
       <div v-else-if="projects.loaded && !projectId" class="mt-6 flex min-h-0 flex-1 flex-col">

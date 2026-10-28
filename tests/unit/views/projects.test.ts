@@ -213,8 +213,8 @@ describe('ProjectSettingsView', () => {
     expect(useToasts().toasts.at(-1)?.message).toBe(t('project.invited'))
 
     // the author stays; the others each have a Remove, in the list's order
-    await click($$('button').filter((b) => b.textContent?.trim() === t('clients.remove'))[0])
-    await click($$('[role="dialog"] button').find((b) => b.textContent?.includes(t('clients.remove')))!)
+    await click($$('button').filter((b) => b.textContent?.trim() === t('common.remove'))[0])
+    await click($$('[role="dialog"] button').find((b) => b.textContent?.includes(t('common.remove')))!)
     expect(server.to('DELETE /projects/p-1/participants/m')).toHaveLength(1)
     expect(useToasts().toasts.at(-1)?.message).toBe(t('project.removed'))
   })

@@ -66,6 +66,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/InviteView.vue'),
   },
   {
+    // A client's invitation for a freelancer: the same page the other way round.
+    path: '/freelancer-invite/:token?',
+    name: 'freelancer-invite',
+    component: () => import('@/views/InviteView.vue'),
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),

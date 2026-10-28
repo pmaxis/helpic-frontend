@@ -11,7 +11,7 @@ export interface Link extends Party {
   open_tasks: number
 }
 
-/** A freelancer's pending invitation. The link goes only to the invited address. */
+/** A pending invitation, a freelancer's for a client or a client's for a freelancer. The link goes only to the invited address. */
 export interface Invitation {
   id: string
   email: string
@@ -26,11 +26,21 @@ export interface InvitationInput {
   name: string
 }
 
-/** What the public invitation page shows. */
+/** What the public invitation page shows for a freelancer's invitation. */
 export interface InvitationLookup {
   email: string
   name: string
   freelancer: Party
+  account_exists: boolean
+  expires_at: string
+}
+
+/** What the public invitation page shows for a client's invitation; company is "" without one. */
+export interface FreelancerInvitationLookup {
+  email: string
+  name: string
+  client: Party
+  company: string
   account_exists: boolean
   expires_at: string
 }
