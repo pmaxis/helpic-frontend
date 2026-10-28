@@ -37,6 +37,8 @@ export interface RegisterPayload {
   name: string
   password: string
   password_confirmation: string
+  /** Who signs up; a freelancer when left out. */
+  role?: Exclude<Role, 'admin'>
 }
 
 export interface ChangeEmailPayload {

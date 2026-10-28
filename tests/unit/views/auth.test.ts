@@ -83,9 +83,28 @@ describe('RegisterView', () => {
     expect(page.text()).toContain(t('validation.passwordsDontMatch'))
     await type(field(t('register.confirmPassword')), 'secret2030')
     await submit()
-    expect(server.to('POST /auth/register')[0].body).toMatchObject({ name: 'Olena', email: 'olena@example.test' })
+    expect(server.to('POST /auth/register')[0].body).toMatchObject({ name: 'Olena', email: 'olena@example.test', role: 'freelancer' })
     expect(page.text()).toContain(t('register.sentTitle'))
     expect(page.text()).toContain(t('register.next.inbox.title'))
+  })
+
+  it('signs up a client, picked on the page or by the link', async () => {
+    const server = api({ 'POST /auth/register': { email: 'acme@example.test' } })
+    const page = await render(RegisterView, { path: '/register', user: null })
+    expect(page.text()).toContain(t('register.subtitle'))
+    await click(button(t('register.roles.client')))
+    expect(page.text()).toContain(t('register.subtitleClient'))
+    await type(field(t('register.name')), 'Acme')
+    await type(field(t('login.email')), 'acme@example.test')
+    await type(field(t('login.password')), 'secret2030')
+    await type(field(t('register.confirmPassword')), 'secret2030')
+    await submit()
+    expect(server.to('POST /auth/register')[0].body).toMatchObject({ email: 'acme@example.test', role: 'client' })
+
+    document.body.innerHTML = ''
+    const linked = await render(RegisterView, { path: '/register?role=client', user: null })
+    expect(linked.text()).toContain(t('register.subtitleClient'))
+    expect(button(t('register.roles.client')).getAttribute('aria-pressed')).toBe('true')
   })
 })
 

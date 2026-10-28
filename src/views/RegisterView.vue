@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { z } from 'zod'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useForm } from '@/composables/useForm'
@@ -16,7 +16,13 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
 
 const auth = useAuthStore()
+const route = useRoute()
 const { t: tr } = useI18n()
+
+type SignupRole = 'freelancer' | 'client'
+const ROLES: SignupRole[] = ['freelancer', 'client']
+/** Who signs up; a link can pick it (/register?role=client), a freelancer otherwise. */
+const role = ref<SignupRole>(route.query.role === 'client' ? 'client' : 'freelancer')
 
 const schema = z
   .object({
@@ -37,7 +43,7 @@ const sentSteps = computed(() => [
 
 function onSubmit() {
   void form.submit(async (data) => {
-    await auth.register(data)
+    await auth.register({ ...data, role: role.value })
     sentTo.value = data.email
   })
 }
@@ -54,9 +60,23 @@ function onSubmit() {
       :action-label="tr('forgot.back')"
     />
 
-    <AuthCard v-else :title="$t('register.title')" :subtitle="$t('register.subtitle')">
+    <AuthCard v-else :title="$t('register.title')" :subtitle="role === 'client' ? $t('register.subtitleClient') : $t('register.subtitle')">
       <form class="space-y-5" novalidate @submit.prevent="onSubmit">
         <FormError :message="form.formError" />
+
+        <div class="grid grid-cols-2 rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('register.as')">
+          <button
+            v-for="r in ROLES"
+            :key="r"
+            type="button"
+            class="h-8 rounded-md font-medium transition-colors"
+            :class="role === r ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-500 hover:text-neutral-900'"
+            :aria-pressed="role === r"
+            @click="role = r"
+          >
+            {{ $t(`register.roles.${r}`) }}
+          </button>
+        </div>
 
         <BaseInput v-bind="form.field('name')" :label="$t('register.name')" autocomplete="name" :placeholder="$t('register.namePlaceholder')" size="lg" />
         <BaseInput

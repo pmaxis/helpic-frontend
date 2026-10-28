@@ -50,6 +50,9 @@ const en = {
   register: {
     title: 'Create your account',
     subtitle: 'For freelancers. Invite your clients and get their tasks in one place.',
+    subtitleClient: 'For clients. Invite your freelancers, give them tasks and follow the work in one place.',
+    as: 'I am',
+    roles: { freelancer: 'A freelancer', client: 'A client' },
     name: 'Your name',
     namePlaceholder: 'Jane Doe',
     confirmPassword: 'Confirm password',
@@ -242,6 +245,9 @@ const uk: typeof en = {
   register: {
     title: 'Створіть акаунт',
     subtitle: 'Для фрилансерів. Запросіть замовників і отримуйте їхні задачі в одному місці.',
+    subtitleClient: 'Для замовників. Запросіть своїх фрилансерів, ставте їм задачі й стежте за роботою в одному місці.',
+    as: 'Я',
+    roles: { freelancer: 'Фрилансер', client: 'Замовник' },
     name: 'Ваше імʼя',
     namePlaceholder: 'Олена Коваль',
     confirmPassword: 'Підтвердіть пароль',
