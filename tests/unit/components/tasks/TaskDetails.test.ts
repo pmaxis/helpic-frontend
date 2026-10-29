@@ -267,6 +267,20 @@ describe('TaskDetails', () => {
     expect(page.text()).toContain(t('task.archivedClosed'))
   })
 
+  it('shares the task by a link, from the menu, only for whoever may', async () => {
+    serve(makeTask({ can_edit: false, can_share: false, can_delete: false }))
+    let page = await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+    expect(page.text()).not.toContain(t('share.action'))
+    page.unmount()
+
+    const server = serve(makeTask({ can_share: true }), { 'GET /tasks/t-1/share': { share: null } })
+    page = await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+    await click(button(t('task.options')))
+    await click(button(t('share.action')))
+    expect(server.to('GET /tasks/t-1/share')).toHaveLength(1)
+    expect($('[role="dialog"]')?.textContent).toContain(t('share.title'))
+  })
+
   it('deletes the task after asking, telling the page', async () => {
     const server = serve()
     const page = await render(TaskDetails, { props: { taskId: 't-1' }, user: me })

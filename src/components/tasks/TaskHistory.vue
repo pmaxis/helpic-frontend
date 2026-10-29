@@ -102,6 +102,10 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
     case 'archived':
       if (e.data.report) return { key: 'history.archivedPaid', values: { value: quote(e.data.report) } }
       return { key: 'history.archived', values: {} }
+    case 'shared':
+      return { key: 'history.shared', values: {} }
+    case 'unshared':
+      return { key: 'history.unshared', values: {} }
     default:
       return { key: 'history.other', values: {} }
   }

@@ -21,6 +21,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import NotFoundIllustration from '@/components/illustrations/NotFoundIllustration.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
+import TaskShareModal from '@/components/tasks/TaskShareModal.vue'
 import TaskTitle from '@/components/tasks/TaskTitle.vue'
 import TaskDescription from '@/components/tasks/TaskDescription.vue'
 import TaskArchivedNote from '@/components/tasks/TaskArchivedNote.vue'
@@ -60,6 +61,7 @@ const timer = useTimerStore()
 const task = ref<Task | null>(null)
 const notFound = ref(false)
 const editing = ref(false)
+const sharing = ref(false)
 const confirmDelete = ref(false)
 const deleting = ref(false)
 const confirmArchive = ref(false)
@@ -68,11 +70,12 @@ const archiving = ref(false)
 /** Closed for good: paid, or put away by its owner. */
 const archived = computed(() => !!task.value?.archived_at)
 
-/** Edit and delete, as far as the viewer may — behind the "⋯" button. */
+/** Edit, share and delete, as far as the viewer may — behind the "⋯" button. */
 const taskActions = computed(() => {
   const actions: MenuAction[] = []
   const task_ = task.value
   if (task_?.can_edit) actions.push({ label: tr('task.edit'), onSelect: () => (editing.value = true) })
+  if (task_?.can_share) actions.push({ label: tr('share.action'), onSelect: () => (sharing.value = true) })
   if (task_?.can_archive) actions.push({ label: tr('task.archive'), onSelect: () => (confirmArchive.value = true) })
   if (task_?.can_delete) actions.push({ label: tr('task.delete'), danger: true, onSelect: () => (confirmDelete.value = true) })
   return actions
@@ -235,6 +238,7 @@ function onSaved(t: Task) {
     />
 
     <TaskFormModal v-if="editing && task" :task="task" @close="editing = false" @saved="onSaved" />
+    <TaskShareModal v-if="sharing && task" :task-id="task.id" @close="sharing = false" />
     <ConfirmDialog
       v-model:open="confirmArchive"
       :title="$t('task.confirmArchive')"

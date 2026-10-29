@@ -15,6 +15,8 @@ export type TaskEventKind =
   | 'archived'
   | 'subtask_added'
   | 'subtask_removed'
+  | 'shared'
+  | 'unshared'
 
 /** One change in a task's history. */
 export interface TaskEvent {

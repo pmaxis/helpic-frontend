@@ -67,6 +67,8 @@ export interface Task {
   billed: boolean
   /** The viewer's own personal task, which they may put in the archive by hand. */
   can_archive: boolean
+  /** May turn the task's public link on or off: its creator or its freelancer. */
+  can_share: boolean
   created_at: string
   updated_at: string
   /** Set once the task is archived: off the boards, and nothing on it changes. */

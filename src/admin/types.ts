@@ -286,6 +286,7 @@ export type AdminLimitScope =
   | 'reset'
   | 'reset-email'
   | 'invites'
+  | 'shared'
 
 /** A rate limit refusing someone right now. */
 export interface AdminLimit {

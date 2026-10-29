@@ -150,6 +150,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/JoinTeamView.vue'),
   },
   {
+    // Open to everyone: the link is the proof, and it signs nobody in.
+    path: '/share/:token',
+    name: 'shared-task',
+    component: () => import('@/views/SharedTaskView.vue'),
+    props: true,
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
