@@ -4,6 +4,9 @@
  * text shown in place, anything else with a way to download it. The arrows
  * (keys, buttons, a swipe) or the strip under the file go through the task's
  * files; Escape or a click outside closes it, as any modal.
+ *
+ * The files come from the signed-in API, or from wherever source says — a
+ * task's public link; who uploaded a file and when are shown when known.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Modal from '@/components/ui/Modal.vue'
@@ -14,10 +17,22 @@ import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
 import type { Attachment } from '@/types/attachments'
 
+/** A file the viewer shows: an attachment, or less of one. */
+export type ViewerFile = Pick<Attachment, 'id' | 'file_name' | 'content_type' | 'size_bytes' | 'is_image'> &
+  Partial<Pick<Attachment, 'uploaded_by' | 'created_at'>>
+
+/** Where the viewer gets a file's bytes, and saves it. */
+export interface ViewerSource {
+  blob: (f: ViewerFile, inline: boolean) => Promise<Blob>
+  download: (f: ViewerFile) => Promise<void>
+}
+
 const props = defineProps<{
-  files: Attachment[]
+  files: ViewerFile[]
   /** The image previews the list has loaded already, by attachment id. */
   previews: Record<string, string>
+  /** The signed-in API's attachments unless given. */
+  source?: ViewerSource
 }>()
 
 const index = defineModel<number>('index', { required: true })
@@ -28,7 +43,7 @@ const auth = useAuthStore()
 /** Text is shown up to this much; the rest is left to the download. */
 const TEXT_LIMIT = 512 * 1024
 
-const current = computed<Attachment | undefined>(() => props.files[index.value])
+const current = computed<ViewerFile | undefined>(() => props.files[index.value])
 const kind = computed(() => (current.value ? previewKind(current.value) : null))
 
 /** What the viewer loaded itself, by attachment id: an object URL, or the text. */
@@ -54,13 +69,13 @@ const shown = computed<Loaded | undefined>(() => {
   return loaded.value[a.id]
 })
 
-async function load(a: Attachment) {
+async function load(a: ViewerFile) {
   const k = previewKind(a)
   if (!k || shown.value || pending.value === a.id) return
   if (failedId.value === a.id) failedId.value = null
   pending.value = a.id
   try {
-    const blob = await attachmentBlob(a.id, k === 'image')
+    const blob = props.source ? await props.source.blob(a, k === 'image') : await attachmentBlob(a.id, k === 'image')
     let item: Loaded
     if (k === 'text') {
       item = { text: await blob.slice(0, TEXT_LIMIT).text(), truncated: blob.size > TEXT_LIMIT }
@@ -142,13 +157,17 @@ onBeforeUnmount(() => {
 
 // --- what's shown about the file -------------------------------------------------
 
-function uploader(a: Attachment): string {
-  return a.uploaded_by.id === auth.user?.id ? t('common.you_capital') : a.uploaded_by.name || a.uploaded_by.email
+/** Its size, and who uploaded it and when where that's known. */
+function about(a: ViewerFile): string {
+  const parts = [formatSize(a.size_bytes)]
+  if (a.uploaded_by) parts.push(a.uploaded_by.id === auth.user?.id ? t('common.you_capital') : a.uploaded_by.name || a.uploaded_by.email)
+  if (a.created_at) parts.push(formatDate(a.created_at))
+  return parts.join(' · ')
 }
 
-async function download(a: Attachment) {
+async function download(a: ViewerFile) {
   try {
-    await downloadAttachment(a)
+    await (props.source ? props.source.download(a) : downloadAttachment(a as Attachment))
   } catch {
     toast.error(t('attachments.downloadFailed', { name: a.file_name }))
   }
@@ -175,7 +194,7 @@ async function download(a: Attachment) {
     </template>
 
     <div ref="body" @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
-      <p class="truncate text-xs text-neutral-500">{{ formatSize(current.size_bytes) }} · {{ uploader(current) }} · {{ formatDate(current.created_at) }}</p>
+      <p class="truncate text-xs text-neutral-500">{{ about(current) }}</p>
 
       <!-- the file itself -->
       <div class="relative mt-3 flex h-[min(60vh,40rem)] items-center justify-center overflow-hidden rounded-lg bg-neutral-100">

@@ -44,7 +44,7 @@ export type PreviewKind = 'image' | 'pdf' | 'video' | 'audio' | 'text'
  * one only downloaded. Anything shown runs through an element that can't run
  * it as a page: an image, the PDF viewer, a player, or text.
  */
-export function previewKind(a: Attachment): PreviewKind | null {
+export function previewKind(a: Pick<Attachment, 'content_type' | 'is_image'>): PreviewKind | null {
   const type = a.content_type
   if (a.is_image) return 'image'
   if (type === 'application/pdf') return 'pdf'
