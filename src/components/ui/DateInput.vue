@@ -25,6 +25,8 @@ const props = defineProps<{
   hideLabel?: boolean
   /** Show the date without the weekday ("3 Oct 2026"), for narrow places. */
   compact?: boolean
+  /** The last day that can be picked, as YYYY-MM-DD. */
+  max?: string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -92,6 +94,14 @@ const days = computed(() => {
 
 const cursorISO = computed(() => toISO(cursor.value))
 
+/** A day past max can't be picked (YYYY-MM-DD strings compare as dates). */
+function beyond(iso: string): boolean {
+  return !!props.max && iso > props.max
+}
+
+/** A required date is never cleared, only changed. */
+const clearable = computed(() => !!props.modelValue && !props.disabled && !props.required)
+
 // --- open / close / pick ------------------------------------------------------------
 
 const trigger = ref<HTMLButtonElement | null>(null)
@@ -140,6 +150,7 @@ function close(refocus = true) {
 }
 
 function pick(iso: string) {
+  if (beyond(iso)) return
   emit('update:modelValue', iso)
   close()
 }
@@ -235,7 +246,7 @@ function onPanelKeydown(e: KeyboardEvent) {
         class="group flex w-full items-center gap-2 rounded-lg border bg-white py-2 pl-3 text-left text-sm shadow-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
         :class="[
           // room for the clear button, which sits on top of the trigger
-          modelValue && !disabled ? 'pr-9' : 'pr-2.5',
+          clearable ? 'pr-9' : 'pr-2.5',
           open
             ? 'border-neutral-900 ring-2 ring-neutral-900/10'
             : error
@@ -264,7 +275,7 @@ function onPanelKeydown(e: KeyboardEvent) {
         </span>
       </button>
       <button
-        v-if="modelValue && !disabled"
+        v-if="clearable"
         type="button"
         class="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
         :aria-label="t('ui.clearDate')"
@@ -334,12 +345,15 @@ function onPanelKeydown(e: KeyboardEvent) {
               :tabindex="d.iso === cursorISO ? 0 : -1"
               :aria-selected="d.iso === modelValue"
               :aria-current="d.iso === todayISO ? 'date' : undefined"
+              :aria-disabled="beyond(d.iso) ? 'true' : undefined"
               :aria-label="d.date.toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"
               class="mx-auto flex h-9 w-9 items-center justify-center rounded-full border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/20"
               :class="[
                 d.iso === modelValue
                   ? 'border-neutral-900 bg-neutral-900 font-semibold text-white'
-                  : d.inMonth
+                  : beyond(d.iso)
+                    ? 'cursor-not-allowed text-neutral-300'
+                    : d.inMonth
                     ? 'text-neutral-800 hover:bg-neutral-100'
                     : 'text-neutral-300 hover:bg-neutral-50',
                 d.iso === modelValue ? '' : d.iso === todayISO ? 'border-neutral-900 font-semibold text-neutral-900' : 'border-transparent',
@@ -354,13 +368,14 @@ function onPanelKeydown(e: KeyboardEvent) {
         <div class="mt-2 flex items-center justify-between border-t border-neutral-100 pt-2">
           <button
             type="button"
-            class="rounded-md px-2 py-1 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+            :disabled="beyond(todayISO)"
+            class="rounded-md px-2 py-1 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-40"
             @click="pick(todayISO)"
           >
             {{ t('ui.today') }}
           </button>
           <button
-            v-if="modelValue"
+            v-if="modelValue && !required"
             type="button"
             class="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
             @click="clear"
