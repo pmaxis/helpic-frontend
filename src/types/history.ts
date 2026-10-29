@@ -3,6 +3,7 @@ export type TaskEventKind =
   | 'title'
   | 'description'
   | 'due_on'
+  | 'created_at'
   | 'project'
   | 'status'
   | 'price'
@@ -22,7 +23,7 @@ export interface TaskEvent {
   kind: TaskEventKind
   /**
    * The change: `from`/`to` where a value changed (names, YYYY-MM-DD dates,
-   * cents; null = none), `currency` for a price, `name` for a file.
+   * ISO times for created_at, cents; null = none), `currency` for a price, `name` for a file.
    */
   data: {
     from?: string | number | null

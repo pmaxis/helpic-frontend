@@ -99,6 +99,8 @@ export interface TaskInput {
   title: string
   description: string
   due_on: string | null
+  /** On edit, moves when the task counts as created: an ISO time, not in the future. */
+  created_at?: string
   /** An amount like "1200.50", set by a freelancer on create; later through setPrice. */
   price?: string
   /** Set on create; later through setPriority. */

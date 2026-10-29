@@ -131,6 +131,47 @@ describe('TaskDetails', () => {
     expect(server.to('PUT /tasks/t-1')[1].body).toMatchObject({ due_on: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) })
   })
 
+  it('moves the creation date into the past, keeping its time of day', async () => {
+    const task = makeTask({ created_at: '2030-01-10T09:00:00Z' })
+    vi.useFakeTimers({ now: new Date('2030-01-20T12:00:00Z'), toFake: ['Date'] })
+    try {
+      const server = serve(task, { 'PUT /tasks/t-1': changed(task, {}) })
+      await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+      await click(field(t('task.createdOn')))
+      const day = (iso: string) => $(`[role="gridcell"][data-iso="${iso}"]`) as HTMLElement
+      // no clearing it, and no day after today
+      expect(field(t('task.createdOn')).nextElementSibling).toBeNull()
+      expect(day('2030-01-25').getAttribute('aria-disabled')).toBe('true')
+      await click(day('2030-01-25'))
+      expect(server.to('PUT /tasks/t-1')).toHaveLength(0)
+
+      await click(day('2030-01-03'))
+      const sent = server.to('PUT /tasks/t-1')[0].body as { created_at: string }
+      expect(sent).toMatchObject({ title: task.title, description: task.description, due_on: task.due_on })
+      // the same moment of the day, on the 3rd, written in the local offset
+      expect(sent.created_at).toMatch(/^2030-01-03T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/)
+      const at = new Date(task.created_at)
+      at.setFullYear(2030, 0, 3)
+      expect(new Date(sent.created_at).getTime()).toBe(at.getTime())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the creation date on or before the due date', async () => {
+    vi.useFakeTimers({ now: new Date('2030-01-20T12:00:00Z'), toFake: ['Date'] })
+    try {
+      serve(makeTask({ created_at: '2030-01-10T09:00:00Z', due_on: '2030-01-12' }))
+      await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+      await click(field(t('task.createdOn')))
+      const day = (iso: string) => $(`[role="gridcell"][data-iso="${iso}"]`) as HTMLElement
+      expect(day('2030-01-12').getAttribute('aria-disabled')).toBeNull()
+      expect(day('2030-01-13').getAttribute('aria-disabled')).toBe('true')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('sets a fixed price, or bills by the hour with what the hours come to', async () => {
     const task = makeTask()
     const server = serve(task, {

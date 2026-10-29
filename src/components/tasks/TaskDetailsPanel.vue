@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The task's details card: where it stands, when and for how much, and who
- * is on it, with when it was created and last changed.
+ * is on it, with when it was last changed.
  */
 import { computed } from 'vue'
 import TaskProgressFields from '@/components/tasks/TaskProgressFields.vue'
@@ -86,9 +86,9 @@ function initials(name: string): string {
         </dl>
       </section>
     </div>
-    <p class="border-t border-neutral-100 px-5 py-4 text-xs text-neutral-400">
-      {{ $t('task.created', { date: formatDate(task.created_at) }) }}
-      <template v-if="formatDate(task.updated_at) !== formatDate(task.created_at)"> · {{ $t('task.updated', { date: formatDate(task.updated_at) }) }}</template>
+    <!-- when it was created is in the schedule, where it can be moved -->
+    <p v-if="formatDate(task.updated_at) !== formatDate(task.created_at)" class="border-t border-neutral-100 px-5 py-4 text-xs text-neutral-400">
+      {{ $t('task.updated', { date: formatDate(task.updated_at) }) }}
     </p>
   </aside>
 </template>

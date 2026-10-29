@@ -67,6 +67,8 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       if (from == null) return pair('history.dueSet', '', date(to))
       if (to == null) return pair('history.dueRemoved', date(from), '')
       return pair('history.dueMoved', date(from), date(to))
+    case 'created_at':
+      return pair('history.createdMoved', date(from), date(to))
     case 'project':
       if (from == null) return pair('history.projectAdded', '', quote(to))
       if (to == null) return pair('history.projectRemoved', quote(from), '')

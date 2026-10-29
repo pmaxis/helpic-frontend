@@ -27,6 +27,7 @@ describe('TaskHistory', () => {
       event('due_on', { from: null, to: '2030-01-20' }),
       event('due_on', { from: '2030-01-20', to: null }),
       event('due_on', { from: '2030-01-20', to: '2030-01-25' }),
+      event('created_at', { from: '2030-01-10T09:00:00Z', to: '2029-12-03T09:00:00Z' }),
       event('project', { from: null, to: 'Landing' }),
       event('project', { from: 'Landing', to: null }),
       event('project', { from: 'Landing', to: 'Shop' }),
@@ -52,7 +53,7 @@ describe('TaskHistory', () => {
     api({ 'GET /tasks/t-1/history': { events } })
     const history = await render(TaskHistory, { props: { taskId: 't-1' }, user: me })
     const text = history.text()
-    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”', '“Header”', '“Footer”']) {
+    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '3 Dec 2029', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”', '“Header”', '“Footer”']) {
       expect(text).toContain(value)
     }
     expect(history.findAll('li')).toHaveLength(events.length)

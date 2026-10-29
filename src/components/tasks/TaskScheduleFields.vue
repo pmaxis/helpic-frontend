@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * When and for how much, as two blocks of the details card: the task's
- * project and due date, then its billing, price and time (left out when it
+ * project, creation date and due date, then its billing, price and time (left out when it
  * has none of them to show). Whoever may edit the task picks the
- * project and the due date; only the freelancer sets the billing and the
+ * project and the due date, and moves the creation date into the past, up
+ * to the due date; only the freelancer sets the billing and the
  * price — in any status, so the price has its own endpoint — and runs the
  * timer.
  */
@@ -72,6 +73,34 @@ function saveProject(projectId: string) {
 
 function saveDueOn(value: string) {
   if (value !== (props.task.due_on ?? '')) void props.save({ due_on: value || null })
+}
+
+/** The local calendar day the task was created on, as YYYY-MM-DD. */
+const createdOn = computed(() => localDay(new Date(props.task.created_at)))
+const today = localDay(new Date())
+/** The last day it can have been created on: today, or the due date if that came first. */
+const latestCreatedOn = computed(() => (props.task.due_on && props.task.due_on < today ? props.task.due_on : today))
+
+function localDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Moves the creation to another day at the same time of day, but never past now. */
+function saveCreatedOn(value: string) {
+  if (!value || value === createdOn.value) return
+  const [y, m, d] = value.split('-').map(Number)
+  const at = new Date(props.task.created_at)
+  at.setFullYear(y, m - 1, d)
+  const now = new Date()
+  void props.save({ created_at: localTime(at > now ? now : at) })
+}
+
+/** An ISO time in the local offset ("2030-01-03T11:00:00+02:00"): the server reads its day against the due date. */
+function localTime(d: Date): string {
+  const pad = (n: number) => String(Math.trunc(Math.abs(n))).padStart(2, '0')
+  const offset = -d.getTimezoneOffset()
+  const zone = `${offset < 0 ? '-' : '+'}${pad(offset / 60)}:${pad(offset % 60)}`
+  return `${localDay(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${zone}`
 }
 
 // --- billing and price ------------------------------------------------------------
@@ -182,6 +211,21 @@ async function toggleTimer() {
         </RouterLink>
         <span v-else class="text-neutral-400">{{ $t('task.none') }}</span>
       </dd>
+
+      <dt class="text-neutral-500">{{ $t('task.createdOn') }}</dt>
+      <dd v-if="task.can_edit" class="min-w-0">
+        <DateInput
+          :model-value="createdOn"
+          :label="$t('task.createdOn')"
+          hide-label
+          compact
+          required
+          :max="latestCreatedOn"
+          :disabled="busy"
+          @update:model-value="saveCreatedOn"
+        />
+      </dd>
+      <dd v-else class="min-w-0 text-neutral-800">{{ formatDate(task.created_at) }}</dd>
 
       <dt class="text-neutral-500">{{ $t('task.dueDate') }}</dt>
       <dd v-if="task.can_edit" class="min-w-0">
