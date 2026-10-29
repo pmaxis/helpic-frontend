@@ -25,6 +25,8 @@ const props = defineProps<{
   hideLabel?: boolean
   /** Show the date without the weekday ("3 Oct 2026"), for narrow places. */
   compact?: boolean
+  /** The first day that can be picked, as YYYY-MM-DD. */
+  min?: string
   /** The last day that can be picked, as YYYY-MM-DD. */
   max?: string
 }>()
@@ -94,9 +96,9 @@ const days = computed(() => {
 
 const cursorISO = computed(() => toISO(cursor.value))
 
-/** A day past max can't be picked (YYYY-MM-DD strings compare as dates). */
+/** A day before min or past max can't be picked (YYYY-MM-DD strings compare as dates). */
 function beyond(iso: string): boolean {
-  return !!props.max && iso > props.max
+  return (!!props.min && iso < props.min) || (!!props.max && iso > props.max)
 }
 
 /** A required date is never cleared, only changed. */

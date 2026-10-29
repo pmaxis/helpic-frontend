@@ -93,6 +93,18 @@ describe('DateInput', () => {
     expect(date.emitted('update:modelValue')?.at(-1)).toEqual([''])
   })
 
+  it('picks no day before min or past max', async () => {
+    const date = mountDate('2030-01-15', { min: '2030-01-10', max: '2030-01-20' })
+    await click(date.get('button').element)
+    expect($('[data-iso="2030-01-09"]')?.getAttribute('aria-disabled')).toBe('true')
+    expect($('[data-iso="2030-01-21"]')?.getAttribute('aria-disabled')).toBe('true')
+    await click('[data-iso="2030-01-09"]')
+    await click('[data-iso="2030-01-21"]')
+    expect(date.emitted('update:modelValue')).toBeUndefined()
+    await click('[data-iso="2030-01-10"]')
+    expect(date.emitted('update:modelValue')).toEqual([['2030-01-10']])
+  })
+
   it('shows its error and stays shut while disabled', async () => {
     const date = mountDate('', { error: 'Pick a date', disabled: true })
     expect(date.text()).toContain('Pick a date')
