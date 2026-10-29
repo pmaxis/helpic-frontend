@@ -272,7 +272,7 @@ describe('Settings › Delete account', () => {
     const server = serve({ 'DELETE /me': status(422, { error: { code: 'V', message: 'x', fields: { current_password: 'Wrong password' } } }) })
     const page = await render(SettingsView, { path: '/settings?tab=security', user: freelancer() })
     expect($('[role="dialog"]')).toBeNull()
-    await click(button(t('settings.deleteAccount.action')))
+    await click(button(t('settings.deleteAccount.open')))
     expect(() => field(t('settings.twoFactor.codeOrRecovery'))).toThrow()
     await type(field(t('settings.confirmPassword.label')), 'nope')
     await click(confirmButton())
@@ -293,7 +293,7 @@ describe('Settings › Delete account', () => {
       'DELETE /me': status(409, { error: { code: 'CONFLICT', message: 'Your company still has people in it.' } }),
     })
     await render(SettingsView, { path: '/settings?tab=security', user: makeUser({ role: 'client', two_factor: true }) })
-    await click(button(t('settings.deleteAccount.action')))
+    await click(button(t('settings.deleteAccount.open')))
     await type(field(t('settings.confirmPassword.label')), 'pw')
     await type(field(t('settings.twoFactor.codeOrRecovery')), '123456')
     await click(confirmButton())
@@ -305,7 +305,7 @@ describe('Settings › Delete account', () => {
   it('isn’t offered to an admin', async () => {
     serve()
     await render(SettingsView, { path: '/settings?tab=security', user: makeUser({ role: 'admin' }) })
-    expect(() => button(t('settings.deleteAccount.action'))).toThrow()
+    expect(() => button(t('settings.deleteAccount.open'))).toThrow()
   })
 })
 

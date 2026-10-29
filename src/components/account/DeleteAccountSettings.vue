@@ -41,12 +41,15 @@ function refused(error: ApiRequestError) {
 </script>
 
 <template>
-  <SettingsGroup :title="$t('settings.deleteAccount.title')" :description="$t('settings.deleteAccount.text')">
-    <SettingsRow
-      :label="$t('settings.deleteAccount.label')"
-      :hint="auth.isTeamOwner ? $t('settings.deleteAccount.hintOwner') : $t('settings.deleteAccount.hint')"
-    >
-      <BaseButton variant="danger" size="sm" :block="false" @click="confirming = true">{{ $t('settings.deleteAccount.action') }}</BaseButton>
+  <SettingsGroup
+    :title="$t('settings.deleteAccount.title')"
+    :description="auth.isTeamOwner ? $t('settings.deleteAccount.textOwner') : $t('settings.deleteAccount.text')"
+  >
+    <SettingsRow :label="$t('settings.deleteAccount.label')" :hint="$t('settings.deleteAccount.hint')">
+      <!-- red like turning two-factor off: the modal asks before anything happens -->
+      <BaseButton variant="ghost" size="sm" :block="false" class="text-red-600 hover:text-red-700" @click="confirming = true">{{
+        $t('settings.deleteAccount.open')
+      }}</BaseButton>
     </SettingsRow>
 
     <ConfirmTwoFactorModal
