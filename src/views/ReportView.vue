@@ -22,6 +22,7 @@ import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
 import ReportFacts from '@/components/reports/ReportFacts.vue'
 import ReportTaskList from '@/components/reports/ReportTaskList.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
 import { formatDate } from '@/utils/format'
@@ -33,6 +34,7 @@ import { LIMITS, optionalText, requiredText } from '@/utils/validation'
 import { t } from '@/i18n'
 import type { Report, ReportKind } from '@/types/reports'
 
+const auth = useAuthStore()
 const reports = useReportsStore()
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +136,13 @@ async function setKind(kind: ReportKind) {
 
 const confirmSend = ref(false)
 const sending = ref(false)
+// Who hears that the report is paid: the side that isn't marking it.
+const otherSide = computed(() => {
+  const r = report.value
+  if (!r) return ''
+  const other = r.client && auth.user?.id === r.freelancer.id ? r.client : r.freelancer
+  return other.name || other.email
+})
 const confirmPaid = ref(false)
 const markingPaid = ref(false)
 
@@ -332,7 +341,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
     <ConfirmDialog
       v-model:open="confirmPaid"
       :title="$t('report.confirmPaid')"
-      :description="$t('report.confirmPaidText', { name: report?.freelancer.name || report?.freelancer.email })"
+      :description="$t('report.confirmPaidText', { name: otherSide })"
       :confirm-label="$t('report.markPaid')"
       tone="primary"
       :loading="markingPaid"

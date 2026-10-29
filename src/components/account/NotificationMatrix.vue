@@ -84,6 +84,7 @@ const loading = computed(() => (!email.value && !loadFailed.value) || (!tg.value
 function fits(k: NotificationKindInfo): boolean {
   if (k.for === 'freelancer') return auth.isFreelancer
   if (k.for === 'owner') return auth.isTeamOwner
+  if (k.for === 'parties') return auth.isFreelancer || auth.isTeamOwner
   if (k.for === 'client') return auth.isClient
   return true
 }

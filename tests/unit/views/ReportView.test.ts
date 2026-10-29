@@ -141,6 +141,17 @@ describe('ReportView', () => {
     expect(view.text()).toContain(t('report.statusPaid', { date: '3 Feb 2030' }))
   })
 
+  it('lets the freelancer mark a sent report paid, telling the client', async () => {
+    const report = makeReport({ status: 'sent', can_edit: false, can_delete: false, can_mark_paid: true, sent_at: '2030-02-02T00:00:00Z' })
+    const { server, page } = open(report)
+    const view = await page
+    await click(button(t('report.markPaid')))
+    expect(document.body.textContent).toContain(t('report.confirmPaidText', { name: 'Acme' }))
+    await click(confirmIn(t('report.markPaid')))
+    expect(server.to('POST /reports/r-1/paid')).toHaveLength(1)
+    expect(view.text()).toContain(t('report.statusPaid', { date: '3 Feb 2030' }))
+  })
+
   it('downloads the PDF, with hryvnias when they’re switched on', async () => {
     const report = makeReport({ total_cents: 10000, in_uah: { rate: '41.5', rate_on: '2030-02-01', total_cents: 415000 } })
     const { page } = open(report)

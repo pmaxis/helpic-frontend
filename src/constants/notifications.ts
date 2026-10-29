@@ -2,8 +2,8 @@ import type { NotificationKind } from '@/types/notifications'
 
 export interface NotificationKindInfo {
   kind: NotificationKind
-  /** Who gets it: the freelancer, the client company's owner, anyone on the client's side; everyone when unset. */
-  for?: 'freelancer' | 'owner' | 'client'
+  /** Who gets it: the freelancer, the client company's owner, either of those two, anyone on the client's side; everyone when unset. */
+  for?: 'freelancer' | 'owner' | 'parties' | 'client'
 }
 
 /** Groups of kinds: keys under "notificationKinds.groups" in the messages. */
@@ -42,7 +42,7 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'project_created' },
       { kind: 'project_invited' },
       { kind: 'report_sent', for: 'owner' },
-      { kind: 'report_paid', for: 'freelancer' },
+      { kind: 'report_paid', for: 'parties' },
     ],
   },
   {

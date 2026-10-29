@@ -312,8 +312,8 @@ describe('Settings › Delete account', () => {
 describe('Settings › Notifications', () => {
   it('switches the emailed kinds, only those this user can get, and turns email off', async () => {
     const server = serve({ 'PUT /me/email-notifications': (c: { body: { kinds: string[] } }) => ({ email_notifications: { kinds: c.body.kinds, available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } }) })
-    const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser({ role: 'client' }) })
-    // a client never gets "report paid": it's the freelancer's
+    const page = await render(SettingsView, { path: '/settings?tab=notifications', user: makeUser({ role: 'client', member_of: { owner_id: 'o', name: 'Acme', role: 'member' } }) })
+    // a team member never gets "report paid": it's for the report's two sides
     expect(page.text()).not.toContain(t('notificationKinds.report_paid'))
     await click(sw('comment_added', 'email'))
     expect(server.to('PUT /me/email-notifications')[0].body).toEqual({ kinds: ['task_created', 'comment_added'] })
