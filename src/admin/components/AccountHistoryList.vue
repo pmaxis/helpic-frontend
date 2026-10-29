@@ -38,6 +38,7 @@ const DOTS: Record<AdminAction['action'], string> = {
   lock_admin: 'bg-red-500',
   unlock_admin: 'bg-emerald-500',
   reset_admin: 'bg-amber-500',
+  delete: 'bg-red-500',
 }
 
 const dateTime = computed(() => new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))

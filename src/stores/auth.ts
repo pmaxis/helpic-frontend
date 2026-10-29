@@ -4,6 +4,7 @@ import { isLocale, setLocale, type Locale } from '@/i18n'
 import type {
   ChangeEmailPayload,
   ChangePasswordPayload,
+  DeleteAccountPayload,
   LoginPayload,
   RegisterPayload,
   User,
@@ -148,6 +149,15 @@ export const useAuthStore = defineStore('auth', {
 
     async changePassword(payload: ChangePasswordPayload): Promise<void> {
       await http.put<UserResponse>('/me/password', payload)
+    },
+
+    /**
+     * Deletes the account for good; takes the password and, with two-factor
+     * on, a code. The backend signs this browser out.
+     */
+    async deleteAccount(payload: DeleteAccountPayload): Promise<void> {
+      await http.delete('/me', { data: payload })
+      this.user = null
     },
 
     /** Accepting an invitation signs the client in; the backend returns the user. */

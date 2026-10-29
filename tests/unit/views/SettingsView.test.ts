@@ -265,6 +265,50 @@ describe('Settings › Security', () => {
   })
 })
 
+describe('Settings › Delete account', () => {
+  const confirmButton = () => $$('[role="dialog"] button').find((b) => b.textContent?.includes(t('settings.deleteAccount.action')))!
+
+  it('deletes the account with the password, then goes to sign in', async () => {
+    const server = serve({ 'DELETE /me': status(422, { error: { code: 'V', message: 'x', fields: { current_password: 'Wrong password' } } }) })
+    const page = await render(SettingsView, { path: '/settings?tab=security', user: freelancer() })
+    expect($('[role="dialog"]')).toBeNull()
+    await click(button(t('settings.deleteAccount.action')))
+    expect(() => field(t('settings.twoFactor.codeOrRecovery'))).toThrow()
+    await type(field(t('settings.confirmPassword.label')), 'nope')
+    await click(confirmButton())
+    expect($('[role="dialog"]')?.textContent).toContain('Wrong password')
+
+    server.reply('DELETE /me', {})
+    await type(field(t('settings.confirmPassword.label')), 'secret')
+    await click(confirmButton())
+    await vi.waitFor(() => expect(page.router.currentRoute.value.name).toBe('login'))
+    expect(server.to('DELETE /me').at(-1)?.body).toEqual({ current_password: 'secret' })
+    expect(useAuthStore().user).toBeNull()
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('settings.deleteAccount.done'))
+  })
+
+  it('asks for a code with two-factor on, and says why it was refused', async () => {
+    const server = serve({
+      'GET /me/two-factor': { enabled: true, recovery_codes_left: 10 },
+      'DELETE /me': status(409, { error: { code: 'CONFLICT', message: 'Your company still has people in it.' } }),
+    })
+    await render(SettingsView, { path: '/settings?tab=security', user: makeUser({ role: 'client', two_factor: true }) })
+    await click(button(t('settings.deleteAccount.action')))
+    await type(field(t('settings.confirmPassword.label')), 'pw')
+    await type(field(t('settings.twoFactor.codeOrRecovery')), '123456')
+    await click(confirmButton())
+    expect(server.to('DELETE /me')[0].body).toEqual({ current_password: 'pw', code: '123456' })
+    expect($('[role="dialog"]')?.textContent).toContain('Your company still has people in it.')
+    expect(useAuthStore().user).not.toBeNull()
+  })
+
+  it('isn’t offered to an admin', async () => {
+    serve()
+    await render(SettingsView, { path: '/settings?tab=security', user: makeUser({ role: 'admin' }) })
+    expect(() => button(t('settings.deleteAccount.action'))).toThrow()
+  })
+})
+
 describe('Settings › Notifications', () => {
   it('switches the emailed kinds, only those this user can get, and turns email off', async () => {
     const server = serve({ 'PUT /me/email-notifications': (c: { body: { kinds: string[] } }) => ({ email_notifications: { kinds: c.body.kinds, available: ['task_created', 'comment_added', 'report_paid'], default_kinds: [] } }) })

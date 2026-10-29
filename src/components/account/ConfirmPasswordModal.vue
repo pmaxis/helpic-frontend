@@ -24,6 +24,8 @@ const props = defineProps<{
   title: string
   description: string
   confirmLabel: string
+  /** A change that can't be undone is red. */
+  danger?: boolean
   /** The change, sent with the current password. */
   action: (password: string) => Promise<unknown>
 }>()
@@ -70,7 +72,15 @@ function confirm() {
     </form>
     <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>
-      <BaseButton type="submit" form="confirm-password-form" size="sm" :block="false" :loading="form.submitting" :disabled="form.submitting">
+      <BaseButton
+        type="submit"
+        form="confirm-password-form"
+        size="sm"
+        :block="false"
+        :variant="danger ? 'danger' : 'primary'"
+        :loading="form.submitting"
+        :disabled="form.submitting"
+      >
         {{ confirmLabel }}
       </BaseButton>
     </template>

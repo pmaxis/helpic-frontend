@@ -52,6 +52,12 @@ export interface ChangePasswordPayload {
   password_confirmation: string
 }
 
+export interface DeleteAccountPayload {
+  current_password: string
+  /** Asked for when two-factor is on: six digits from the app, or a recovery code. */
+  code?: string
+}
+
 export interface LoginPayload {
   email: string
   password: string

@@ -99,6 +99,23 @@ describe('AccountPanel', () => {
     expect($('[role="dialog"]')).toBeNull()
   })
 
+  it('deletes the account, then closes; a refusal for the company’s people is said as is', async () => {
+    const server = serve({ 'DELETE /admin/users/u1': status(409, { error: { code: 'CONFLICT', message: 'Their company still has people in it.' } }) })
+    const panel = await render(AccountPanel, { props: { id: 'u1' }, user: admin() })
+    await click(button(t('admin.manage.delete')))
+    await answer('Asked by email', '123456')
+    await click(confirmIn(t('admin.manage.delete')))
+    expect(server.to('DELETE /admin/users/u1')[0].body).toEqual({ reason: 'Asked by email', code: '123456' })
+    expect(useToasts().toasts.at(-1)?.message).toBe('Their company still has people in it.')
+    expect(panel.emitted('close')).toBeUndefined()
+
+    server.reply('DELETE /admin/users/u1', {})
+    await click(confirmIn(t('admin.manage.delete')))
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('admin.manage.deleted'))
+    expect(panel.emitted('changed')).toHaveLength(1)
+    expect(panel.emitted('close')).toHaveLength(1)
+  })
+
   it('signs the account out of one device, and lifts a limit', async () => {
     const server = serve({ 'POST /admin/users/u1/sessions/s1/end': { user: makeAccountDetail({ sessions: 0 }) } })
     await render(AccountPanel, { props: { id: 'u1' }, user: admin() })

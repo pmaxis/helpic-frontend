@@ -55,6 +55,11 @@ export async function actOnAccount(id: string, action: AdminActionPath, reason: 
   return data.user
 }
 
+/** Deletes the account for its owner; recorded with the reason. */
+export async function deleteAdminAccount(id: string, reason: string, code: string): Promise<void> {
+  await http.delete(`/admin/users/${id}`, { data: { reason, code } })
+}
+
 /** A page of what admins did, the newest first. */
 export async function fetchAdminActions(query: AdminActionsQuery): Promise<AdminActionsPage> {
   const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== '' && v !== undefined))

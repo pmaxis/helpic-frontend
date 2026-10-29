@@ -9,6 +9,7 @@ import SessionsSettings from '@/components/account/SessionsSettings.vue'
 import TelegramIntegration from '@/components/account/TelegramIntegration.vue'
 import TwoFactorSettings from '@/components/account/TwoFactorSettings.vue'
 import NotificationMatrix from '@/components/account/NotificationMatrix.vue'
+import DeleteAccountSettings from '@/components/account/DeleteAccountSettings.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -63,6 +64,8 @@ const sessions = ref<InstanceType<typeof SessionsSettings> | null>(null)
           <!-- turning it on signs the other devices out -->
           <TwoFactorSettings @enabled="sessions?.load()" />
           <SessionsSettings ref="sessions" />
+          <!-- admin accounts are the server cli's to remove -->
+          <DeleteAccountSettings v-if="!auth.isAdmin" />
         </template>
 
         <section v-else-if="tab === 'integrations'">

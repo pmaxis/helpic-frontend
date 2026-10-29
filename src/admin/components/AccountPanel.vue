@@ -6,8 +6,8 @@
  * in on, each one signed out on its own, and the rate limits holding them
  * back, each lifted at once; on a tab of its own the
  * account's history, what admins did to it; and under both what an admin can
- * do to it, each asked for a reason and the admin's two-factor code again,
- * and recorded. Escape or the close button
+ * do to it, deleting it last, each asked for a reason and the admin's
+ * two-factor code again, and recorded. Escape or the close button
  * closes it.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -20,7 +20,7 @@ import AccountAvatar from './AccountAvatar.vue'
 import AccountOverview from './AccountOverview.vue'
 import AccountHistoryList from './AccountHistoryList.vue'
 import AdminConfirmModal from './AdminConfirmModal.vue'
-import { actOnAccount, clearAdminLimit, endAccountSession, fetchAccountSessions, fetchAdminAccount, fetchAdminActions, fetchAdminLimits } from '../api'
+import { actOnAccount, clearAdminLimit, deleteAdminAccount, endAccountSession, fetchAccountSessions, fetchAdminAccount, fetchAdminActions, fetchAdminLimits } from '../api'
 import type { AdminAccountDetail, AdminAction, AdminActionPath, AdminLimit, AdminSession } from '../types'
 
 const props = defineProps<{ id: string }>()
@@ -155,6 +155,32 @@ async function act(reason: string, code: string) {
   }
 }
 
+/** Deleting is asked like the rest, but leaves no account to show: the card closes. */
+const deleting = ref(false)
+
+function askDelete() {
+  deleting.value = true
+  codeError.value = ''
+}
+
+async function remove(reason: string, code: string) {
+  if (!account.value) return
+  acting.value = true
+  try {
+    await deleteAdminAccount(account.value.id, reason, code)
+    deleting.value = false
+    toast.success(t('admin.manage.deleted'))
+    emit('changed')
+    emit('close')
+  } catch (e) {
+    // Refused while their company has people: the reason is the backend's to say.
+    if (e instanceof ApiRequestError && e.status === 409) toast.error(e.message)
+    else failed(e)
+  } finally {
+    acting.value = false
+  }
+}
+
 // --- one device, one limit ---------------------------------------------------------
 
 /** The device asked to be signed out. */
@@ -198,7 +224,7 @@ async function clearLimit(l: AdminLimit) {
 
 function onKeydown(e: KeyboardEvent) {
   // The question's own Escape closes only the question.
-  if (e.key === 'Escape' && !asking.value && !ending.value) emit('close')
+  if (e.key === 'Escape' && !asking.value && !ending.value && !deleting.value) emit('close')
 }
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
@@ -281,6 +307,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       >
         {{ $t(action === 'end-sessions' ? 'admin.manage.endSessionsShort' : ACTIONS[action].label) }}
       </button>
+      <button
+        type="button"
+        class="col-span-2 truncate rounded-lg bg-white px-3 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200 transition-colors ring-inset hover:bg-red-50"
+        @click="askDelete"
+      >
+        {{ $t('admin.manage.delete') }}
+      </button>
     </footer>
   </aside>
 
@@ -294,6 +327,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     :code-error="codeError"
     @confirm="act"
     @close="asking = null"
+  />
+  <AdminConfirmModal
+    v-if="deleting && account"
+    :title="`${$t('admin.manage.delete')}: ${account.name || account.email}`"
+    :text="$t('admin.manage.deleteText')"
+    :confirm-label="$t('admin.manage.delete')"
+    tone="danger"
+    :acting="acting"
+    :code-error="codeError"
+    @confirm="remove"
+    @close="deleting = false"
   />
   <AdminConfirmModal
     v-if="ending && account"
