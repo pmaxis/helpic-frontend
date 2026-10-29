@@ -3,12 +3,12 @@
  * When and for how much, as two blocks of the details card: the task's
  * project, creation date and due date, then its billing, price and time (left out when it
  * has none of them to show). Whoever may edit the task picks the
- * project and the due date, and moves the creation date into the past, up
- * to the due date; only the freelancer sets the billing and the
+ * project and the due date, no earlier than the creation day, and moves the
+ * creation date into the past, up to the due date; only the freelancer sets the billing and the
  * price — in any status, so the price has its own endpoint — and runs the
  * timer.
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import DateInput from '@/components/ui/DateInput.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
@@ -77,9 +77,22 @@ function saveDueOn(value: string) {
 
 /** The local calendar day the task was created on, as YYYY-MM-DD. */
 const createdOn = computed(() => localDay(new Date(props.task.created_at)))
-const today = localDay(new Date())
+/** Today, turning over at midnight while the details stay open. */
+const today = ref(localDay(new Date()))
+let midnight = 0
+function untilTomorrow() {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+  midnight = window.setTimeout(() => {
+    today.value = localDay(new Date())
+    untilTomorrow()
+  }, next.getTime() - now.getTime())
+}
+untilTomorrow()
+onBeforeUnmount(() => window.clearTimeout(midnight))
+
 /** The last day it can have been created on: today, or the due date if that came first. */
-const latestCreatedOn = computed(() => (props.task.due_on && props.task.due_on < today ? props.task.due_on : today))
+const latestCreatedOn = computed(() => (props.task.due_on && props.task.due_on < today.value ? props.task.due_on : today.value))
 
 function localDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -235,6 +248,7 @@ async function toggleTimer() {
           hide-label
           compact
           :placeholder="$t('task.none')"
+          :min="createdOn"
           :disabled="busy"
           @update:model-value="saveDueOn"
         />

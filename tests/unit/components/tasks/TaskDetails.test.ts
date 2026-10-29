@@ -114,7 +114,8 @@ describe('TaskDetails', () => {
   })
 
   it('sets the priority and the due date, and moves the task to another project', async () => {
-    const task = makeTask()
+    // Created in the past, so this month's days can be the due date.
+    const task = makeTask({ created_at: '2020-01-10T09:00:00Z' })
     const server = serve(task, {
       'PUT /tasks/t-1/priority': changed(task, { priority: 'urgent' }),
       'PUT /tasks/t-1': changed(task, {}),
@@ -167,6 +168,24 @@ describe('TaskDetails', () => {
       const day = (iso: string) => $(`[role="gridcell"][data-iso="${iso}"]`) as HTMLElement
       expect(day('2030-01-12').getAttribute('aria-disabled')).toBeNull()
       expect(day('2030-01-13').getAttribute('aria-disabled')).toBe('true')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the due date on or after the creation date', async () => {
+    vi.useFakeTimers({ now: new Date('2030-01-20T12:00:00Z'), toFake: ['Date'] })
+    try {
+      const task = makeTask({ created_at: '2030-01-10T09:00:00Z', due_on: '2030-01-15' })
+      const server = serve(task, { 'PUT /tasks/t-1': changed(task, {}) })
+      await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+      await click(field(t('task.dueDate')))
+      const day = (iso: string) => $(`[role="gridcell"][data-iso="${iso}"]`) as HTMLElement
+      expect(day('2030-01-09').getAttribute('aria-disabled')).toBe('true')
+      await click(day('2030-01-09'))
+      expect(server.to('PUT /tasks/t-1')).toHaveLength(0)
+      await click(day('2030-01-10'))
+      expect(server.to('PUT /tasks/t-1')[0].body).toMatchObject({ due_on: '2030-01-10' })
     } finally {
       vi.useRealTimers()
     }
