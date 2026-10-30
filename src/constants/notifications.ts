@@ -43,6 +43,8 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'project_invited' },
       { kind: 'report_sent', for: 'owner' },
       { kind: 'report_paid', for: 'parties' },
+      { kind: 'report_comment', for: 'parties' },
+      { kind: 'report_recalled', for: 'owner' },
     ],
   },
   {

@@ -22,6 +22,7 @@ import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
 import ReportFacts from '@/components/reports/ReportFacts.vue'
 import ReportTaskList from '@/components/reports/ReportTaskList.vue'
+import ReportDiscussion from '@/components/reports/ReportDiscussion.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
@@ -89,6 +90,19 @@ function changed(r: Report) {
   version.value++
   void printPreview()
 }
+
+/** Something was said about the report: its counts are fetched again, the PDF stays as it is. */
+async function commented() {
+  try {
+    report.value = await reports.fetchReport(id)
+    version.value++
+  } catch {
+    // The comment itself is in; the counts catch up on the next change.
+  }
+}
+
+/** The discussion shows once the report reached its client, and stays to read after. */
+const showDiscussion = computed(() => !!report.value?.client && (report.value.can_comment || report.value.comment_count > 0))
 
 // --- editing a draft ------------------------------------------------------------------
 
@@ -159,6 +173,32 @@ async function markPaid() {
     confirmPaid.value = false
   }
 }
+
+const confirmRecall = ref(false)
+const recalling = ref(false)
+
+/** Takes the sent report back to correct it: a draft again, out of the client's sight. */
+async function recall() {
+  if (!report.value) return
+  recalling.value = true
+  try {
+    changed(await reports.recallReport(report.value.id))
+    syncForm()
+    toast.success(t('report.recalled'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : t('report.recallFailed'))
+  } finally {
+    recalling.value = false
+    confirmRecall.value = false
+  }
+}
+
+/** Paying with questions still open is allowed, but said. */
+const paidText = computed(() => {
+  const text = t('report.confirmPaidText', { name: otherSide.value })
+  const n = report.value?.open_questions ?? 0
+  return n ? `${text} ${t('report.paidWithQuestions', { n }, n)}` : text
+})
 
 const confirmDelete = ref(false)
 /** A draft the client never saw (a personal report is never sent, so it isn't one). */
@@ -299,9 +339,13 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
               {{ $t('report.sendTo', { name: report.client.name || report.client.email }) }}
             </BaseButton>
           </div>
-          <div v-if="report.can_mark_paid" class="mt-4">
-            <BaseButton size="sm" @click="confirmPaid = true">{{ $t('report.markPaid') }}</BaseButton>
+          <div v-if="report.can_mark_paid || report.can_recall" class="mt-4 grid gap-2">
+            <BaseButton v-if="report.can_mark_paid" size="sm" @click="confirmPaid = true">{{ $t('report.markPaid') }}</BaseButton>
+            <BaseButton v-if="report.can_recall" variant="ghost" size="sm" @click="confirmRecall = true">{{ $t('report.recall') }}</BaseButton>
           </div>
+          <p v-if="report.status === 'draft' && report.recalled_at" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-600/20 ring-inset">
+            {{ $t('report.recalledNote', { name: report.client?.name || report.client?.email }) }}
+          </p>
           <!-- a plain draft: where its look is set -->
           <RouterLink
             v-if="report.can_edit && !report.branding.logo_id && !report.branding.details"
@@ -313,6 +357,8 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
         </div>
 
         <ReportFacts v-model="inUAH" :report="report" />
+
+        <ReportDiscussion v-if="showDiscussion" :report="report" :version="version" @changed="changed" @commented="commented" />
 
         <template v-if="report.can_edit">
           <div class="border-b border-neutral-200 px-5 py-4">
@@ -349,11 +395,20 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
     <ConfirmDialog
       v-model:open="confirmPaid"
       :title="$t('report.confirmPaid')"
-      :description="$t('report.confirmPaidText', { name: otherSide })"
+      :description="paidText"
       :confirm-label="$t('report.markPaid')"
       tone="primary"
       :loading="markingPaid"
       @confirm="markPaid"
+    />
+    <ConfirmDialog
+      v-model:open="confirmRecall"
+      :title="$t('report.confirmRecall')"
+      :description="$t('report.confirmRecallText', { name: report?.client?.name || report?.client?.email })"
+      :confirm-label="$t('report.recall')"
+      tone="primary"
+      :loading="recalling"
+      @confirm="recall"
     />
     <ConfirmDialog
       v-model:open="confirmDelete"

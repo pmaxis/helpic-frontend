@@ -192,3 +192,92 @@ describe('ReportView', () => {
 function byExpanded(i: number): HTMLElement {
   return $$('button[aria-expanded]').filter((b) => b.getAttribute('aria-controls')?.startsWith('notes-'))[i]
 }
+
+describe('ReportView › discussion', () => {
+  const sent = (over: Partial<Report> = {}) =>
+    makeReport({
+      status: 'sent',
+      sent_at: '2030-02-02T00:00:00Z',
+      can_edit: false,
+      can_delete: false,
+      can_comment: true,
+      items: [makeReportItem({ title: 'Logo', price_cents: 50000 }), makeReportItem({ id: 'i-2', title: 'Landing' })],
+      ...over,
+    })
+  const comment = (over = {}) => ({
+    id: 'c-1',
+    item_id: 'i-1',
+    item_title: 'Logo',
+    author: { id: 'u-client', name: 'Acme', email: 'acme@example.test' },
+    body: 'Why 500?',
+    created_at: '2030-02-02T10:00:00Z',
+    ...over,
+  })
+  const asClient = makeUser({ id: 'u-client', email: 'acme@example.test', role: 'client' })
+  const stubs = { PdfPreview: { template: '<div class="pdf" />' } }
+
+  it('isn’t there on a draft the client never had', async () => {
+    const { page } = open(makeReport({ items: [makeReportItem()] }))
+    const view = await page
+    expect(view.text()).not.toContain(t('reportDiscussion.title'))
+  })
+
+  it('lets the client ask about a line, and resolve it', async () => {
+    const report = sent()
+    const asked = { ...report, open_questions: 1, comment_count: 1, items: [{ ...report.items![0], question_open: true, comment_count: 1 }, report.items![1]] }
+    const server = serve(report, {
+      'GET /reports/r-1/comments': { comments: [] },
+      'POST /reports/r-1/comments': { comment: comment() },
+      'POST /reports/r-1/items/i-1/resolve': { report: { ...asked, open_questions: 0, items: report.items } },
+    })
+    const view = await render(ReportView, { path: '/reports/r-1', user: asClient, global: { stubs } })
+    expect(view.text()).toContain(t('reportDiscussion.hintClient'))
+
+    await click(view.findAll('button[aria-expanded]').find((b) => b.text().includes('Logo'))!.element)
+    server.reply('GET /reports/r-1', { report: asked })
+    server.reply('GET /reports/r-1/comments', { comments: [comment()] })
+    await type(field<HTMLTextAreaElement>(t('reportDiscussion.aboutLine', { title: 'Logo' })), 'Why 500?')
+    await click(button(t('reportDiscussion.ask')))
+    expect(server.to('POST /reports/r-1/comments')[0].body).toEqual({ item_id: 'i-1', body: 'Why 500?' })
+    await flushPromises()
+    expect(view.text()).toContain('Why 500?')
+    expect(view.text()).toContain(t('reportDiscussion.openQuestions', { n: 1 }, 1))
+
+    await click(button(t('reportDiscussion.resolve')))
+    expect(server.to('POST /reports/r-1/items/i-1/resolve')).toHaveLength(1)
+    expect(view.text()).not.toContain(t('reportDiscussion.openQuestions', { n: 1 }, 1))
+  })
+
+  it('warns before a payment with questions open', async () => {
+    serve(sent({ can_mark_paid: true, open_questions: 2 }), { 'GET /reports/r-1/comments': { comments: [] } })
+    await render(ReportView, { path: '/reports/r-1', user: asClient, global: { stubs } })
+    await click(button(t('report.markPaid')))
+    expect(document.body.textContent).toContain(t('report.paidWithQuestions', { n: 2 }, 2))
+  })
+
+  it('keeps what was said about a dropped line, and closes the discussion once paid', async () => {
+    serve(sent({ status: 'paid', can_comment: false, comment_count: 2 }), {
+      'GET /reports/r-1/comments': { comments: [comment({ item_id: null, item_title: 'Logo' }), comment({ id: 'c-2', item_id: null, item_title: '', body: 'Thanks' })] },
+    })
+    const view = await render(ReportView, { path: '/reports/r-1', user: asClient, global: { stubs } })
+    expect(view.text()).toContain(t('reportDiscussion.closed'))
+    expect(view.text()).toContain(t('reportDiscussion.dropped'))
+    expect($$('textarea')).toHaveLength(0)
+  })
+
+  it('lets the freelancer take a sent report back, and says so on the draft', async () => {
+    const report = sent({ can_recall: true })
+    const { server, page } = open(report, {
+      'GET /reports/r-1/comments': { comments: [] },
+      'POST /reports/r-1/recall': { report: { ...report, status: 'draft', sent_at: null, recalled_at: '2030-02-03T00:00:00Z', can_edit: true, can_recall: false } },
+    })
+    const view = await page
+    await click(button(t('report.recall')))
+    await click(confirmIn(t('report.recall')))
+    expect(server.to('POST /reports/r-1/recall')).toHaveLength(1)
+    expect(view.text()).toContain(t('report.recalledNote', { name: 'Acme' }))
+    // still discussed, and now editable
+    expect(view.text()).toContain(t('reportDiscussion.title'))
+    expect(field(t('report.title')).value).toBe('January')
+  })
+})

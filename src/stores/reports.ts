@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { http } from '@/services/api'
-import type { Report, ReportEvent, ReportInput, ReportKind } from '@/types/reports'
+import type { Report, ReportComment, ReportEvent, ReportInput, ReportKind } from '@/types/reports'
 
 interface ReportsState {
   reports: Report[]
@@ -56,6 +56,31 @@ export const useReportsStore = defineStore('reports', {
     async fetchHistory(id: string): Promise<ReportEvent[]> {
       const { data } = await http.get<{ events: ReportEvent[] }>(`/reports/${id}/history`)
       return data.events ?? []
+    },
+
+    /** What the two sides said about the report and its lines, oldest first. */
+    async fetchComments(id: string): Promise<ReportComment[]> {
+      const { data } = await http.get<{ comments: ReportComment[] }>(`/reports/${id}/comments`)
+      return data.comments ?? []
+    },
+
+    /** On a line, or the report as a whole (no itemId); the client's comment on a line asks a question about it. */
+    async addComment(id: string, body: string, itemId?: string): Promise<ReportComment> {
+      const { data } = await http.post<{ comment: ReportComment }>(`/reports/${id}/comments`, { item_id: itemId ?? '', body })
+      return data.comment
+    },
+
+    /** Closes the question on a line. */
+    async resolveQuestion(id: string, itemId: string): Promise<Report> {
+      const { data } = await http.post<{ report: Report }>(`/reports/${id}/items/${itemId}/resolve`)
+      return data.report
+    },
+
+    /** The freelancer takes a sent report back to correct it: a draft again, out of the client's sight. */
+    async recallReport(id: string): Promise<Report> {
+      const { data } = await http.post<{ report: Report }>(`/reports/${id}/recall`)
+      this.loaded = false
+      return data.report
     },
 
     async sendReport(id: string): Promise<Report> {

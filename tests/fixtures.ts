@@ -136,6 +136,8 @@ export function makeReportItem(over: Partial<ReportItem> = {}): ReportItem {
     price_cents: null,
     seconds: null,
     notes: '',
+    question_open: false,
+    comment_count: 0,
     ...over,
   }
 }
@@ -158,6 +160,11 @@ export function makeReport(over: Partial<Report> = {}): Report {
     items: [],
     currency: 'USD',
     branding: { color: null, details: '', logo_id: null },
+    recalled_at: null,
+    open_questions: 0,
+    comment_count: 0,
+    can_comment: false,
+    can_recall: false,
     total_cents: null,
     can_edit: true,
     can_delete: true,

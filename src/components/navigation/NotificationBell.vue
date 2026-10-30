@@ -82,6 +82,8 @@ const PHRASED = new Set([
   'member_joined',
   'report_sent',
   'report_paid',
+  'report_comment',
+  'report_recalled',
   'comment_added',
   'comment_mention',
   'attachment_added',
@@ -114,7 +116,9 @@ function initials(n: AppNotification): string {
 async function openNotification(n: AppNotification) {
   close()
   void store.markRead(n.id).catch(() => {})
-  if (n.report_id) await router.push({ name: 'report-detail', params: { id: n.report_id } })
+  // A report taken back is a draft its client no longer sees.
+  if (n.kind === 'report_recalled') await router.push('/reports')
+  else if (n.report_id) await router.push({ name: 'report-detail', params: { id: n.report_id } })
   else if (n.task_id) await router.push({ name: 'task-detail', params: { id: n.task_id } })
   else if (n.project_id) await router.push({ name: 'project-detail', params: { id: n.project_id } })
   else if (n.kind === 'client_joined') await router.push('/clients')
@@ -207,7 +211,7 @@ async function openNotification(n: AppNotification) {
                 <template #detail>{{ phrase(n).detail }}</template>
                 <template #date>{{ phrase(n).date }}</template>
               </i18n-t>
-              <span v-if="(n.kind === 'comment_added' || n.kind === 'comment_mention') && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
+              <span v-if="(n.kind === 'comment_added' || n.kind === 'comment_mention' || n.kind === 'report_comment') && n.detail" class="mt-0.5 line-clamp-2 text-xs text-neutral-500">“{{ n.detail }}”</span>
               <span class="mt-0.5 block text-xs text-neutral-400">{{ timeAgo(n.created_at) }}</span>
             </span>
             <span v-if="!n.read" class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-sky-500" :aria-label="$t('bell.unread')" />

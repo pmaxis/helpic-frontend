@@ -11,6 +11,8 @@ export type NotificationKind =
   | 'member_joined'
   | 'report_sent'
   | 'report_paid'
+  | 'report_comment'
+  | 'report_recalled'
   | 'attachment_added'
   | 'comment_added'
   | 'comment_mention'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { t } from '@/i18n'
-/** A report's history, one line per change. Its client sees only the sending and the payment. */
+/** A report's history, one line per change. Its client sees what happened once it reached them. */
 import { ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useReportsStore } from '@/stores/reports'
@@ -52,6 +52,12 @@ function describe(e: ReportEvent): { key: string; value: string } {
       return { key: 'reportHistory.itemRemoved', value: `“${d.task}”` }
     case 'sent':
       return { key: 'reportHistory.sent', value: '' }
+    case 'question':
+      return { key: 'reportHistory.question', value: `“${d.task}”` }
+    case 'resolved':
+      return { key: 'reportHistory.resolved', value: `“${d.task}”` }
+    case 'recalled':
+      return { key: 'reportHistory.recalled', value: '' }
     case 'paid':
       return d.tasks
         ? { key: 'reportHistory.paidTasks', value: t('reportHistory.tasks', { n: d.tasks }, d.tasks) }

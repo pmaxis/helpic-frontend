@@ -22,6 +22,10 @@ export interface ReportItem {
   seconds: number | null
   /** What was done in the task, shown in a detailed report. Starts as the task's description. */
   notes: string
+  /** The client asked about the line, and it isn't resolved yet. */
+  question_open: boolean
+  /** What was said about the line. */
+  comment_count: number
 }
 
 /** How a freelancer's reports look: live on a draft, as it was sent on a sent report. */
@@ -52,7 +56,12 @@ export interface Report {
   status: 'draft' | 'sent' | 'paid'
   sent_at: string | null
   paid_at: string | null
+  /** When the freelancer last took it back to correct it. */
+  recalled_at: string | null
   item_count: number
+  /** Lines with a question waiting, and the whole discussion. */
+  open_questions: number
+  comment_count: number
   /** Present on a single report. */
   items?: ReportItem[]
   currency: string
@@ -72,6 +81,10 @@ export interface Report {
   can_delete: boolean
   /** The client, while it's sent and not yet paid. */
   can_mark_paid: boolean
+  /** Either side, while it's sent or taken back to correct, until paid. */
+  can_comment: boolean
+  /** The freelancer, while it's sent and not yet paid. */
+  can_recall: boolean
   created_at: string
   updated_at: string
 }
@@ -88,9 +101,21 @@ export interface ReportInput {
   kind?: ReportKind
 }
 
-export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'sent' | 'paid'
+export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'sent' | 'paid' | 'question' | 'resolved' | 'recalled'
 
-/** One change in a report's history. A client sees only "sent" and "paid". */
+/** One message in a report's discussion. */
+export interface ReportComment {
+  id: string
+  /** The line it's about; null for the report as a whole, or once the line was dropped. */
+  item_id: string | null
+  /** That line's task as it was named; '' for the report as a whole. */
+  item_title: string
+  author: Party
+  body: string
+  created_at: string
+}
+
+/** One change in a report's history. A client sees what happened once it reached them. */
 export interface ReportEvent {
   id: string
   actor: { id: string; name: string; email: string }
