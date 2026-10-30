@@ -58,6 +58,12 @@ function describe(e: ReportEvent): { key: string; value: string } {
       return { key: 'reportHistory.resolved', value: `“${d.task}”` }
     case 'recalled':
       return { key: 'reportHistory.recalled', value: '' }
+    case 'approved':
+      return { key: 'reportHistory.approved', value: '' }
+    case 'changes_requested':
+      return { key: 'reportHistory.changesRequested', value: '' }
+    case 'changes_declined':
+      return { key: 'reportHistory.changesDeclined', value: '' }
     case 'paid':
       return d.tasks
         ? { key: 'reportHistory.paidTasks', value: t('reportHistory.tasks', { n: d.tasks }, d.tasks) }

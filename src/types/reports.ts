@@ -58,6 +58,13 @@ export interface Report {
   paid_at: string | null
   /** When the freelancer last took it back to correct it. */
   recalled_at: string | null
+  /** What the client made of it once sent: null until they say. Taking it back starts it over. */
+  review: ReportReview | null
+  reviewed_at: string | null
+  /** What the client said to change, while they ask for changes; '' otherwise. */
+  review_note: string
+  /** Why the freelancer kept it as it was, until the client reviews it again; '' otherwise. */
+  review_answer: string
   item_count: number
   /** Lines with a question waiting, and the whole discussion. */
   open_questions: number
@@ -85,6 +92,10 @@ export interface Report {
   can_comment: boolean
   /** The freelancer, while it's sent and not yet paid. */
   can_recall: boolean
+  /** The client of a sent, unpaid report: approve it or ask for changes. */
+  can_review: boolean
+  /** The freelancer while the client asks for changes: correct it (take it back) or keep it as it is. */
+  can_answer: boolean
   created_at: string
   updated_at: string
 }
@@ -101,7 +112,9 @@ export interface ReportInput {
   kind?: ReportKind
 }
 
-export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'sent' | 'paid' | 'question' | 'resolved' | 'recalled'
+export type ReportReview = 'approved' | 'changes_requested'
+
+export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'sent' | 'paid' | 'question' | 'resolved' | 'recalled' | 'approved' | 'changes_requested' | 'changes_declined'
 
 /** One message in a report's discussion. */
 export interface ReportComment {

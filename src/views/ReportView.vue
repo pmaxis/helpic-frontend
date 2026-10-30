@@ -23,6 +23,8 @@ import ReportHistory from '@/components/reports/ReportHistory.vue'
 import ReportFacts from '@/components/reports/ReportFacts.vue'
 import ReportTaskList from '@/components/reports/ReportTaskList.vue'
 import ReportDiscussion from '@/components/reports/ReportDiscussion.vue'
+import ReportReview from '@/components/reports/ReportReview.vue'
+import ReportChangesAnswer from '@/components/reports/ReportChangesAnswer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
@@ -37,6 +39,7 @@ import type { Report, ReportKind } from '@/types/reports'
 
 const auth = useAuthStore()
 const reports = useReportsStore()
+const isFreelancer = computed(() => report.value?.freelancer.id === auth.user?.id)
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
@@ -339,10 +342,17 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
               {{ $t('report.sendTo', { name: report.client.name || report.client.email }) }}
             </BaseButton>
           </div>
+          <ReportReview v-if="report.can_review" :report="report" @changed="changed" />
+          <ReportChangesAnswer v-if="report.can_answer" :report="report" @changed="changed" @correct="confirmRecall = true" />
           <div v-if="report.can_mark_paid || report.can_recall" class="mt-4 grid gap-2">
             <BaseButton v-if="report.can_mark_paid" size="sm" @click="confirmPaid = true">{{ $t('report.markPaid') }}</BaseButton>
-            <BaseButton v-if="report.can_recall" variant="ghost" size="sm" @click="confirmRecall = true">{{ $t('report.recall') }}</BaseButton>
+            <!-- with changes asked for, taking it back is one of the answers above -->
+            <BaseButton v-if="report.can_recall && !report.can_answer" variant="ghost" size="sm" @click="confirmRecall = true">{{ $t('report.recall') }}</BaseButton>
           </div>
+          <!-- the client's review, as the freelancer sees it -->
+          <p v-if="isFreelancer && report.review === 'approved'" class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 ring-1 ring-emerald-600/20 ring-inset">
+            {{ $t('report.approvedNote', { name: report.client?.name || report.client?.email }) }}
+          </p>
           <p v-if="report.status === 'draft' && report.recalled_at" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-600/20 ring-inset">
             {{ $t('report.recalledNote', { name: report.client?.name || report.client?.email }) }}
           </p>

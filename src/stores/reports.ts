@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { http } from '@/services/api'
-import type { Report, ReportComment, ReportEvent, ReportInput, ReportKind } from '@/types/reports'
+import type { Report, ReportComment, ReportEvent, ReportInput, ReportKind, ReportReview } from '@/types/reports'
 
 interface ReportsState {
   reports: Report[]
@@ -73,6 +73,20 @@ export const useReportsStore = defineStore('reports', {
     /** Closes the question on a line. */
     async resolveQuestion(id: string, itemId: string): Promise<Report> {
       const { data } = await http.post<{ report: Report }>(`/reports/${id}/items/${itemId}/resolve`)
+      return data.report
+    },
+
+    /** The client approves a sent report, or asks for changes saying what (added to its discussion). */
+    async reviewReport(id: string, review: ReportReview, comment = ''): Promise<Report> {
+      const { data } = await http.put<{ report: Report }>(`/reports/${id}/review`, { review, comment })
+      this.loaded = false
+      return data.report
+    },
+
+    /** The freelancer keeps the report as it is instead of the changes asked for, saying why. */
+    async keepReport(id: string, comment: string): Promise<Report> {
+      const { data } = await http.post<{ report: Report }>(`/reports/${id}/keep`, { comment })
+      this.loaded = false
       return data.report
     },
 

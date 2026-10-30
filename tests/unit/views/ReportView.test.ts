@@ -265,6 +265,65 @@ describe('ReportView › discussion', () => {
     expect($$('textarea')).toHaveLength(0)
   })
 
+  it('lets the client approve the report, or ask for changes saying what', async () => {
+    const report = sent({ can_review: true })
+    const server = serve(report, {
+      'GET /reports/r-1/comments': { comments: [] },
+      'PUT /reports/r-1/review': (c: { body: { review: string } }) => ({ report: { ...report, review: c.body.review, reviewed_at: '2030-02-03T00:00:00Z' } }),
+    })
+    const view = await render(ReportView, { path: '/reports/r-1', user: asClient, global: { stubs } })
+
+    await click(button(t('reportReview.approve')))
+    expect(server.to('PUT /reports/r-1/review')[0].body).toEqual({ review: 'approved', comment: '' })
+    expect(view.text()).toContain(t('reportReview.approved'))
+
+    // asking for changes needs a word on what
+    await click(button(t('reportReview.requestChanges')))
+    await click(confirmIn(t('reportReview.send')))
+    expect(document.body.textContent).toContain(t('reportReview.changesRequired'))
+    expect(server.to('PUT /reports/r-1/review')).toHaveLength(1)
+    await type(field<HTMLTextAreaElement>(t('reportReview.changesLabel')), 'Two banners, not three')
+    await click(confirmIn(t('reportReview.send')))
+    expect(server.to('PUT /reports/r-1/review')[1].body).toEqual({ review: 'changes_requested', comment: 'Two banners, not three' })
+    expect(view.text()).toContain(t('reportReview.changesRequested'))
+    expect($$('[role="dialog"]')).toHaveLength(0)
+  })
+
+  it('shows the freelancer the changes asked for, to correct the report or keep it as it is', async () => {
+    const report = sent({ can_recall: true, can_answer: true, review: 'changes_requested', reviewed_at: '2030-02-03T00:00:00Z', review_note: 'Two banners, not three' })
+    const { server, page } = open(report, {
+      'GET /reports/r-1/comments': { comments: [] },
+      'POST /reports/r-1/keep': (c: { body: { comment: string } }) => ({ report: { ...report, review: null, reviewed_at: null, review_note: '', review_answer: c.body.comment, can_answer: false } }),
+    })
+    const view = await page
+    expect(view.text()).toContain(t('report.changesAsked', { name: 'Acme' }))
+    expect(view.text()).toContain('Two banners, not three')
+    expect(view.text()).not.toContain(t('reportReview.approve'))
+    // taking it back is one of the two answers, not a button of its own
+    expect(view.text()).not.toContain(t('report.recall'))
+
+    await click(button(t('report.correct')))
+    expect(document.body.textContent).toContain(t('report.confirmRecall'))
+    await click(confirmIn(t('common.cancel')))
+
+    await click(button(t('report.keep')))
+    await click(confirmIn(t('report.keep')))
+    expect(document.body.textContent).toContain(t('report.keepRequired'))
+    await type(field<HTMLTextAreaElement>(t('report.keepLabel')), 'Three were in the brief')
+    await click(confirmIn(t('report.keep')))
+    expect(server.to('POST /reports/r-1/keep')[0].body).toEqual({ comment: 'Three were in the brief' })
+    expect(view.text()).not.toContain(t('report.changesAsked', { name: 'Acme' }))
+    expect(view.text()).toContain(t('report.recall'))
+  })
+
+  it('shows the client why the report was kept as it is, to review it again', async () => {
+    serve(sent({ can_review: true, review_answer: 'Three were in the brief' }), { 'GET /reports/r-1/comments': { comments: [] } })
+    const view = await render(ReportView, { path: '/reports/r-1', user: asClient, global: { stubs } })
+    expect(view.text()).toContain(t('reportReview.answered', { name: 'Olena Freelancer' }))
+    expect(view.text()).toContain('Three were in the brief')
+    expect(view.text()).toContain(t('reportReview.approve'))
+  })
+
   it('lets the freelancer take a sent report back, and says so on the draft', async () => {
     const report = sent({ can_recall: true })
     const { server, page } = open(report, {

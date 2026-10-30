@@ -47,6 +47,9 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'report_paid', for: 'parties' },
       { kind: 'report_comment', for: 'parties' },
       { kind: 'report_recalled', for: 'owner' },
+      { kind: 'report_approved', for: 'freelancer' },
+      { kind: 'report_changes_requested', for: 'freelancer' },
+      { kind: 'report_changes_declined', for: 'owner' },
     ],
   },
   {
