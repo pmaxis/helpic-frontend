@@ -210,7 +210,6 @@ const en = {
   /** The words printed in a report's PDF. */
   reportPdf: {
     eyebrow: 'Work report',
-    draft: 'Draft',
     completedCount: '{n} task completed | {n} tasks completed',
     summary: 'Summary',
     tasks: 'Completed tasks',
@@ -222,6 +221,7 @@ const en = {
     total: 'Total',
     noTasks: 'No tasks were completed in this period.',
     details: 'Business details',
+    client: 'Client',
     prepared: 'Prepared {date}',
     sent: 'sent {date}',
     paid: 'paid {date}',
@@ -437,7 +437,6 @@ const uk: typeof en = {
   },
   reportPdf: {
     eyebrow: 'Звіт про роботу',
-    draft: 'Чернетка',
     completedCount: 'Виконано: {n} задача | Виконано: {n} задачі | Виконано: {n} задач',
     summary: 'Підсумок',
     tasks: 'Виконані задачі',
@@ -449,6 +448,7 @@ const uk: typeof en = {
     total: 'Разом',
     noTasks: 'За цей період не виконано жодної задачі.',
     details: 'Реквізити',
+    client: 'Замовник',
     prepared: 'Підготовлено {date}',
     sent: 'надіслано {date}',
     paid: 'оплачено {date}',

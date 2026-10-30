@@ -22,10 +22,13 @@ export interface SheetItem {
 
 /** What a report's PDF says, worded in the interface's language. */
 export interface ReportSheet {
-  draft: boolean
-  /** The freelancer's logo over the title, as a data URL; '' for none. */
+  /** The freelancer's logo at the head of the letterhead, as a data URL; '' for none. */
   logo: string
-  /** The rules under the title and over the total; the freelancer's accent, or ink. */
+  /** In the logo's place without one: the freelancer's name. */
+  brand: string
+  /** At the letterhead's right, under the eyebrow: who it's for; null without a client. */
+  client: { label: string; name: string } | null
+  /** The rules under the letterhead and over the total; the freelancer's accent, or ink. */
   accent: string
   /** The freelancer's business details at the end, a line each; empty for none. */
   details: string[]
@@ -48,7 +51,6 @@ export interface ReportSheet {
   footerRight: string
   labels: {
     eyebrow: string
-    draft: string
     summary: string
     tasks: string
     task: string
@@ -111,6 +113,10 @@ export function splitBlocks(s: string): TextBlock[] {
   return blocks
 }
 
+function displayName(p: Party): string {
+  return p.name || p.email
+}
+
 function signature(p: Party): string {
   return !p.name || p.name === p.email ? p.email : `${p.name} (${p.email})`
 }
@@ -135,8 +141,9 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
   if (r.paid_at) footerLeft += ` · ${t('reportPdf.paid', { date: formatDocumentDate(r.paid_at) })}`
 
   return {
-    draft: r.status === 'draft' && !!r.client,
     logo: r.branding.logo_id ? logo : '',
+    brand: displayName(r.freelancer),
+    client: r.client ? { label: t('reportPdf.client'), name: displayName(r.client) } : null,
     accent: r.branding.color ?? INK,
     details: r.branding.details
       .split(/\r?\n/)
@@ -166,7 +173,6 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
     footerRight: signature(r.freelancer),
     labels: {
       eyebrow: t('reportPdf.eyebrow'),
-      draft: t('reportPdf.draft'),
       summary: t('reportPdf.summary'),
       tasks: t('reportPdf.tasks'),
       task: t('reportPdf.task'),

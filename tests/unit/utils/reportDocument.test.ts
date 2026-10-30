@@ -11,6 +11,10 @@ function documentOf(over: Partial<Report> = {}, inUAH = false): TDocumentDefinit
 
 const text = (doc: TDocumentDefinitions) => JSON.stringify(doc.content)
 
+/** The letterhead at the head of a page. */
+const head = (doc: TDocumentDefinitions, page = 1) =>
+  JSON.stringify((doc.header as (page: number, pages: number, size: unknown) => unknown)(page, 2, { width: 595.28, height: 841.89 }))
+
 /** The tasks table, wherever it is in the content. */
 function table(doc: TDocumentDefinitions): ContentTable['table'] {
   const found = (doc.content as unknown[]).find((c) => typeof c === 'object' && c !== null && 'table' in c && 'layout' in c && (c as ContentTable).table.headerRows === 1)
@@ -18,9 +22,8 @@ function table(doc: TDocumentDefinitions): ContentTable['table'] {
 }
 
 describe('reportDocument', () => {
-  it('frames “Draft” beside the eyebrow only on a draft', () => {
-    expect(text(documentOf())).toContain('"DRAFT"')
-    expect(text(documentOf({ status: 'sent' }))).not.toContain('"DRAFT"')
+  it('prints a draft as it will be sent, with no mark of its own', () => {
+    expect(head(documentOf())).toBe(head(documentOf({ status: 'sent' })))
   })
 
   it('sets the summary as a paragraph or as bullets, and leaves it out when empty', () => {
@@ -92,14 +95,30 @@ describe('reportDocument › the freelancer’s look', () => {
     expect(text(doc)).toContain('"lineColor":"#171717"')
   })
 
-  it('puts the logo over the title, the accent on the rules and the details at the end', () => {
+  it('heads every page with the freelancer’s name and the client, and leaves the dates to the footer', () => {
+    const doc = documentOf({ status: 'sent', sent_at: '2030-02-03T10:00:00Z' })
+    const first = head(doc)
+    expect(first).toContain('"text":"Olena Freelancer"')
+    expect(first).toContain('"text":"WORK REPORT"')
+    expect(first).not.toContain('3 Feb 2030')
+    expect(first).toContain('"Client: ",{"text":"Acme"')
+    expect(head(doc, 2)).toBe(first)
+    // the freelancer is named in the letterhead only, not again under the title
+    expect(text(doc)).not.toContain('"text":"Olena Freelancer"')
+    expect(head(documentOf({ client: null }))).not.toContain('Client: ')
+  })
+
+  it('puts the logo at the head, the accent on the rules and the details at the end', () => {
     const branding = { color: '#0f766e', details: 'ФОП Іваненко\n\n IBAN UA00 ', logo_id: 'l1' }
     const report = makeReport({ branding, total_cents: 100, items: [makeReportItem({ price_cents: 100 })] })
     const doc = reportDocument(buildSheet(report, { logo: 'data:image/png;base64,AA' }))
-    const content = doc.content as { image?: string }[]
-    expect(content[0].image).toBe('data:image/png;base64,AA')
-    // the rule under the title and the one over the total
-    expect(text(doc).match(/"lineColor":"#0f766e"/g)).toHaveLength(2)
+    const content = doc.content as unknown[]
+    // the logo heads the letterhead, in place of the freelancer's name
+    expect(head(doc)).toContain('"image":"data:image/png;base64,AA"')
+    expect(head(doc)).not.toContain('"text":"Olena Freelancer"')
+    // the rule under the letterhead and the one over the total
+    expect(head(doc)).toContain('"lineColor":"#0f766e"')
+    expect(text(doc)).toContain('"lineColor":"#0f766e"')
     const last = JSON.stringify(content.at(-1))
     expect(last).toContain('BUSINESS DETAILS')
     expect(last).toContain('"text":"ФОП Іваненко"},{"text":"IBAN UA00"}')
@@ -107,6 +126,6 @@ describe('reportDocument › the freelancer’s look', () => {
 
   it('leaves the logo out when it couldn’t be had', () => {
     const report = makeReport({ branding: { color: null, details: '', logo_id: 'l1' } })
-    expect(text(reportDocument(buildSheet(report)))).not.toContain('"image"')
+    expect(head(reportDocument(buildSheet(report)))).not.toContain('"image"')
   })
 })

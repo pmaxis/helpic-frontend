@@ -40,12 +40,11 @@ describe('renderReportPdf › logo', () => {
     await renderReportPdf(makeReport({ branding }))
     await renderReportPdf(makeReport({ branding }))
     expect(server.to('GET /reports/r-1/logo')).toHaveLength(1)
-    const doc = pdfmake.createPdf.mock.calls[0] as unknown as [{ content: { image?: string }[] }]
-    expect(doc[0].content[0].image).toMatch(/^data:image\/png;base64,/)
+    const head = (call: number) => JSON.stringify((pdfmake.createPdf.mock.calls[call] as unknown as [{ header: (page: number) => unknown }])[0].header(1))
+    expect(head(0)).toMatch(/"image":"data:image\/png;base64,/)
 
     await renderReportPdf(makeReport({ id: 'r-2', branding: { ...branding, logo_id: 'logo-b' } }))
-    const plain = pdfmake.createPdf.mock.calls[2] as unknown as [{ content: { image?: string }[] }]
-    expect(plain[0].content[0].image).toBeUndefined()
+    expect(head(2)).not.toContain('"image"')
   })
 })
 

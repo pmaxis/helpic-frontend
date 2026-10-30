@@ -1,4 +1,4 @@
-import type { Content, ContentTable, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces'
+import type { Content, ContentCanvas, ContentTable, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces'
 import type { ReportSheet, SheetItem, TextBlock } from './reportSheet'
 
 // A4 in points, with margins of 16mm at the sides and 14mm at the top and bottom.
@@ -7,6 +7,13 @@ const PAGE_HEIGHT = 841.89
 const MARGIN_X = 45.35
 const MARGIN_Y = 39.69
 const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN_X
+
+/** The letterhead's logo box, its rule under it, and the room before the page's content. */
+const LOGO_BOX: [number, number] = [150, 30]
+const LETTERHEAD_RULE_GAP = 14
+const LETTERHEAD_GAP = 22
+/** Every page starts under the letterhead. */
+const MARGIN_TOP = MARGIN_Y + LOGO_BOX[1] + LETTERHEAD_RULE_GAP + 1.5 + LETTERHEAD_GAP
 
 /** Room a heading needs below it for itself and the first lines of its section. */
 const HEADING_KEEP = 90
@@ -32,63 +39,44 @@ const ASCENT = 0.969
 
 const CELL_PAD = 12
 
-function rule(width: number, color: string, marginTop = 0): Content {
+function rule(width: number, color: string, marginTop = 0): ContentCanvas {
   return {
     canvas: [{ type: 'line', x1: 0, y1: width / 2, x2: CONTENT_WIDTH, y2: width / 2, lineWidth: width, lineColor: color }],
     margin: [0, marginTop, 0, 0],
   }
 }
 
-/**
- * "WORK REPORT", with a framed "DRAFT" after it on a draft. The frame hugs
- * Inter's own line (lineHeight 1), whose space above the capitals equals the
- * descent below them, so the word sits centred in it.
- */
+/** "WORK REPORT", at the right. */
 function eyebrow(s: ReportSheet): Content {
-  const style = { bold: true, fontSize: 8.5, color: INK_3 }
-  const label = { text: s.labels.eyebrow.toUpperCase(), characterSpacing: tracking(0.14, 8.5), ...style }
-  if (!s.draft) return { ...label, alignment: 'center' }
-  const draftTracking = tracking(0.08, 8.5)
-  const frame: CustomTableLayout = {
-    hLineWidth: () => 0.75,
-    vLineWidth: () => 0.75,
-    hLineColor: () => INK_3,
-    vLineColor: () => INK_3,
-    paddingLeft: (i) => (i === 1 ? 5 : 0),
-    // The tracking after the last letter is part of the right padding.
-    paddingRight: (i) => (i === 0 ? 6 : 5 - draftTracking),
-    paddingTop: () => 0.5,
-    paddingBottom: () => 0.5,
-  }
-  return {
-    columns: [
-      { width: '*', text: '' },
-      {
-        width: 'auto',
-        layout: frame,
-        table: {
-          body: [
-            [
-              { ...label, lineHeight: 1, border: [false, false, false, false] },
-              { text: s.labels.draft.toUpperCase(), characterSpacing: draftTracking, ...style, lineHeight: 1, border: [true, true, true, true] },
-            ],
-          ],
-        },
-      },
-      { width: '*', text: '' },
-    ],
-  }
+  return { text: s.labels.eyebrow.toUpperCase(), bold: true, fontSize: 8.5, color: INK_3, characterSpacing: tracking(0.14, 8.5), alignment: 'right' }
 }
 
-/** The freelancer's logo, centred over the eyebrow and kept to a modest box. */
-function logo(s: ReportSheet): Content[] {
-  return s.logo ? [{ image: s.logo, fit: [170, 48], alignment: 'center', margin: [0, 0, 0, 12] }] : []
+/**
+ * The head of every page, as on a letterhead: the freelancer's logo (or
+ * name) at the left; what the paper is and who it's for at the right; and
+ * the accent's rule under both. Its dates are in the footer.
+ */
+function letterhead(s: ReportSheet): Content {
+  const mark: Content = s.logo
+    ? { image: s.logo, fit: LOGO_BOX }
+    : { text: s.brand, bold: true, fontSize: 13, color: INK, characterSpacing: tracking(-0.01, 13) }
+  const forWhom: Content[] = s.client
+    ? [{ text: [`${s.client.label}: `, { text: s.client.name, color: INK }], fontSize: 9, color: INK_3, alignment: 'right', margin: [0, 4, 0, 0] }]
+    : []
+  return {
+    stack: [
+      { columns: [{ width: '*', stack: [mark] }, { width: '*', stack: [eyebrow(s), ...forWhom] }], columnGap: 16 },
+      // under the logo's box, so it sits as low under a short logo or none
+      { ...rule(1.5, s.accent), absolutePosition: { x: MARGIN_X, y: MARGIN_Y + LOGO_BOX[1] + LETTERHEAD_RULE_GAP } },
+    ],
+    margin: [MARGIN_X, MARGIN_Y, MARGIN_X, 0],
+  }
 }
 
 /** The period, projects and count, set apart by light dots. */
 function facts(s: ReportSheet): Content {
   const text = s.facts.flatMap((f, i) => (i === 0 ? [f] : [{ text: '  ·  ', color: DOT }, f]))
-  return { text, fontSize: 9, color: INK_3, alignment: 'center', margin: [0, 6, 0, 0] }
+  return { text, fontSize: 9, color: INK_3, alignment: 'center', margin: [0, 5, 0, 0] }
 }
 
 /** A section's heading over a thin rule; headlineLevel keeps it with what follows. */
@@ -260,9 +248,10 @@ function details(s: ReportSheet): Content[] {
 export function reportDocument(s: ReportSheet): TDocumentDefinitions {
   return {
     pageSize: 'A4',
-    pageMargins: [MARGIN_X, MARGIN_Y, MARGIN_X, MARGIN_Y],
+    pageMargins: [MARGIN_X, MARGIN_TOP, MARGIN_X, MARGIN_Y],
     info: { title: s.title, author: s.footerRight, creator: 'Helpic' },
     defaultStyle: { font: 'Inter', fontSize: 10, lineHeight: lead(1.45), color: INK_2 },
+    header: () => letterhead(s),
     footer: () => ({
       columns: [s.footerLeft, { text: s.footerRight, alignment: 'right' }],
       columnGap: 12,
@@ -274,11 +263,8 @@ export function reportDocument(s: ReportSheet): TDocumentDefinitions {
     pageBreakBefore: (node) =>
       node.headlineLevel === 1 && node.startPosition.top > PAGE_HEIGHT - MARGIN_Y - HEADING_KEEP,
     content: [
-      ...logo(s),
-      eyebrow(s),
-      { text: s.title, bold: true, fontSize: 20, color: INK, alignment: 'center', characterSpacing: tracking(-0.02, 20), lineHeight: lead(1.2), margin: [0, 4, 0, 0] },
+      { text: s.title, bold: true, fontSize: 20, color: INK, alignment: 'center', characterSpacing: tracking(-0.02, 20), lineHeight: lead(1.2) },
       facts(s),
-      rule(1.5, s.accent, 10),
       ...summary(s),
       ...tasks(s),
       ...details(s),

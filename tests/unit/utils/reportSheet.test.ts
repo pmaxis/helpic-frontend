@@ -33,12 +33,6 @@ describe('splitBlocks', () => {
 })
 
 describe('buildSheet', () => {
-  it('marks only a client’s unsent report as a draft', () => {
-    expect(buildSheet(makeReport()).draft).toBe(true)
-    expect(buildSheet(makeReport({ client: null })).draft).toBe(false)
-    expect(buildSheet(makeReport({ status: 'sent' })).draft).toBe(false)
-  })
-
   it('states the period, the projects and the count of tasks', () => {
     const sheet = buildSheet(makeReport({ projects: [{ id: 'p', name: 'Landing' }], items: [makeReportItem()] }))
     expect(sheet.facts).toEqual([expect.stringMatching(/^1\s?–\s?31 Jan 2030$/), 'Landing', '1 task completed'])
