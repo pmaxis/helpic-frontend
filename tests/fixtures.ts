@@ -157,6 +157,7 @@ export function makeReport(over: Partial<Report> = {}): Report {
     item_count: 0,
     items: [],
     currency: 'USD',
+    branding: { color: null, details: '', logo_id: null },
     total_cents: null,
     can_edit: true,
     can_delete: true,

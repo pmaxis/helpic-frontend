@@ -24,6 +24,16 @@ export interface ReportItem {
   notes: string
 }
 
+/** How a freelancer's reports look: live on a draft, as it was sent on a sent report. */
+export interface Branding {
+  /** The accent, "#rrggbb"; null for plain black. */
+  color: string | null
+  /** Business details printed at the end, line by line as written. */
+  details: string
+  /** Changes with every new logo; null without one. */
+  logo_id: string | null
+}
+
 /** A freelancer's report of the work done for a client over a period. */
 export interface Report {
   id: string
@@ -46,6 +56,8 @@ export interface Report {
   /** Present on a single report. */
   items?: ReportItem[]
   currency: string
+  /** The logo is at /reports/{id}/logo. */
+  branding: Branding
   /** Sum of the items' prices on a single report; null when none has a price. */
   total_cents: number | null
   /**

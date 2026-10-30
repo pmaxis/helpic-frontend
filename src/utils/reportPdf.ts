@@ -3,6 +3,7 @@ import medium from '@/assets/fonts/Inter-Medium.ttf?url'
 import semiBold from '@/assets/fonts/Inter-SemiBold.ttf?url'
 import bold from '@/assets/fonts/Inter-Bold.ttf?url'
 import type { Report } from '@/types/reports'
+import { logoDataURL } from '@/services/branding'
 import { buildSheet, type SheetOptions } from './reportSheet'
 import { reportDocument } from './reportDocument'
 
@@ -27,10 +28,26 @@ function pdfMake(): Promise<PdfMake> {
   return loading
 }
 
-/** The report as a PDF file. */
-export async function renderReportPdf(report: Report, options: SheetOptions = {}): Promise<ArrayBuffer> {
-  const pdf = await pdfMake()
-  const blob = await pdf.createPdf(reportDocument(buildSheet(report, options))).getBlob()
+/** Logos as data URLs by their ID: a logo never changes, so each is fetched once. */
+const logos = new Map<string, Promise<string>>()
+
+/** The report's logo as a data URL; '' without one, or when it can't be had (the report prints without it). */
+async function reportLogo(report: Report): Promise<string> {
+  const id = report.branding.logo_id
+  if (!id) return ''
+  let logo = logos.get(id)
+  if (!logo) {
+    logo = logoDataURL(id, report.id)
+    logos.set(id, logo)
+    logo.catch(() => logos.delete(id))
+  }
+  return logo.catch(() => '')
+}
+
+/** The report as a PDF file, with its logo. */
+export async function renderReportPdf(report: Report, options: Omit<SheetOptions, 'logo'> = {}): Promise<ArrayBuffer> {
+  const [pdf, logo] = await Promise.all([pdfMake(), reportLogo(report)])
+  const blob = await pdf.createPdf(reportDocument(buildSheet(report, { ...options, logo }))).getBlob()
   return blob.arrayBuffer()
 }
 

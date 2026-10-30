@@ -473,3 +473,75 @@ function all(channel: 'app' | 'email' | 'telegram'): HTMLElement {
   if (!el) throw new Error(`no switch: ${label}`)
   return el
 }
+
+describe('Settings › Branding', () => {
+  const look = (over = {}) => ({ branding: { color: null, details: '', logo_id: null, ...over } })
+
+  it('is only a freelancer’s tab', async () => {
+    serve()
+    const tabs = () => $$(`nav[aria-label="${t('settings.sections')}"] button`).map((b) => b.textContent?.trim())
+    const page = await render(SettingsView, { path: '/settings?tab=branding', user: makeUser({ role: 'client' }) })
+    expect(tabs()).not.toContain(t('settings.tabs.branding'))
+    expect(page.text()).not.toContain(t('settings.reports.title'))
+    page.unmount()
+    await render(SettingsView, { path: '/settings', user: freelancer() })
+    expect(tabs()).toContain(t('settings.tabs.branding'))
+  })
+
+  it('saves an accent at once, keeping the saved details', async () => {
+    const server = serve({ 'GET /me/branding': look({ details: 'ФОП' }), 'PUT /me/branding': look({ color: '#0f766e', details: 'ФОП' }) })
+    await render(SettingsView, { path: '/settings?tab=branding', user: freelancer() })
+    await type(field(t('settings.reports.details')), 'Not saved yet')
+    await click($('[aria-label="#0f766e"]'))
+    expect(server.to('PUT /me/branding')[0].body).toEqual({ color: '#0f766e', details: 'ФОП' })
+    expect($('[aria-label="#0f766e"]')?.getAttribute('aria-checked')).toBe('true')
+    // the edit is still there to save
+    expect(field<HTMLTextAreaElement>(t('settings.reports.details')).value).toBe('Not saved yet')
+    await click($(`[aria-label="${t('settings.reports.noColor')}"]`))
+    expect(server.to('PUT /me/branding')[1].body).toEqual({ color: null, details: 'ФОП' })
+  })
+
+  it('saves the business details, checking their length first', async () => {
+    const server = serve({ 'GET /me/branding': look(), 'PUT /me/branding': (c: { body: object }) => ({ branding: { color: null, logo_id: null, ...c.body } }) })
+    await render(SettingsView, { path: '/settings?tab=branding', user: freelancer() })
+    await type(field(t('settings.reports.details')), Array(16).fill('line').join('\n'))
+    await click(button(t('common.save')))
+    expect(server.to('PUT /me/branding')).toHaveLength(0)
+    expect(document.body.textContent).toContain(t('settings.reports.detailsTooManyLines', { n: 15 }))
+    await type(field(t('settings.reports.details')), '  ФОП Іваненко\nIBAN UA00  ')
+    await click(button(t('common.save')))
+    expect(server.to('PUT /me/branding')[0].body).toEqual({ color: null, details: 'ФОП Іваненко\nIBAN UA00' })
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('settings.reports.detailsSaved'))
+    expect(() => button(t('common.save'))).toThrow()
+  })
+
+  it('uploads a logo, turning away what isn’t one, and removes it', async () => {
+    const server = serve({
+      'GET /me/branding': look(),
+      'PUT /me/branding/logo': look({ logo_id: 'l1' }),
+      'DELETE /me/branding/logo': look(),
+      'GET /me/branding/logo': new Blob(['png'], { type: 'image/png' }),
+    })
+    await render(SettingsView, { path: '/settings?tab=branding', user: freelancer() })
+    const input = $('input[type="file"]') as HTMLInputElement
+    const pick = async (file: File) => {
+      Object.defineProperty(input, 'files', { value: [file], configurable: true })
+      input.dispatchEvent(new Event('change'))
+      await flushPromises()
+    }
+    await pick(new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }))
+    expect(document.body.textContent).toContain(t('settings.reports.logoType'))
+    expect(server.to('PUT /me/branding/logo')).toHaveLength(0)
+
+    await pick(new File(['png'], 'logo.png', { type: 'image/png' }))
+    expect(server.to('PUT /me/branding/logo')[0].body).toBeInstanceOf(FormData)
+    expect(server.to('GET /me/branding/logo')[0].params).toEqual({ v: 'l1' })
+    // the logo is read into a data URL
+    await vi.waitFor(() => expect($(`img[alt="${t('settings.reports.logoAlt')}"]`)).not.toBeNull())
+
+    await click(button(t('settings.reports.removeLogo')))
+    expect(server.to('DELETE /me/branding/logo')).toHaveLength(1)
+    expect($(`img[alt="${t('settings.reports.logoAlt')}"]`)).toBeNull()
+    expect(document.body.textContent).toContain(t('settings.reports.noLogo'))
+  })
+})

@@ -23,6 +23,12 @@ export interface SheetItem {
 /** What a report's PDF says, worded in the interface's language. */
 export interface ReportSheet {
   draft: boolean
+  /** The freelancer's logo over the title, as a data URL; '' for none. */
+  logo: string
+  /** The rules under the title and over the total; the freelancer's accent, or ink. */
+  accent: string
+  /** The freelancer's business details at the end, a line each; empty for none. */
+  details: string[]
   title: string
   /** Under the title: the period, the projects, how many tasks. */
   facts: string[]
@@ -52,6 +58,7 @@ export interface ReportSheet {
     time: string
     total: string
     noTasks: string
+    details: string
   }
 }
 
@@ -111,9 +118,14 @@ function signature(p: Party): string {
 export interface SheetOptions {
   /** Hryvnias beside the prices, for a client who pays in them, when the report has a rate. */
   inUAH?: boolean
+  /** The report's logo as a data URL, when it has one. */
+  logo?: string
 }
 
-export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): ReportSheet {
+/** The ink the rules are drawn in without an accent. */
+export const INK = '#171717'
+
+export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions = {}): ReportSheet {
   const items = r.items ?? []
   const uah = inUAH ? r.in_uah : null
   const projects = r.projects.map((p) => p.name).join(', ')
@@ -124,6 +136,12 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
 
   return {
     draft: r.status === 'draft' && !!r.client,
+    logo: r.branding.logo_id ? logo : '',
+    accent: r.branding.color ?? INK,
+    details: r.branding.details
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
     title: r.title,
     facts: [formatDocumentPeriod(r.from, r.to), projects, t('reportPdf.completedCount', items.length)].filter(Boolean),
     summary: splitBlocks(r.summary),
@@ -158,6 +176,7 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
       time: t('reportPdf.time'),
       total: t('reportPdf.total'),
       noTasks: t('reportPdf.noTasks'),
+      details: t('reportPdf.details'),
     },
   }
 }

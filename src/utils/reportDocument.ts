@@ -80,6 +80,11 @@ function eyebrow(s: ReportSheet): Content {
   }
 }
 
+/** The freelancer's logo, centred over the eyebrow and kept to a modest box. */
+function logo(s: ReportSheet): Content[] {
+  return s.logo ? [{ image: s.logo, fit: [170, 48], alignment: 'center', margin: [0, 0, 0, 12] }] : []
+}
+
 /** The period, projects and count, set apart by light dots. */
 function facts(s: ReportSheet): Content {
   const text = s.facts.flatMap((f, i) => (i === 0 ? [f] : [{ text: '  ·  ', color: DOT }, f]))
@@ -203,7 +208,7 @@ function total(s: ReportSheet): Content {
   return {
     unbreakable: true,
     stack: [
-      rule(1, INK),
+      rule(1, s.accent),
       {
         columns: [
           { width: '*', text: '' },
@@ -240,6 +245,17 @@ function tasks(s: ReportSheet): Content[] {
   return [heading(s.labels.tasks), tasksTable(s), ...(s.showPrice ? [total(s)] : [])]
 }
 
+/** The freelancer's business details, a line each as written, kept on one page. */
+function details(s: ReportSheet): Content[] {
+  if (s.details.length === 0) return []
+  return [
+    {
+      unbreakable: true,
+      stack: [heading(s.labels.details), { stack: s.details.map((text) => ({ text })), fontSize: 9.5, margin: [0, 3, 0, 0] }],
+    },
+  ]
+}
+
 /** The report as a pdfmake document: A4, set in Inter. */
 export function reportDocument(s: ReportSheet): TDocumentDefinitions {
   return {
@@ -258,12 +274,14 @@ export function reportDocument(s: ReportSheet): TDocumentDefinitions {
     pageBreakBefore: (node) =>
       node.headlineLevel === 1 && node.startPosition.top > PAGE_HEIGHT - MARGIN_Y - HEADING_KEEP,
     content: [
+      ...logo(s),
       eyebrow(s),
       { text: s.title, bold: true, fontSize: 20, color: INK, alignment: 'center', characterSpacing: tracking(-0.02, 20), lineHeight: lead(1.2), margin: [0, 4, 0, 0] },
       facts(s),
-      rule(1.5, INK, 10),
+      rule(1.5, s.accent, 10),
       ...summary(s),
       ...tasks(s),
+      ...details(s),
     ],
   }
 }

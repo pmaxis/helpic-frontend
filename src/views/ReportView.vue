@@ -302,6 +302,14 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           <div v-if="report.can_mark_paid" class="mt-4">
             <BaseButton size="sm" @click="confirmPaid = true">{{ $t('report.markPaid') }}</BaseButton>
           </div>
+          <!-- a plain draft: where its look is set -->
+          <RouterLink
+            v-if="report.can_edit && !report.branding.logo_id && !report.branding.details"
+            :to="{ path: '/settings', query: { tab: 'branding' } }"
+            class="mt-3 block text-sm text-neutral-500 underline-offset-2 hover:text-neutral-900 hover:underline"
+          >
+            {{ $t('report.brandingHint') }}
+          </RouterLink>
         </div>
 
         <ReportFacts v-model="inUAH" :report="report" />

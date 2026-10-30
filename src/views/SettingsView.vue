@@ -10,17 +10,26 @@ import TelegramIntegration from '@/components/account/TelegramIntegration.vue'
 import TwoFactorSettings from '@/components/account/TwoFactorSettings.vue'
 import NotificationMatrix from '@/components/account/NotificationMatrix.vue'
 import DeleteAccountSettings from '@/components/account/DeleteAccountSettings.vue'
+import ReportBrandingSettings from '@/components/account/ReportBrandingSettings.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-/** Four groups: who you are, how and where you sign in, what you hear about, and the apps Helpic works with. */
-const ALL_TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'notifications' }, { value: 'integrations' }] as const
+/** Who you are, how and where you sign in, how your reports are branded, what you hear about, and the apps Helpic works with. */
+const ALL_TABS = [{ value: 'profile' }, { value: 'security' }, { value: 'branding' }, { value: 'notifications' }, { value: 'integrations' }] as const
 type Tab = (typeof ALL_TABS)[number]['value']
-/** An admin has no work to hear about or act on, so no notifications or integrations. */
-const TABS = computed(() => (auth.isAdmin ? ALL_TABS.filter((t) => t.value === 'profile' || t.value === 'security') : ALL_TABS))
+/**
+ * An admin has no work to hear about or act on, so no notifications or
+ * integrations; reports are a freelancer's, so only they brand them.
+ */
+const TABS = computed(() =>
+  ALL_TABS.filter((t) => {
+    if (auth.isAdmin) return t.value === 'profile' || t.value === 'security'
+    return t.value !== 'branding' || auth.isFreelancer
+  }),
+)
 
 /** The old tabs, still in links (an email confirmation goes to ?tab=email), now live under security. */
 const MOVED: Record<string, Tab> = { email: 'security', password: 'security', sessions: 'security' }
@@ -67,6 +76,8 @@ const sessions = ref<InstanceType<typeof SessionsSettings> | null>(null)
           <!-- admin accounts are the server cli's to remove -->
           <DeleteAccountSettings v-if="!auth.isAdmin" />
         </template>
+
+        <ReportBrandingSettings v-else-if="tab === 'branding'" />
 
         <section v-else-if="tab === 'integrations'">
           <h2 class="text-base font-semibold text-neutral-900">{{ $t('settings.groups.integrations') }}</h2>

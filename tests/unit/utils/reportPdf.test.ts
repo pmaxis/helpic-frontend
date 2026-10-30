@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeReport } from '../../fixtures'
+import { api, status } from '../../helpers'
 
 const pdfmake = vi.hoisted(() => ({
   setUrlAccessPolicy: vi.fn(),
@@ -27,6 +28,24 @@ describe('renderReportPdf', () => {
     expect(policy(`${location.origin}/font.ttf`)).toBe(true)
     expect(policy('https://evil.example/font.ttf')).toBe(false)
     expect(pdfmake.createPdf).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('renderReportPdf › logo', () => {
+  it('prints the report’s logo, fetching each one once, and prints without it when it can’t be had', async () => {
+    const { renderReportPdf } = await import('@/utils/reportPdf')
+    const server = api({ 'GET /reports/r-1/logo': new Blob(['png'], { type: 'image/png' }), 'GET /reports/r-2/logo': status(500) })
+    pdfmake.createPdf.mockClear()
+    const branding = { color: null, details: '', logo_id: 'logo-a' }
+    await renderReportPdf(makeReport({ branding }))
+    await renderReportPdf(makeReport({ branding }))
+    expect(server.to('GET /reports/r-1/logo')).toHaveLength(1)
+    const doc = pdfmake.createPdf.mock.calls[0] as unknown as [{ content: { image?: string }[] }]
+    expect(doc[0].content[0].image).toMatch(/^data:image\/png;base64,/)
+
+    await renderReportPdf(makeReport({ id: 'r-2', branding: { ...branding, logo_id: 'logo-b' } }))
+    const plain = pdfmake.createPdf.mock.calls[2] as unknown as [{ content: { image?: string }[] }]
+    expect(plain[0].content[0].image).toBeUndefined()
   })
 })
 

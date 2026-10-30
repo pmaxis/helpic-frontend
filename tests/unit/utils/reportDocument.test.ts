@@ -83,3 +83,30 @@ describe('reportDocument', () => {
     expect(breakBefore({ startPosition: { top: 800 } })).toBe(false)
   })
 })
+
+describe('reportDocument › the freelancer’s look', () => {
+  it('draws plain black rules, and no logo or details, by default', () => {
+    const doc = documentOf({ total_cents: 100, items: [makeReportItem({ price_cents: 100 })] })
+    expect(text(doc)).not.toContain('"image"')
+    expect(text(doc)).not.toContain('BUSINESS DETAILS')
+    expect(text(doc)).toContain('"lineColor":"#171717"')
+  })
+
+  it('puts the logo over the title, the accent on the rules and the details at the end', () => {
+    const branding = { color: '#0f766e', details: 'ФОП Іваненко\n\n IBAN UA00 ', logo_id: 'l1' }
+    const report = makeReport({ branding, total_cents: 100, items: [makeReportItem({ price_cents: 100 })] })
+    const doc = reportDocument(buildSheet(report, { logo: 'data:image/png;base64,AA' }))
+    const content = doc.content as { image?: string }[]
+    expect(content[0].image).toBe('data:image/png;base64,AA')
+    // the rule under the title and the one over the total
+    expect(text(doc).match(/"lineColor":"#0f766e"/g)).toHaveLength(2)
+    const last = JSON.stringify(content.at(-1))
+    expect(last).toContain('BUSINESS DETAILS')
+    expect(last).toContain('"text":"ФОП Іваненко"},{"text":"IBAN UA00"}')
+  })
+
+  it('leaves the logo out when it couldn’t be had', () => {
+    const report = makeReport({ branding: { color: null, details: '', logo_id: 'l1' } })
+    expect(text(reportDocument(buildSheet(report)))).not.toContain('"image"')
+  })
+})
