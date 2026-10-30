@@ -542,6 +542,6 @@ describe('Settings › Branding', () => {
     await click(button(t('settings.reports.removeLogo')))
     expect(server.to('DELETE /me/branding/logo')).toHaveLength(1)
     expect($(`img[alt="${t('settings.reports.logoAlt')}"]`)).toBeNull()
-    expect(document.body.textContent).toContain(t('settings.reports.noLogo'))
+    expect(document.body.textContent).toContain(t('settings.reports.logoOrDrop'))
   })
 })

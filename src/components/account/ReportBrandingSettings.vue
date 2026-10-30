@@ -62,11 +62,46 @@ async function showLogo(id: string | null) {
   }
 }
 
-async function pickLogo(event: Event) {
+function pickLogo(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (file) void sendLogo(file)
+}
+
+// Dropped onto the logo's box. A counter, since dragleave fires on children.
+const dragDepth = ref(0)
+
+function hasFiles(e: DragEvent): boolean {
+  return !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')
+}
+
+function onDragEnter(e: DragEvent) {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  dragDepth.value++
+}
+
+function onDragOver(e: DragEvent) {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+}
+
+function onDragLeave(e: DragEvent) {
+  if (!hasFiles(e)) return
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+
+function onDrop(e: DragEvent) {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  dragDepth.value = 0
+  const file = e.dataTransfer?.files[0]
+  if (file && !uploading.value && !removing.value) void sendLogo(file)
+}
+
+async function sendLogo(file: File) {
   logoError.value = ''
   if (!LOGO_TYPES.includes(file.type)) {
     logoError.value = t('settings.reports.logoType')
@@ -162,35 +197,63 @@ async function saveDetails() {
     <p v-if="loadFailed" class="px-5 py-4 text-sm text-neutral-500">{{ $t('settings.reports.loadFailed') }}</p>
     <template v-else-if="branding">
       <SettingsRow :label="$t('settings.reports.logo')" :hint="$t('settings.reports.logoText')">
-        <template #extra>
-          <p v-if="logoError" class="mt-1.5 text-sm text-neutral-600" role="alert">{{ logoError }}</p>
-        </template>
-        <div class="flex items-center gap-3">
-          <div
-            class="flex h-14 w-32 items-center justify-center overflow-hidden rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-1.5"
-            :class="logo ? 'border-solid bg-white' : ''"
-          >
-            <img v-if="logo" :src="logo" :alt="$t('settings.reports.logoAlt')" class="max-h-full max-w-full object-contain" />
-            <span v-else class="text-xs text-neutral-400">{{ $t('settings.reports.noLogo') }}</span>
-          </div>
-          <div class="grid gap-1.5">
-            <BaseButton variant="ghost" size="sm" :block="false" :loading="uploading" :disabled="uploading || removing" @click="fileInput?.click()">
-              {{ branding.logo_id ? $t('settings.reports.replaceLogo') : $t('settings.reports.uploadLogo') }}
-            </BaseButton>
-            <BaseButton
-              v-if="branding.logo_id"
-              variant="ghost"
-              size="sm"
-              :block="false"
-              :loading="removing"
-              :disabled="uploading || removing"
-              @click="dropLogo"
+        <template #below>
+          <div class="relative" @dragenter="onDragEnter" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+            <div v-if="logo" class="flex flex-col gap-4 rounded-xl border border-neutral-200 p-3 sm:flex-row sm:items-center">
+              <!-- a report is white paper, in the dark theme too -->
+              <div class="light-palette flex h-24 items-center justify-center rounded-lg border border-neutral-200 bg-white px-6 sm:w-56 sm:shrink-0">
+                <img :src="logo" :alt="$t('settings.reports.logoAlt')" class="max-h-16 max-w-full object-contain" />
+              </div>
+              <p class="min-w-0 flex-1 text-sm text-neutral-500">{{ $t('settings.reports.logoOnReports') }}</p>
+              <div class="grid grid-flow-col [grid-auto-columns:1fr] gap-2 sm:w-fit">
+                <BaseButton variant="ghost" size="sm" :block="false" :loading="uploading" :disabled="uploading || removing" @click="fileInput?.click()">
+                  {{ $t('settings.reports.replaceLogo') }}
+                </BaseButton>
+                <BaseButton variant="ghost" size="sm" :block="false" :loading="removing" :disabled="uploading || removing" @click="dropLogo">
+                  {{ $t('settings.reports.removeLogo') }}
+                </BaseButton>
+              </div>
+            </div>
+            <button
+              v-else
+              type="button"
+              class="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-center transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:pointer-events-none"
+              :disabled="uploading"
+              @click="fileInput?.click()"
             >
-              {{ $t('settings.reports.removeLogo') }}
-            </BaseButton>
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500" aria-hidden="true">
+                <svg v-if="uploading" viewBox="0 0 24 24" fill="none" class="h-5 w-5 animate-spin">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="2.5" />
+                  <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="9" cy="9" r="2" />
+                  <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+                </svg>
+              </span>
+              <span class="text-sm text-neutral-600">
+                <template v-if="uploading">{{ $t('settings.reports.logoUploading') }}</template>
+                <template v-else>
+                  <span class="font-medium text-neutral-900 underline decoration-neutral-300 underline-offset-2">{{ $t('settings.reports.uploadLogo') }}</span>
+                  {{ $t('settings.reports.logoOrDrop') }}
+                </template>
+              </span>
+              <span class="text-xs text-neutral-400">{{ $t('settings.reports.logoLimits') }}</span>
+            </button>
+
+            <!-- shown while a file is dragged over the box -->
+            <div
+              v-if="dragDepth > 0"
+              class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl border-2 border-dashed border-neutral-900 bg-white/90 text-sm font-medium text-neutral-900"
+              aria-hidden="true"
+            >
+              {{ logo ? $t('settings.reports.logoDropToReplace') : $t('settings.reports.logoDrop') }}
+            </div>
           </div>
+          <p v-if="logoError" class="mt-2 text-sm text-neutral-600" role="alert">{{ logoError }}</p>
           <input ref="fileInput" type="file" class="sr-only" :accept="LOGO_TYPES.join(',')" tabindex="-1" aria-hidden="true" @change="pickLogo" />
-        </div>
+        </template>
       </SettingsRow>
 
       <SettingsRow :label="$t('settings.reports.color')" :hint="$t('settings.reports.colorText')">
