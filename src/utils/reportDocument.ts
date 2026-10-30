@@ -1,5 +1,5 @@
 import type { Content, ContentTable, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces'
-import type { ReportSheet, SheetItem } from './reportSheet'
+import type { ReportSheet, SheetItem, TextBlock } from './reportSheet'
 
 // A4 in points, with margins of 16mm at the sides and 14mm at the top and bottom.
 const PAGE_WIDTH = 595.28
@@ -97,27 +97,32 @@ function heading(title: string): Content {
   }
 }
 
+/**
+ * Paragraphs and lists, as they were written, gap apart; a line that ends in
+ * a colon over a list reads as the list's heading.
+ */
+function textBlocks(blocks: TextBlock[], gap: number, itemGap: number): Content[] {
+  return blocks.map((b, i) => {
+    const margin: [number, number, number, number] = [0, i ? gap : 0, 0, 0]
+    if ('text' in b) {
+      const intro = b.text.endsWith(':') && !!blocks[i + 1] && 'items' in blocks[i + 1]
+      return intro ? { text: b.text, font: 'InterMedium', color: INK, margin } : { text: b.text, margin }
+    }
+    const items = b.items.map((text, j) => ({ text, margin: [0, j ? itemGap : 0, 0, 0] as [number, number, number, number] }))
+    return b.ordered ? { ol: items, markerColor: INK_3, margin } : { ul: items, markerColor: INK_3, margin }
+  })
+}
+
 function summary(s: ReportSheet): Content[] {
-  if (!s.summaryText && s.summaryBullets.length === 0) return []
-  const body: Content = s.summaryText
-    ? { text: s.summaryText, margin: [0, 3, 0, 0] }
-    : {
-        ul: s.summaryBullets.map((b, i) => ({ text: b, margin: [0, i ? 1.5 : 0, 0, 0] })),
-        markerColor: INK_3,
-        lineHeight: lead(1.4),
-        margin: [0, 3, 0, 0],
-      }
-  return [heading(s.labels.summary), body]
+  if (s.summary.length === 0) return []
+  return [heading(s.labels.summary), { stack: textBlocks(s.summary, 6, 1.5), margin: [0, 3, 0, 0] }]
 }
 
 function taskCell(it: SheetItem): TableCell {
   const stack: Content[] = [{ text: it.title, font: 'InterMedium', color: INK }]
   const notes = { fontSize: 9, color: INK_2, margin: [0, 2, 0, 0] as [number, number, number, number] }
   if (it.parentTitle) stack.unshift({ text: it.parentTitle, fontSize: 8, color: INK_3, margin: [0, 0, 0, 1] })
-  if (it.notesText) stack.push({ text: it.notesText, ...notes })
-  if (it.notesBullets.length) {
-    stack.push({ ul: it.notesBullets.map((b, i) => ({ text: b, margin: [0, i ? 1 : 0, 0, 0] })), markerColor: INK_3, ...notes })
-  }
+  if (it.notes.length) stack.push({ stack: textBlocks(it.notes, 3, 1), ...notes })
   return { stack }
 }
 
@@ -187,7 +192,7 @@ function rowsFitPage(items: SheetItem[], taskWidth: number): boolean {
   const perLine = taskWidth / (9 * 0.5)
   const lines = (text: string) => Math.ceil(text.length / perLine) || 1
   return items.every((it) => {
-    const notes = [it.notesText, ...it.notesBullets].filter(Boolean)
+    const notes = it.notes.flatMap((b) => ('text' in b ? [b.text] : b.items))
     const height = lines(it.title) * 15 + (it.parentTitle ? 11 : 0) + notes.reduce((sum, n) => sum + lines(n) * 13, 0)
     return height < 500
   })

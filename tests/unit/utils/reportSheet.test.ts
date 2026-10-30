@@ -1,18 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { buildSheet, splitText } from '@/utils/reportSheet'
+import { buildSheet, splitBlocks } from '@/utils/reportSheet'
 import { pdfFileName } from '@/utils/reportPdf'
 import { reportDocument } from '@/utils/reportDocument'
 import { makeReport, makeReportItem } from '../../fixtures'
 
-describe('splitText', () => {
+describe('splitBlocks', () => {
   it('keeps one plain line as a paragraph', () => {
-    expect(splitText('  Built the landing page. ')).toEqual({ text: 'Built the landing page.', bullets: [] })
+    expect(splitBlocks('  Built the landing page. ')).toEqual([{ text: 'Built the landing page.' }])
+    expect(splitBlocks('')).toEqual([])
   })
 
-  it('turns several lines, or marked ones, into bullets without their markers', () => {
-    expect(splitText('- Design\n• Copy\n\n—Launch')).toEqual({ text: '', bullets: ['Design', 'Copy', '—Launch'] })
-    expect(splitText('* Just one')).toEqual({ text: '', bullets: ['Just one'] })
-    expect(splitText('')).toEqual({ text: '', bullets: [] })
+  it('turns marked lines, or a block of plain ones, into a list without the markers', () => {
+    expect(splitBlocks('- Design\n• Copy\n\n—Launch')).toEqual([{ items: ['Design', 'Copy'], ordered: false }, { text: '—Launch' }])
+    expect(splitBlocks('* Just one')).toEqual([{ items: ['Just one'], ordered: false }])
+    expect(splitBlocks('Site: filters\nApp: onboarding\nNext: payments')).toEqual([
+      { items: ['Site: filters', 'App: onboarding', 'Next: payments'], ordered: false },
+    ])
+    expect(splitBlocks('1. Brief\n2) Mockups')).toEqual([{ items: ['Brief', 'Mockups'], ordered: true }])
+  })
+
+  it('keeps paragraphs apart and a list in one piece across blank lines', () => {
+    const summary = 'Two weeks of work on the site.\n\nThe results:\n\n- Faster tables\n\n- New reviews block\n\nEverything planned is done.'
+    expect(splitBlocks(summary)).toEqual([
+      { text: 'Two weeks of work on the site.' },
+      { text: 'The results:' },
+      { items: ['Faster tables', 'New reviews block'], ordered: false },
+      { text: 'Everything planned is done.' },
+    ])
+    // a plain line among marked ones stays text
+    expect(splitBlocks('Done:\n- Hero\n- Footer')).toEqual([{ text: 'Done:' }, { items: ['Hero', 'Footer'], ordered: false }])
   })
 })
 
@@ -56,8 +72,8 @@ describe('buildSheet', () => {
 
   it('carries each task’s notes only in a detailed report', () => {
     const items = [makeReportItem({ notes: '- Hero\n- Footer' })]
-    expect(buildSheet(makeReport({ items })).items[0].notesBullets).toEqual([])
-    expect(buildSheet(makeReport({ kind: 'detailed', items })).items[0].notesBullets).toEqual(['Hero', 'Footer'])
+    expect(buildSheet(makeReport({ items })).items[0].notes).toEqual([])
+    expect(buildSheet(makeReport({ kind: 'detailed', items })).items[0].notes).toEqual([{ items: ['Hero', 'Footer'], ordered: false }])
   })
 
   it('dates the footer and signs it with the freelancer', () => {

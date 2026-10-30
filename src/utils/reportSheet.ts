@@ -16,9 +16,8 @@ export interface SheetItem {
   priceInUAH: string
   /** The time a task billed by the hour took; '' for a fixed price. */
   time: string
-  /** What was done, in a detailed report: a paragraph or bullets. */
-  notesText: string
-  notesBullets: string[]
+  /** What was done, in a detailed report: paragraphs and lists. */
+  notes: TextBlock[]
 }
 
 /** What a report's PDF says, worded in the interface's language. */
@@ -27,8 +26,7 @@ export interface ReportSheet {
   title: string
   /** Under the title: the period, the projects, how many tasks. */
   facts: string[]
-  summaryText: string
-  summaryBullets: string[]
+  summary: TextBlock[]
   /** A project column when the tasks span projects. */
   showProject: boolean
   /** A price column and the total when any task has a price. */
@@ -57,23 +55,53 @@ export interface ReportSheet {
   }
 }
 
-const BULLET_PREFIXES = ['- ', '* ', '• ', '– ', '— ', '-', '•']
+/** A paragraph of free text, or a list. */
+export type TextBlock = { text: string } | { items: string[]; ordered: boolean }
 
-/** Free text as a paragraph or, when it has several lines or bullet markers, as bullets. */
-export function splitText(s: string): { text: string; bullets: string[] } {
-  let marked = false
-  const lines = s
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const prefix = BULLET_PREFIXES.find((p) => line.startsWith(p))
-      if (!prefix) return line
-      marked = true
-      return line.slice(prefix.length).trim()
+const BULLET_PREFIXES = ['- ', '* ', '• ', '– ', '— ', '-', '•']
+const NUMBERED = /^\d{1,3}[.)]\s+/
+
+/** A line's list marker taken off, and whether it numbers the list; null for a plain line. */
+function listItem(line: string): { item: string; ordered: boolean } | null {
+  const numbered = NUMBERED.exec(line)
+  if (numbered) return { item: line.slice(numbered[0].length).trim(), ordered: true }
+  const prefix = BULLET_PREFIXES.find((p) => line.startsWith(p))
+  return prefix ? { item: line.slice(prefix.length).trim(), ordered: false } : null
+}
+
+/**
+ * Free text as it was written: paragraphs apart where a blank line parts
+ * them, and lists. A marked line ("- ", "• ", "1. "…) is a list item, and
+ * items stay one list across blank lines; a block of several plain lines is
+ * a list too, a point per line. A plain line among marked ones stays text.
+ */
+export function splitBlocks(s: string): TextBlock[] {
+  const blocks: TextBlock[] = []
+  const add = (item: string, ordered: boolean) => {
+    const last = blocks.at(-1)
+    if (last && 'items' in last && last.ordered === ordered) last.items.push(item)
+    else blocks.push({ items: [item], ordered })
+  }
+  const groups = s.split(/\r?\n\s*\r?\n/).map((g) =>
+    g
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  )
+  for (const lines of groups) {
+    const marked = lines.map(listItem)
+    if (marked.every((m) => m === null)) {
+      if (lines.length === 1) blocks.push({ text: lines[0] })
+      else for (const line of lines) add(line, false)
+      continue
+    }
+    lines.forEach((line, i) => {
+      const m = marked[i]
+      if (m) add(m.item, m.ordered)
+      else blocks.push({ text: line })
     })
-  if (lines.length === 1 && !marked) return { text: lines[0], bullets: [] }
-  return { text: '', bullets: lines }
+  }
+  return blocks
 }
 
 function signature(p: Party): string {
@@ -89,7 +117,6 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
   const items = r.items ?? []
   const uah = inUAH ? r.in_uah : null
   const projects = r.projects.map((p) => p.name).join(', ')
-  const summary = splitText(r.summary)
 
   let footerLeft = t('reportPdf.prepared', { date: formatDocumentDate(r.created_at) })
   if (r.sent_at) footerLeft += ` · ${t('reportPdf.sent', { date: formatDocumentDate(r.sent_at) })}`
@@ -99,15 +126,13 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
     draft: r.status === 'draft' && !!r.client,
     title: r.title,
     facts: [formatDocumentPeriod(r.from, r.to), projects, t('reportPdf.completedCount', items.length)].filter(Boolean),
-    summaryText: summary.text,
-    summaryBullets: summary.bullets,
+    summary: splitBlocks(r.summary),
     showProject: r.projects.length !== 1 && items.some((it) => it.project_name),
     showPrice: r.total_cents !== null,
     showTime: items.some((it) => it.seconds !== null),
     total: r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : '',
     totalInUAH: uah ? `(~ ${formatMoney(uah.total_cents, 'UAH')})` : '',
     items: items.map((it) => {
-      const notes = r.kind === 'detailed' ? splitText(it.notes) : { text: '', bullets: [] }
       return {
         title: it.title,
         parentTitle: it.parent_title,
@@ -116,8 +141,7 @@ export function buildSheet(r: Report, { inUAH = false }: SheetOptions = {}): Rep
         price: it.price_cents !== null ? formatMoney(it.price_cents, r.currency) : '',
         priceInUAH: uah && it.price_in_uah_cents != null ? `(~ ${formatMoney(it.price_in_uah_cents, 'UAH')})` : '',
         time: it.seconds !== null ? formatDuration(it.seconds) : '',
-        notesText: notes.text,
-        notesBullets: notes.bullets,
+        notes: r.kind === 'detailed' ? splitBlocks(it.notes) : [],
       }
     }),
     footerLeft: `${footerLeft} · Helpic`,
