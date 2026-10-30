@@ -1,5 +1,5 @@
 import { http } from '@/services/api'
-import type { Attachment } from '@/types/attachments'
+import type { Attachment, FileReview } from '@/types/attachments'
 
 /** A task's files, and the largest file the server takes. */
 export async function listAttachments(taskId: string): Promise<{ attachments: Attachment[]; maxSize: number }> {
@@ -7,17 +7,23 @@ export async function listAttachments(taskId: string): Promise<{ attachments: At
   return { attachments: data.attachments ?? [], maxSize: data.max_size_bytes }
 }
 
-/** Uploads one file; onProgress gets 0…1 as it goes. */
-export async function uploadAttachment(taskId: string, file: File, onProgress?: (share: number) => void): Promise<Attachment> {
+/** Uploads one file — a new version of another when replaces names it; onProgress gets 0…1 as it goes. */
+export async function uploadAttachment(taskId: string, file: File, onProgress?: (share: number) => void, replaces?: string): Promise<Attachment> {
   const form = new FormData()
   form.append('file', file)
   const { data } = await http.post<{ attachment: Attachment }>('/attachments', form, {
-    params: { task: taskId },
+    params: replaces ? { task: taskId, replaces } : { task: taskId },
     // Let the browser set the multipart boundary (the app default is JSON).
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 0,
     onUploadProgress: (e) => onProgress?.(e.total ? e.loaded / e.total : 0),
   })
+  return data.attachment
+}
+
+/** The client's side approves a file's latest version or asks for changes; null takes that back. */
+export async function reviewAttachment(id: string, review: FileReview | null): Promise<Attachment> {
+  const { data } = await http.put<{ attachment: Attachment }>(`/attachments/${id}/review`, { review: review ?? '' })
   return data.attachment
 }
 

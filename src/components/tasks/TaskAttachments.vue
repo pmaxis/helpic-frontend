@@ -5,22 +5,32 @@
  * A file opens in the viewer, over the page. Only the uploader deletes a file.
  * With a virus scanner on the server a new file is checked first: until then
  * it neither opens nor downloads, and the list asks again every few seconds.
+ *
+ * A file gets new versions in place of the one before: the list shows the
+ * latest, the viewer every one. The client's side approves the latest or asks
+ * for changes, and anyone on the task comments on a spot of an image.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
-import AttachmentViewer from '@/components/tasks/AttachmentViewer.vue'
+import AttachmentViewer, { type ViewerFile, type ViewerReview } from '@/components/tasks/AttachmentViewer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ApiRequestError } from '@/services/api'
-import { attachmentURL, deleteAttachment, downloadAttachment, fileExtension, formatSize, listAttachments, uploadAttachment } from '@/services/attachments'
+import { attachmentURL, deleteAttachment, downloadAttachment, fileExtension, formatSize, listAttachments, reviewAttachment, uploadAttachment } from '@/services/attachments'
+import { createComment, listComments } from '@/services/comments'
 import { formatDate } from '@/utils/format'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
-import type { Attachment } from '@/types/attachments'
+import type { Attachment, FileReview } from '@/types/attachments'
+import type { Comment } from '@/types/comments'
 
 const props = defineProps<{
   taskId: string
   /** An archived task's files: looked at and downloaded, never added or removed. */
   readonly?: boolean
+}>()
+const emit = defineEmits<{
+  /** A comment was pinned to an image: the task's discussion has a new one. */
+  commented: []
 }>()
 
 const auth = useAuthStore()
@@ -43,8 +53,11 @@ function downloadable(a: Attachment): boolean {
   return a.scan === 'clean' || a.scan === 'unscanned'
 }
 
+/** Each file at its latest version: what the list shows. */
+const shownFiles = computed(() => files.value.filter((a) => a.latest))
+
 /** The files the viewer goes through: those that download. */
-const viewable = computed(() => files.value.filter(downloadable))
+const viewable = computed(() => shownFiles.value.filter(downloadable))
 
 /** Which file the viewer shows, by its place in viewable; null while it's closed. */
 const viewing = ref<number | null>(null)
@@ -86,7 +99,7 @@ async function load(taskId: string) {
     if (taskId !== props.taskId) return
     files.value = data.attachments
     maxSize.value = data.maxSize
-    files.value.forEach((a) => void loadPreview(a))
+    shownFiles.value.forEach((a) => void loadPreview(a))
   } catch {
     toast.error(t('attachments.loadFailed'))
   } finally {
@@ -114,7 +127,7 @@ function pollChecks() {
         const fresh = now.get(a.id)
         return fresh && fresh.scan !== a.scan ? { ...a, scan: fresh.scan, threat: fresh.threat } : a
       })
-      files.value.forEach((a) => void loadPreview(a))
+      shownFiles.value.forEach((a) => void loadPreview(a))
     } catch {
       // Asked again on the next round.
     }
@@ -147,16 +160,23 @@ function add(list: FileList | File[]) {
   }
 }
 
-async function send(file: File) {
+/** A new version of replaces, or a file of its own. */
+async function send(file: File, replaces?: Attachment) {
   const taskId = props.taskId
   const item: Upload = { key: ++uploadKey, name: file.name, progress: 0 }
   uploads.value = [...uploads.value, item]
   try {
-    const a = await uploadAttachment(taskId, file, (share) => {
-      uploads.value = uploads.value.map((u) => (u.key === item.key ? { ...u, progress: share } : u))
-    })
+    const a = await uploadAttachment(
+      taskId,
+      file,
+      (share) => {
+        uploads.value = uploads.value.map((u) => (u.key === item.key ? { ...u, progress: share } : u))
+      },
+      replaces?.id,
+    )
     if (taskId === props.taskId) {
-      files.value = [...files.value, a]
+      // The versions before it are no longer the one shown, nor reviewed.
+      files.value = [...files.value.map((f) => (f.series_id === a.series_id ? { ...f, latest: false, can_review: false } : f)), a]
       void loadPreview(a)
     }
   } catch (error) {
@@ -174,6 +194,31 @@ function onPick(e: Event) {
   const el = e.target as HTMLInputElement
   if (el.files) add(el.files)
   el.value = ''
+}
+
+// --- new versions -----------------------------------------------------------------
+
+const versionInput = ref<HTMLInputElement | null>(null)
+/** The file a picked file is a new version of. */
+const replacing = ref<Attachment | null>(null)
+
+function newVersion(a: Attachment) {
+  replacing.value = a
+  versionInput.value?.click()
+}
+
+function onPickVersion(e: Event) {
+  const el = e.target as HTMLInputElement
+  const file = el.files?.[0]
+  const of = replacing.value
+  el.value = ''
+  replacing.value = null
+  if (!file || !of) return
+  if (file.size > maxSize.value) {
+    toast.error(t('attachments.tooLarge', { name: file.name, size: formatSize(maxSize.value) }))
+    return
+  }
+  void send(file, of)
 }
 
 // Drag and drop onto the section. A counter, since dragleave fires on children.
@@ -212,7 +257,49 @@ function onDrop(e: DragEvent) {
 function open(a: Attachment) {
   if (!downloadable(a)) return
   viewing.value = viewable.value.indexOf(a)
+  void loadPins()
 }
+
+// --- what the viewer does beyond showing ------------------------------------------------
+
+/** The task's comments pinned to its images, by image; loaded when the viewer opens. */
+const pinned = ref<Record<string, Comment[]>>({})
+
+async function loadPins() {
+  const taskId = props.taskId
+  try {
+    const list = await listComments(taskId)
+    if (taskId !== props.taskId) return
+    const byFile: Record<string, Comment[]> = {}
+    for (const c of list) {
+      const on = c.pin?.attachment_id
+      if (on) (byFile[on] ??= []).push(c)
+    }
+    pinned.value = byFile
+  } catch {
+    // The files show without their pins.
+  }
+}
+
+const viewerReview = computed<ViewerReview>(() => ({
+  versions: (f: ViewerFile) => files.value.filter((a) => a.series_id === f.series_id && downloadable(a)),
+  pins: pinned.value,
+  canPin: !props.readonly,
+  addPin: async (f, x, y, body) => {
+    const c = await createComment(props.taskId, body, { attachment_id: f.id, x, y })
+    pinned.value = { ...pinned.value, [f.id]: [...(pinned.value[f.id] ?? []), c] }
+    emit('commented')
+  },
+  setReview: async (f, review: FileReview | null) => {
+    try {
+      const a = await reviewAttachment(f.id, review)
+      files.value = files.value.map((x) => (x.id === a.id ? { ...x, ...a, can_review: x.can_review } : x))
+      if (review) toast.success(review === 'approved' ? t('fileReview.approved') : t('fileReview.changesRequested'))
+    } catch (error) {
+      toast.error(error instanceof ApiRequestError ? error.message : t('fileReview.reviewFailed'))
+    }
+  },
+}))
 
 const removing = ref<Attachment | null>(null)
 const removeBusy = ref(false)
@@ -227,6 +314,12 @@ async function remove() {
     const url = previews.value[a.id]
     if (url) URL.revokeObjectURL(url)
     viewing.value = null
+    // Its version before it is the one shown now: the list says which.
+    if (a.latest && files.value.some((f) => f.series_id === a.series_id)) {
+      const data = await listAttachments(props.taskId)
+      files.value = data.attachments
+      shownFiles.value.forEach((f) => void loadPreview(f))
+    }
   } catch (error) {
     toast.error(error instanceof ApiRequestError ? error.message : t('attachments.deleteFailed'))
   } finally {
@@ -253,9 +346,9 @@ function uploader(a: Attachment): string {
       <h2 id="task-attachments" class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
         {{ $t('attachments.title') }}
         <span
-          v-if="files.length"
+          v-if="shownFiles.length"
           class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-200 px-1.5 text-[11px] font-semibold tracking-normal text-neutral-700 tabular-nums"
-        >{{ files.length }}</span>
+        >{{ shownFiles.length }}</span>
       </h2>
       <button
         v-if="!readonly"
@@ -269,10 +362,11 @@ function uploader(a: Attachment): string {
         {{ $t('attachments.add') }}
       </button>
       <input ref="input" type="file" multiple class="hidden" @change="onPick" />
+      <input ref="versionInput" type="file" class="hidden" @change="onPickVersion" />
     </div>
 
-    <ul v-if="files.length || uploads.length" class="mt-3 grid gap-2 sm:grid-cols-2">
-      <li v-for="a in files" :key="a.id" class="group flex min-w-0 items-center gap-3 rounded-lg border border-neutral-200 bg-white p-2 pr-1.5">
+    <ul v-if="shownFiles.length || uploads.length" class="mt-3 grid gap-2 sm:grid-cols-2">
+      <li v-for="a in shownFiles" :key="a.id" class="group flex min-w-0 items-center gap-3 rounded-lg border border-neutral-200 bg-white p-2 pr-1.5">
         <button
           v-if="downloadable(a)"
           type="button"
@@ -313,7 +407,32 @@ function uploader(a: Attachment): string {
           <p v-if="a.scan === 'pending'" class="truncate text-xs text-neutral-500" role="status">{{ $t('attachments.checking') }}</p>
           <p v-else-if="a.scan === 'infected'" class="truncate text-xs text-red-600" :title="a.threat">{{ $t('attachments.infected', { threat: a.threat ?? '' }) }}</p>
           <p v-else class="truncate text-xs text-neutral-400">{{ formatSize(a.size_bytes) }} · {{ uploader(a) }} · {{ formatDate(a.created_at) }}</p>
+          <p v-if="a.version > 1 || a.review" class="mt-0.5 flex flex-wrap items-center gap-1">
+            <span v-if="a.version > 1" class="rounded bg-neutral-100 px-1.5 py-px text-[11px] font-medium text-neutral-600 tabular-nums">
+              {{ $t('fileReview.version', { n: a.version }) }}
+            </span>
+            <span
+              v-if="a.review"
+              class="rounded px-1.5 py-px text-[11px] font-medium"
+              :class="a.review === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+            >
+              {{ a.review === 'approved' ? $t('fileReview.approvedShort') : $t('fileReview.changesShort') }}
+            </span>
+          </p>
         </div>
+        <button
+          v-if="!readonly"
+          type="button"
+          class="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
+          :aria-label="$t('fileReview.newVersionOf', { name: a.file_name })"
+          :title="$t('fileReview.newVersion')"
+          @click="newVersion(a)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+            <polyline points="21 3 21 8 16 8" />
+          </svg>
+        </button>
         <button
           v-if="downloadable(a)"
           type="button"
@@ -376,7 +495,7 @@ function uploader(a: Attachment): string {
       {{ $t('attachments.dropToAttach') }}
     </div>
 
-    <AttachmentViewer v-if="viewing !== null" v-model:index="viewing" :files="viewable" :previews="previews" @close="viewing = null" />
+    <AttachmentViewer v-if="viewing !== null" v-model:index="viewing" :files="viewable" :previews="previews" :review="viewerReview" @close="viewing = null" />
 
     <ConfirmDialog
       :open="!!removing"

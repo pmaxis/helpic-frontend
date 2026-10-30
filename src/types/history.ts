@@ -12,6 +12,7 @@ export type TaskEventKind =
   | 'labels'
   | 'attachment_added'
   | 'attachment_removed'
+  | 'file_reviewed'
   | 'archived'
   | 'subtask_added'
   | 'subtask_removed'
@@ -32,6 +33,10 @@ export interface TaskEvent {
     to?: string | number | null
     currency?: string
     name?: string
+    /** The file's version, on "attachment_added" (from 2) and "file_reviewed". */
+    version?: number
+    /** On "file_reviewed": "approved", "changes_requested", or '' when taken back. */
+    review?: string
     category?: string
     /** The paid report's title, on an "archived" event a payment made. */
     report?: string

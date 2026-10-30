@@ -14,6 +14,8 @@ export type NotificationKind =
   | 'report_comment'
   | 'report_recalled'
   | 'attachment_added'
+  | 'file_approved'
+  | 'file_changes_requested'
   | 'comment_added'
   | 'comment_mention'
   | 'task_due_soon'

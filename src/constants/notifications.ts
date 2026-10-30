@@ -34,6 +34,8 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'comment_added' },
       { kind: 'comment_mention' },
       { kind: 'attachment_added' },
+      { kind: 'file_approved', for: 'freelancer' },
+      { kind: 'file_changes_requested', for: 'freelancer' },
     ],
   },
   {

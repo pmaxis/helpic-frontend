@@ -38,6 +38,8 @@ import { useStoredFlag } from '@/composables/useStoredFlag'
 import type { Task, TaskInput } from '@/types/tasks'
 
 const props = defineProps<{ taskId: string }>()
+/** Bumped when a comment is pinned to an image, so the discussion reloads. */
+const pinnedComments = ref(0)
 
 /** Both cards scroll on their own when their content is taller than the screen. */
 const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xs'
@@ -213,9 +215,10 @@ function onSaved(t: Task) {
         <TaskArchivedNote v-if="task.archived_at" :archived-at="task.archived_at" :archived-by="task.archived_by" />
         <TaskDescription :task="task" :saving="saving" :save="save" />
         <TaskSubtasks v-if="!task.parent_id && (task.can_add_subtask || task.subtasks.total)" :task="task" @changed="reloadTask" />
-        <TaskAttachments :task-id="task.id" :readonly="archived" />
+        <TaskAttachments :task-id="task.id" :readonly="archived" @commented="pinnedComments++" />
         <TaskActivity
           :task-id="task.id"
+          :comments-version="pinnedComments"
           :version="task.updated_at"
           :readonly="archived"
           :show-time="task.can_see_price && (task.can_track_time || task.tracked_seconds !== null)"

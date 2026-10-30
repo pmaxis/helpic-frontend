@@ -21,6 +21,8 @@ const props = defineProps<{
   canTrack?: boolean
   /** On a sent report: its time is billed. */
   billed?: boolean
+  /** Bumped when a comment was added beside the discussion (pinned on an image). */
+  commentsVersion?: number
 }>()
 defineEmits<{ timeChanged: [] }>()
 
@@ -60,7 +62,7 @@ const LABELS: Record<Tab, string> = { comments: 'activity.comments', time: 'time
 
     <!-- comments stay mounted, so a half-written comment survives a look at the history -->
     <div v-show="tab === 'comments'" id="activity-panel-comments" role="tabpanel" aria-labelledby="activity-tab-comments">
-      <TaskComments :task-id="taskId" :readonly="readonly" @count="commentCount = $event" />
+      <TaskComments :task-id="taskId" :readonly="readonly" :version="commentsVersion" @count="commentCount = $event" />
     </div>
     <!-- the time stays mounted too: its total shows on the tab -->
     <div v-if="showTime" v-show="tab === 'time'" id="activity-panel-time" role="tabpanel" aria-labelledby="activity-tab-time">

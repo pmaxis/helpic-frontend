@@ -17,4 +17,14 @@ export interface Comment {
   can_edit: boolean
   created_at: string
   updated_at: string
+  /** The spot on one of the task's images it's about; null for the task as a whole. */
+  pin: CommentPin | null
+}
+
+/** A spot on an image: x and y are fractions of its width and height from the top left corner. */
+export interface CommentPin {
+  /** Null once the image was deleted. */
+  attachment_id: string | null
+  x: number
+  y: number
 }

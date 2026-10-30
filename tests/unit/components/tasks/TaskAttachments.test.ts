@@ -5,7 +5,7 @@ import { t } from '@/i18n'
 import { useToasts } from '@/composables/useToasts'
 import type { Attachment } from '@/types/attachments'
 import { api, render, status } from '../../../helpers'
-import { $, $$, button, click } from '../../../dom'
+import { $, $$, button, click, field, type } from '../../../dom'
 import { makeUser } from '../../../fixtures'
 
 const me = makeUser()
@@ -20,6 +20,13 @@ const file = (over: Partial<Attachment> = {}): Attachment => ({
   can_delete: true,
   created_at: '2030-01-10T09:00:00Z',
   scan: 'clean',
+  series_id: over.id ?? 'f1',
+  version: 1,
+  latest: true,
+  review: null,
+  reviewed_by: null,
+  reviewed_at: null,
+  can_review: false,
   ...over,
 })
 
@@ -221,5 +228,84 @@ describe('TaskAttachments', () => {
     api({ 'GET /attachments': status(500) })
     await render(TaskAttachments, { props: { taskId: 't-1' }, user: me })
     expect(useToasts().toasts.at(-1)?.message).toBe(t('attachments.loadFailed'))
+  })
+})
+
+describe('TaskAttachments › versions and reviews', () => {
+  const img = (over: Partial<Attachment> = {}) => file({ id: 'v1', file_name: 'logo.png', is_image: true, content_type: 'image/png', ...over })
+  const v1 = img({ latest: false })
+  const v2 = img({
+    id: 'v2',
+    series_id: 'v1',
+    version: 2,
+    file_name: 'logo-final.png',
+    review: 'changes_requested',
+    reviewed_by: { id: 'u-client', name: 'Acme', email: 'acme@example.test' },
+    can_review: true,
+  })
+
+  it('shows each file at its latest version, with what the client thought of it', async () => {
+    const { server, view } = mountFiles([v1, v2])
+    const files = await view
+    expect(files.text()).toContain('logo-final.png')
+    expect(files.text()).not.toContain('logo.png ')
+    expect(files.text()).toContain(t('fileReview.version', { n: 2 }))
+    expect(files.text()).toContain(t('fileReview.changesShort'))
+    // only the latest gets a preview in the list
+    expect(server.to('GET /attachments/v1')).toHaveLength(0)
+  })
+
+  it('uploads a new version in place of a file', async () => {
+    const { server, view } = mountFiles([img()])
+    const files = await view
+    server.reply('POST /attachments', { attachment: img({ id: 'v2', series_id: 'v1', version: 2, file_name: 'logo-v2.png' }) })
+    await click(button(t('fileReview.newVersionOf', { name: 'logo.png' })))
+    const input = files.findAll('input[type="file"]')[1].element as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [new File(['x'], 'logo-v2.png')], configurable: true })
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+    expect(server.to('POST /attachments')[0].params).toEqual({ task: 't-1', replaces: 'v1' })
+    expect(files.text()).toContain('logo-v2.png')
+    expect(files.findAll('li').filter((li) => li.text().includes('logo'))).toHaveLength(1)
+  })
+
+  it('goes through the versions in the viewer, and lets the client approve the latest', async () => {
+    const { server, view } = mountFiles([v1, v2])
+    await view
+    server.reply('GET /comments', { comments: [] })
+    server.reply('GET /attachments/v1', new Blob(['old']))
+    server.reply('PUT /attachments/v2/review', { attachment: { ...v2, review: 'approved' } })
+    await click(button(`${t('attachments.open')} logo-final.png`))
+    const dialog = () => $('[role="dialog"]')!
+    expect(dialog().textContent).toContain(t('fileReview.changesBy', { name: 'Acme' }))
+
+    await click(button(t('fileReview.approve')))
+    expect(server.to('PUT /attachments/v2/review')[0].body).toEqual({ review: 'approved' })
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('fileReview.approved'))
+    expect(button(t('fileReview.approve')).getAttribute('aria-pressed')).toBe('true')
+
+    // the first version, to compare: not reviewed any more
+    await click(button(t('fileReview.version', { n: 1 })))
+    await vi.waitFor(() => expect(dialog().querySelector('img[alt="logo.png"]')).not.toBeNull())
+    expect(() => button(t('fileReview.approve'))).toThrow()
+  })
+
+  it('pins a comment to a spot of an image, telling the discussion', async () => {
+    const pinned = { id: 'c1', task_id: 't-1', author: { id: me.id, name: me.name, email: me.email }, body: 'Bigger', edited: false, can_edit: true, created_at: '2030-01-10T09:00:00Z', updated_at: '2030-01-10T09:00:00Z' }
+    const { server, view } = mountFiles([img()])
+    const files = await view
+    server.reply('GET /comments', { comments: [] })
+    server.reply('POST /comments', (c: { body: { pin: { x: number; y: number } } }) => ({ comment: { ...pinned, pin: { attachment_id: 'v1', ...c.body.pin } } }))
+    await click(button(`${t('attachments.open')} logo.png`))
+    await click(button(t('fileReview.addPin')))
+    const picture = $('[role="dialog"] img[alt="logo.png"]')!
+    picture.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) })
+    picture.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 50, clientY: 75 }))
+    await flushPromises()
+    await type(field<HTMLTextAreaElement>(t('fileReview.pinComment', { n: 1 })), 'Bigger')
+    await click(button(t('fileReview.savePin')))
+    expect(server.to('POST /comments')[0].body).toEqual({ body: 'Bigger', pin: { attachment_id: 'v1', x: 0.25, y: 0.75 } })
+    expect($(`[aria-label="${t('fileReview.pin', { n: 1 })}"]`)?.getAttribute('style')).toContain('left: 25%')
+    expect(files.emitted('commented')).toHaveLength(1)
   })
 })

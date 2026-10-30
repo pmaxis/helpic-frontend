@@ -22,6 +22,8 @@ const props = defineProps<{
   taskId: string
   /** An archived task's discussion: read, never added to or changed. */
   readonly?: boolean
+  /** Bumped when a comment was added elsewhere (pinned on an image), so the list reloads. */
+  version?: number
 }>()
 const emit = defineEmits<{ count: [n: number] }>()
 
@@ -60,6 +62,18 @@ watch(
   () => props.taskId,
   (id) => void load(id),
   { immediate: true },
+)
+watch(
+  () => props.version,
+  async () => {
+    const taskId = props.taskId
+    try {
+      const list = await listComments(taskId)
+      if (taskId === props.taskId) comments.value = list
+    } catch {
+      // Shown on the next load.
+    }
+  },
 )
 watch(
   () => comments.value.length,
@@ -199,8 +213,17 @@ async function remove() {
               <BaseButton variant="ghost" size="sm" :block="false" :disabled="savingEdit" @click="editingId = null">{{ $t('common.cancel') }}</BaseButton>
             </div>
           </div>
-          <!-- Markdown rendered with HTML of its own off: the text can't add markup. -->
-          <div v-else class="comment-body mt-0.5 text-sm leading-relaxed break-words text-neutral-800" v-html="renderComment(c.body, auth.user?.id)" />
+          <template v-else>
+            <p v-if="c.pin" class="mt-0.5 inline-flex items-center gap-1 text-xs text-neutral-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3" aria-hidden="true">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              {{ c.pin.attachment_id ? $t('fileReview.onImage') : $t('fileReview.onDeletedImage') }}
+            </p>
+            <!-- Markdown rendered with HTML of its own off: the text can't add markup. -->
+            <div class="comment-body mt-0.5 text-sm leading-relaxed break-words text-neutral-800" v-html="renderComment(c.body, auth.user?.id)" />
+          </template>
         </div>
       </li>
     </ol>

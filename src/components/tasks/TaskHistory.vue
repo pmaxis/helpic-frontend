@@ -92,7 +92,14 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       return { key: 'history.labelsRemoved', values: { value: removed.join(', ') }, plural: removed.length }
     }
     case 'attachment_added':
-      return { key: 'history.attachmentAdded', values: { value: quote(e.data.name) } }
+      return e.data.version
+        ? { key: 'history.versionAdded', values: { value: quote(e.data.name), version: String(e.data.version) } }
+        : { key: 'history.attachmentAdded', values: { value: quote(e.data.name) } }
+    case 'file_reviewed':
+      return {
+        key: e.data.review === 'approved' ? 'history.fileApproved' : e.data.review === 'changes_requested' ? 'history.fileChangesRequested' : 'history.fileReviewCleared',
+        values: { value: quote(e.data.name), version: String(e.data.version ?? 1) },
+      }
     case 'attachment_removed':
       return { key: 'history.attachmentRemoved', values: { value: quote(e.data.name) } }
     case 'subtask_added':

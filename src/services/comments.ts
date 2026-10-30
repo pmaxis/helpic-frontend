@@ -13,8 +13,9 @@ export async function listCommentPeople(taskId: string): Promise<CommentPerson[]
   return data.people ?? []
 }
 
-export async function createComment(taskId: string, body: string): Promise<Comment> {
-  const { data } = await http.post<{ comment: Comment }>('/comments', { body }, { params: { task: taskId } })
+/** A comment on the task, or on a spot of one of its images with a pin. */
+export async function createComment(taskId: string, body: string, pin?: { attachment_id: string; x: number; y: number }): Promise<Comment> {
+  const { data } = await http.post<{ comment: Comment }>('/comments', pin ? { body, pin } : { body }, { params: { task: taskId } })
   return data.comment
 }
 

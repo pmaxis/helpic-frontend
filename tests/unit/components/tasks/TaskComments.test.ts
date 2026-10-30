@@ -17,6 +17,7 @@ const comment = (over: Partial<Comment> = {}): Comment => ({
   can_edit: true,
   created_at: '2030-01-10T09:00:00Z',
   updated_at: '2030-01-10T09:00:00Z',
+  pin: null,
   ...over,
 })
 
@@ -163,5 +164,18 @@ describe('TaskComments mentions and Markdown', () => {
     await press('Escape', edit)
     expect(view.find('[role="listbox"]').exists()).toBe(false)
     expect(document.getElementById('comment-edit-c1')).not.toBeNull()
+  })
+})
+
+describe('TaskComments › pinned to an image', () => {
+  it('says which comments are on a spot of an image, and reloads when one is pinned', async () => {
+    const { server, comments } = mountComments([comment({ pin: { attachment_id: 'f1', x: 0.5, y: 0.5 } }), comment({ id: 'c2', pin: { attachment_id: null, x: 0.1, y: 0.1 } })])
+    const list = await comments
+    expect(list.text()).toContain(t('fileReview.onImage'))
+    expect(list.text()).toContain(t('fileReview.onDeletedImage'))
+    server.reply('GET /comments', { comments: [comment({ id: 'c3', body: 'Fresh' })] })
+    await list.setProps({ version: 1 })
+    await new Promise((r) => setTimeout(r))
+    expect(list.text()).toContain('Fresh')
   })
 })

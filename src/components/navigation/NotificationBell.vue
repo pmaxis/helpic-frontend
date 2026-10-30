@@ -87,6 +87,8 @@ const PHRASED = new Set([
   'comment_added',
   'comment_mention',
   'attachment_added',
+  'file_approved',
+  'file_changes_requested',
 ])
 
 /** The message saying what happened, and what fills it: {who} goes in bold. */

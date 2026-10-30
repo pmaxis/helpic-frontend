@@ -19,4 +19,17 @@ export interface Attachment {
    */
   scan: 'pending' | 'clean' | 'infected' | 'unscanned'
   threat?: string
+  /** Shared by every version of the file (the first one's id); versions count from 1. */
+  series_id: string
+  version: number
+  /** No newer version replaced it: the one shown. */
+  latest: boolean
+  /** What the client's side thinks of this version; null until they say. */
+  review: FileReview | null
+  reviewed_by: { id: string; name: string; email: string } | null
+  reviewed_at: string | null
+  /** The task's client side, on the latest version. */
+  can_review: boolean
 }
+
+export type FileReview = 'approved' | 'changes_requested'
