@@ -194,7 +194,8 @@ async function remove() {
             </span>
           </div>
 
-          <div v-if="editingId === c.id" class="mt-1.5">
+          <!-- relative: the hidden label stays in here, inside the task's own scroll, not past the page's end -->
+          <div v-if="editingId === c.id" class="relative mt-1.5">
             <label :for="`comment-edit-${c.id}`" class="sr-only">{{ $t('comments.editYours') }}</label>
             <CommentEditor
               :id="`comment-edit-${c.id}`"
@@ -238,7 +239,8 @@ async function remove() {
       >
         {{ initials(auth.user?.name || auth.user?.email || '?') }}
       </span>
-      <div class="min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/10">
+      <!-- relative: the hidden label stays in here, inside the task's own scroll, not past the page's end -->
+      <div class="relative min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/10">
         <label for="comment-new" class="sr-only">{{ $t('comments.write') }}</label>
         <CommentEditor
           id="comment-new"

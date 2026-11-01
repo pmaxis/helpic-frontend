@@ -38,6 +38,13 @@ describe('TaskComments', () => {
     expect((await empty).text()).toContain(t('comments.empty'))
   })
 
+  it('keeps the field’s hidden label inside it, so it can’t stretch the page past its end', async () => {
+    await mountComments().comments
+    const label = document.querySelector('label[for="comment-new"]')!
+    expect(label.classList.contains('sr-only')).toBe(true)
+    expect(label.parentElement!.classList.contains('relative')).toBe(true)
+  })
+
   it('sends a comment with ⌘/Ctrl + Enter and adds it to the end', async () => {
     const { server, comments } = mountComments([])
     const view = await comments
