@@ -209,6 +209,7 @@ async function toggleTimer() {
           :model-value="task.project?.id ?? ''"
           :options="projectOptions"
           :disabled="busy"
+          size="sm"
           :aria-label="$t('task.project')"
           @update:model-value="saveProject"
         />
@@ -232,6 +233,7 @@ async function toggleTimer() {
           :label="$t('task.createdOn')"
           hide-label
           compact
+          size="sm"
           required
           :max="latestCreatedOn"
           :disabled="busy"
@@ -247,6 +249,7 @@ async function toggleTimer() {
           :label="$t('task.dueDate')"
           hide-label
           compact
+          size="sm"
           :placeholder="$t('task.none')"
           :min="createdOn"
           :disabled="busy"
@@ -268,14 +271,15 @@ async function toggleTimer() {
       <template v-if="task.can_set_price">
         <dt class="text-neutral-500">{{ $t('timelog.billing') }}</dt>
         <dd class="min-w-0">
-          <div class="inline-flex rounded-md bg-neutral-100 p-0.5 text-xs font-medium" role="group" :aria-label="$t('timelog.billing')">
+          <!-- 32px like the selects above, the way the tasks page's view toggle is -->
+          <div class="grid h-8 w-full grid-cols-2 rounded-lg border border-neutral-300 bg-neutral-100 p-[3px] text-xs" role="group" :aria-label="$t('timelog.billing')">
             <button
               v-for="b in (['fixed', 'hourly'] as const)"
               :key="b"
               type="button"
               :aria-pressed="task.billing === b"
               :disabled="busy"
-              class="rounded px-2.5 py-1 transition-colors"
+              class="truncate rounded-md px-1 font-medium transition-colors"
               :class="task.billing === b ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900'"
               @click="setBilling(b)"
             >
@@ -287,8 +291,8 @@ async function toggleTimer() {
 
       <!-- a price nobody can set and nobody set (a client's own task, say) isn't shown -->
       <template v-if="task.can_see_price && (task.can_set_price || task.price_cents !== null)">
-        <dt class="self-start pt-1 text-neutral-500">{{ $t('task.price') }}</dt>
-        <dd v-if="task.billing === 'hourly'" class="min-w-0 py-1">
+        <dt class="self-start pt-1.5 text-neutral-500">{{ $t('task.price') }}</dt>
+        <dd v-if="task.billing === 'hourly'" class="min-w-0 py-1.5">
           <span :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'">
             {{ task.price_cents === null ? $t('task.none') : formatMoney(task.price_cents, task.currency) }}
           </span>
@@ -311,7 +315,7 @@ async function toggleTimer() {
             :aria-label="$t('task.price')"
             :placeholder="$t('task.pricePlaceholder', { currency: task.currency })"
             :disabled="busy"
-            class="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
+            class="block h-8 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
             @keydown.enter.prevent="commitPrice"
             @keydown.esc.prevent="editingPrice = false"
             @blur="commitPrice"
@@ -319,7 +323,7 @@ async function toggleTimer() {
           <button
             v-else-if="task.can_set_price"
             type="button"
-            class="-mx-2 w-[calc(100%+1rem)] cursor-text rounded-lg px-2 py-1 text-left transition-colors hover:bg-neutral-100"
+            class="flex h-8 w-full cursor-text items-center truncate rounded-lg border border-transparent px-3 text-left transition-colors hover:border-neutral-300 hover:bg-neutral-50"
             :class="task.price_cents === null ? 'text-neutral-400' : 'font-medium text-neutral-800'"
             :title="$t('task.clickToSetPrice')"
             @click="startPrice"
@@ -346,8 +350,8 @@ async function toggleTimer() {
             v-if="task.can_track_time"
             type="button"
             :disabled="timerBusy"
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-60"
-            :class="timing ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'text-neutral-600 ring-1 ring-neutral-300 ring-inset hover:bg-neutral-50 hover:text-neutral-900'"
+            class="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium whitespace-nowrap shadow-xs transition-colors disabled:opacity-60"
+            :class="timing ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'border border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50'"
             @click="toggleTimer"
           >
             <svg v-if="timing" viewBox="0 0 24 24" fill="currentColor" class="h-3 w-3" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>

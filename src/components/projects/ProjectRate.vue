@@ -49,8 +49,8 @@ async function save(value: string | null) {
 <template>
   <button
     type="button"
-    class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-medium tabular-nums shadow-xs transition-colors hover:bg-neutral-50"
-    :class="project.my_hourly_rate_cents === null ? 'text-neutral-400 hover:text-neutral-700' : 'text-neutral-700 hover:text-neutral-900'"
+    class="inline-flex h-8 items-center rounded-lg border border-neutral-300 bg-white px-2.5 text-sm font-medium tabular-nums shadow-xs transition-colors hover:bg-neutral-50"
+    :class="project.my_hourly_rate_cents === null ? 'text-neutral-500 hover:text-neutral-900' : 'text-neutral-900 hover:text-neutral-900'"
     :title="$t('timelog.projectRate')"
     @click="open = true"
   >

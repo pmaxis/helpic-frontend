@@ -205,7 +205,7 @@ async function removeLabel() {
   <button
     ref="trigger"
     type="button"
-    class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+    class="inline-flex h-8 w-full items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-600 shadow-xs transition-colors hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-50"
     :disabled="disabled"
     :aria-expanded="open"
     aria-haspopup="dialog"

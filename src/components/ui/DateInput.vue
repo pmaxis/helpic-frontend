@@ -29,6 +29,8 @@ const props = defineProps<{
   min?: string
   /** The last day that can be picked, as YYYY-MM-DD. */
   max?: string
+  /** sm is exactly 32px, like the small selects and buttons beside it. */
+  size?: 'md' | 'sm'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -245,8 +247,9 @@ function onPanelKeydown(e: KeyboardEvent) {
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="error ? errorId : undefined"
         :disabled="disabled"
-        class="group flex w-full items-center gap-2 rounded-lg border bg-white py-2 pl-3 text-left text-sm shadow-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
+        class="group flex w-full items-center gap-2 rounded-lg border bg-white pl-3 text-left text-sm shadow-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
         :class="[
+          size === 'sm' ? 'h-8' : 'py-2',
           // room for the clear button, which sits on top of the trigger
           clearable ? 'pr-9' : 'pr-2.5',
           open

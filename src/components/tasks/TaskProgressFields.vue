@@ -134,6 +134,7 @@ async function setLabels(ids: string[]) {
         :options="statusOptions"
         :disabled="busy"
         :searchable="false"
+        size="sm"
         :aria-label="$t('task.status')"
         @update:model-value="move"
       >
@@ -156,6 +157,7 @@ async function setLabels(ids: string[]) {
         :options="priorityOptions"
         :disabled="busy"
         :searchable="false"
+        size="sm"
         :aria-label="$t('task.priority')"
         @update:model-value="setPriority"
       >
@@ -165,7 +167,7 @@ async function setLabels(ids: string[]) {
       </SelectInput>
     </dd>
 
-    <dt class="self-start pt-0.5 text-neutral-500">{{ $t('task.labels') }}</dt>
+    <dt class="self-start pt-1.5 text-neutral-500">{{ $t('task.labels') }}</dt>
     <dd class="flex min-w-0 flex-wrap items-center gap-1">
       <LabelChip v-for="l in task.labels" :key="l.id" :name="l.name" :color="l.color" />
       <span v-if="archived && !task.labels.length" class="text-neutral-400">{{ $t('task.none') }}</span>

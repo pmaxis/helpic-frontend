@@ -25,7 +25,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
 
 <template>
   <!-- framed like a small button, so it lines up with the buttons next to it (32px) -->
-  <div class="inline-flex h-8 items-center rounded-lg border border-neutral-200 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('ui.view')">
+  <div class="inline-flex h-8 items-center rounded-lg border border-neutral-300 bg-neutral-100 p-[3px] text-sm" role="group" :aria-label="$t('ui.view')">
     <button
       v-for="o in options"
       :key="o.value"

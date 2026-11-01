@@ -109,6 +109,19 @@ html {
   --color-pink-900: var(--color-pink-300);
 }
 
+/*
+ * Outlined controls (selects, date fields, bordered buttons) take a lighter
+ * edge in the dark than the ramp's 300: on the darkest surface that one all
+ * but vanishes, and a 32px select then reads smaller than the filled 32px
+ * button beside it. :where() keeps it as weak as the utility it lightens, so
+ * hover, focus and error borders still win.
+ */
+@layer utilities {
+  .dark :where(.border-neutral-300) {
+    border-color: oklch(44% 0.02 265);
+  }
+}
+
 /* A panel that is dark by design (the sign-in page's product side) keeps its light-theme palette. */
 .dark .light-palette {
   --color-white: #fff;
