@@ -72,12 +72,15 @@ const archiving = ref(false)
 /** Closed for good: paid, or put away by its owner. */
 const archived = computed(() => !!task.value?.archived_at)
 
-/** Edit, share and delete, as far as the viewer may — behind the "⋯" button. */
+/** Edit, share, the backlog, archive and delete, as far as the viewer may — behind the "⋯" button. */
 const taskActions = computed(() => {
   const actions: MenuAction[] = []
   const task_ = task.value
   if (task_?.can_edit) actions.push({ label: tr('task.edit'), onSelect: () => (editing.value = true) })
   if (task_?.can_share) actions.push({ label: tr('share.action'), onSelect: () => (sharing.value = true) })
+  if (task_?.can_backlog) {
+    actions.push({ label: task_.in_backlog ? tr('backlog.toBoard') : tr('backlog.toBacklog'), onSelect: () => void toggleBacklog() })
+  }
   if (task_?.can_archive) actions.push({ label: tr('task.archive'), onSelect: () => (confirmArchive.value = true) })
   if (task_?.can_delete) actions.push({ label: tr('task.delete'), danger: true, onSelect: () => (confirmDelete.value = true) })
   return actions
@@ -147,6 +150,19 @@ async function save(change: Partial<TaskInput>): Promise<boolean> {
     return false
   } finally {
     saving.value = false
+  }
+}
+
+/** Puts the task into its board's backlog, or back on the board. */
+async function toggleBacklog() {
+  const t = task.value
+  if (!t) return
+  try {
+    const next = await tasks.setBacklog(t.id, !t.in_backlog)
+    onChanged(next)
+    toast.success(tr(next.in_backlog ? 'backlog.movedToBacklog' : 'backlog.movedToBoard'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('backlog.failed'))
   }
 }
 

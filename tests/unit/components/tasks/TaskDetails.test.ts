@@ -267,6 +267,30 @@ describe('TaskDetails', () => {
     expect(page.text()).toContain(t('task.archivedClosed'))
   })
 
+  it('moves the task into the backlog and back on the board from the menu', async () => {
+    const task = makeTask()
+    const server = serve(task, { 'PUT /tasks/t-1/backlog': changed(task, { in_backlog: true }) })
+    const page = await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+    await click(button(t('task.options')))
+    await click(button(t('backlog.toBacklog')))
+    expect(server.to('PUT /tasks/t-1/backlog')[0].body).toEqual({ in_backlog: true })
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('backlog.movedToBacklog'))
+    expect((page.emitted('changed')?.at(-1)?.[0] as Task).in_backlog).toBe(true)
+
+    server.reply('PUT /tasks/t-1/backlog', changed(task, { in_backlog: false }))
+    await click(button(t('task.options')))
+    await click(button(t('backlog.toBoard')))
+    expect(server.to('PUT /tasks/t-1/backlog')[1].body).toEqual({ in_backlog: false })
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('backlog.movedToBoard'))
+  })
+
+  it('offers no backlog for a task that may not wait there', async () => {
+    serve(makeTask({ status: 'done', can_backlog: false }))
+    await render(TaskDetails, { props: { taskId: 't-1' }, user: me })
+    await click(button(t('task.options')))
+    expect($$('button').some((b) => b.textContent?.trim() === t('backlog.toBacklog'))).toBe(false)
+  })
+
   it('shares the task by a link, from the menu, only for whoever may', async () => {
     serve(makeTask({ can_edit: false, can_share: false, can_delete: false }))
     let page = await render(TaskDetails, { props: { taskId: 't-1' }, user: me })

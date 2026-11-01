@@ -73,10 +73,17 @@ describe('TaskList', () => {
   })
 
   it('offers only what the viewer may do, and no menu when that’s nothing', async () => {
-    const tasks = [makeTask({ id: 'a', title: 'Hero', can_delete: false }), makeTask({ id: 'b', title: 'Footer', can_edit: false, can_delete: false })]
+    const tasks = [
+      makeTask({ id: 'a', title: 'Hero', can_delete: false }),
+      makeTask({ id: 'b', title: 'Footer', can_edit: false, can_delete: false, can_backlog: false }),
+      makeTask({ id: 'c', title: 'Later', can_edit: false, can_delete: false, in_backlog: true }),
+    ]
     await render(TaskList, { props: { tasks }, user: makeUser() })
     await click(button(t('taskList.optionsNamed', { title: 'Hero' })))
-    expect($$('[role="menuitem"]').map((b) => b.textContent?.trim())).toEqual([t('taskList.edit')])
+    expect($$('[role="menuitem"]').map((b) => b.textContent?.trim())).toEqual([t('taskList.edit'), t('backlog.toBacklog')])
+    await click(button(t('taskList.optionsNamed', { title: 'Hero' })))
+    await click(button(t('taskList.optionsNamed', { title: 'Later' })))
+    expect($$('[role="menuitem"]').map((b) => b.textContent?.trim())).toEqual([t('backlog.toBoard')])
     expect($(`[aria-label="${t('taskList.optionsNamed', { title: 'Footer' })}"]`)).toBeNull()
   })
 

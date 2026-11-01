@@ -32,8 +32,13 @@ const props = withDefaults(
     searchable?: boolean
     /** "sm" is 32px tall, to line up with small buttons in a toolbar. */
     size?: 'md' | 'sm'
+    /**
+     * "plain" drops the field's frame: just the value and a chevron, sized as
+     * as the text around it (a page title, a tab bar), lit on hover.
+     */
+    variant?: 'field' | 'plain'
   }>(),
-  { searchable: undefined, size: 'md' },
+  { searchable: undefined, size: 'md', variant: 'field' },
 )
 
 const emit = defineEmits<{
@@ -284,15 +289,25 @@ watch(query, () => {
       :aria-activedescendant="isSearchable ? undefined : activeId"
       :aria-invalid="invalid ? 'true' : undefined"
       :disabled="disabled"
-      class="group flex w-full items-center gap-2 rounded-lg border bg-white pr-2.5 pl-3 text-left text-sm shadow-xs transition-colors focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
-      :class="[
-        size === 'sm' ? 'h-8' : 'py-2',
-        open
-          ? 'border-neutral-900 ring-2 ring-neutral-900/10'
-          : invalid
-            ? 'border-neutral-900'
-            : 'border-neutral-300 hover:border-neutral-400 focus-visible:border-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900/10',
-      ]"
+      class="group flex items-center gap-2 text-left transition-colors focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:text-neutral-400"
+      :class="
+        variant === 'plain'
+          ? [
+              'max-w-full rounded-md focus-visible:ring-2 focus-visible:ring-neutral-900/10',
+              // in a toolbar, as tall and as small as the other filters; else the size of the text around it
+              size === 'sm' ? 'h-8 px-2 text-sm' : 'px-1.5',
+              open ? 'bg-neutral-100' : 'hover:bg-neutral-100',
+            ]
+          : [
+              'w-full rounded-lg border bg-white pr-2.5 pl-3 text-sm shadow-xs disabled:bg-neutral-50',
+              size === 'sm' ? 'h-8' : 'py-2',
+              open
+                ? 'border-neutral-900 ring-2 ring-neutral-900/10'
+                : invalid
+                  ? 'border-neutral-900'
+                  : 'border-neutral-300 hover:border-neutral-400 focus-visible:border-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900/10',
+            ]
+      "
       @click="toggle"
       @keydown="onKeydown"
     >
@@ -304,7 +319,11 @@ watch(query, () => {
       >
         <slot name="icon" />
       </span>
-      <span class="min-w-0 flex-1 truncate" :class="showingPlaceholder && placeholder ? 'text-neutral-400' : 'text-neutral-900'">
+      <!-- a plain one hugs its value, the chevron right after it -->
+      <span
+        class="min-w-0 truncate"
+        :class="[variant === 'plain' ? '' : 'flex-1', showingPlaceholder && placeholder ? 'text-neutral-400' : variant === 'plain' ? 'text-inherit' : 'text-neutral-900']"
+      >
         {{ displayLabel }}
       </span>
       <svg

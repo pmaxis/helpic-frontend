@@ -7,7 +7,8 @@
  * freelancer, or the project's author, manages the columns: reorders them by
  * dragging the header, renames them by clicking the name, and adds, edits and
  * removes them from the header menu. Anyone else only moves cards. A card's
- * pencil button edits the task and its bin deletes it, for whoever may.
+ * pencil button edits the task, its tray puts it off into the backlog (a
+ * page of its own) and its bin deletes it, for whoever may.
  */
 import { computed, ref } from 'vue'
 import BoardScroller from '@/components/board/BoardScroller.vue'
@@ -53,6 +54,18 @@ function onTaskSaved(t: Task) {
 }
 
 const tasks = useTasksStore()
+
+/** Puts a card off into the backlog: it leaves the board, keeping its status. */
+async function toBacklog(t: Task) {
+  try {
+    await tasks.setBacklog(t.id, true)
+    board.removeTask(t.id)
+    toast.success(tr('backlog.movedToBacklog'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('backlog.failed'))
+  }
+}
+
 /** The task being deleted from its card's bin, while it's asked about. */
 const deletingTask = ref<Task | null>(null)
 const deleteBusy = ref(false)
@@ -297,6 +310,7 @@ async function remove() {
                     @dragstart="onDragStart($event, t)"
                     @dragend="onDragEnd"
                     @edit="editingTask = t"
+                    @backlog="toBacklog(t)"
                     @delete="deletingTask = t"
                   />
                 </template>

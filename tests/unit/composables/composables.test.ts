@@ -77,8 +77,16 @@ describe('useViewMode', () => {
     expect((await withSetup(() => useTaskView(), '/tasks?view=board')).result.value).toBe('board')
     expect((await withSetup(() => useTaskView())).result.value).toBe('board')
     localStorage.clear()
-    expect((await withSetup(() => useTaskView())).result.value).toBe('list')
-    expect((await withSetup(() => useTaskView(), '/tasks?view=nonsense')).result.value).toBe('list')
+    expect((await withSetup(() => useTaskView())).result.value).toBe('board')
+    expect((await withSetup(() => useTaskView(), '/tasks?view=nonsense')).result.value).toBe('board')
+  })
+
+  it('opens on the default, and remembers nothing, when told not to', async () => {
+    localStorage.setItem('helpic:task-view', 'list')
+    const { result: view } = await withSetup(() => useTaskView(false))
+    expect(view.value).toBe('board')
+    expect((await withSetup(() => useTaskView(false), '/projects/p?view=list')).result.value).toBe('list')
+    expect(localStorage.getItem('helpic:task-view')).toBe('list')
   })
 
   it('puts a change in the URL and remembers it', async () => {

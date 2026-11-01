@@ -2,8 +2,10 @@
 /**
  * A task on the board: its parent when it's a subtask, its title, project and
  * labels, priority, how many subtasks are done, due date and people. The whole card opens the task and drags it (the board listens for
- * the drag); a pencil button edits it and a bin deletes it, for whoever may.
+ * the drag); a pencil button edits it, a tray button puts it off into the
+ * backlog and a bin deletes it, for whoever may.
  */
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
@@ -12,13 +14,17 @@ import SubtaskCount from '@/components/tasks/SubtaskCount.vue'
 import { formatDate, isOverdue } from '@/utils/format'
 import type { Task } from '@/types/tasks'
 
-defineProps<{
+const props = defineProps<{
   task: Task
   hideProject: boolean
   /** This card is the one being dragged. */
   dragging: boolean
 }>()
-const emit = defineEmits<{ edit: []; delete: [] }>()
+const emit = defineEmits<{ edit: []; backlog: []; delete: [] }>()
+
+/** How many buttons sit over the card's top right corner, so the text keeps clear of them. */
+const buttons = computed(() => [props.task.can_edit, props.task.can_backlog, props.task.can_delete].filter(Boolean).length)
+const clear = computed(() => ['', 'pr-6', 'pr-12', 'pr-[4.5rem]'][buttons.value])
 
 /** Labels shown on a card; the rest fold into a "+N" chip. */
 const CARD_LABELS = 2
@@ -43,11 +49,11 @@ function open(t: Task) {
     :class="[dragging ? 'opacity-40' : '', 'ring-1 ring-neutral-200']"
   >
     <RouterLink :to="{ name: 'task-detail', params: { id: task.id } }" class="block p-3" draggable="false">
-      <p v-if="task.parent" class="mb-0.5 truncate text-[11px] text-neutral-400" :class="task.can_edit || task.can_delete ? 'pr-12' : ''" :title="$t('subtasks.of', { title: task.parent.title })">
+      <p v-if="task.parent" class="mb-0.5 truncate text-[11px] text-neutral-400" :class="clear" :title="$t('subtasks.of', { title: task.parent.title })">
         ↳ {{ task.parent.title }}
       </p>
       <!-- two lines at most; the whole title is on hover and on the task's page -->
-      <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="task.can_edit && task.can_delete ? 'pr-12' : task.can_edit || task.can_delete ? 'pr-6' : ''" :title="task.title">
+      <p class="line-clamp-2 text-sm font-medium break-words text-neutral-900" :class="clear" :title="task.title">
         {{ task.title }}
       </p>
       <!-- the project first, then the labels -->
@@ -87,7 +93,7 @@ function open(t: Task) {
     </RouterLink>
     <!-- shown on hover, or always where there's no hover -->
     <div
-      v-if="task.can_edit || task.can_delete"
+      v-if="buttons"
       class="absolute top-2 right-2 flex gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
     >
       <button
@@ -102,6 +108,21 @@ function open(t: Task) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+      </button>
+      <button
+        v-if="task.can_backlog"
+        type="button"
+        draggable="false"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-white text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
+        :aria-label="$t('backlog.toBacklogNamed', { title: task.title })"
+        :title="$t('backlog.toBacklog')"
+        data-to-backlog
+        @click="emit('backlog')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+          <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+          <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
         </svg>
       </button>
       <button

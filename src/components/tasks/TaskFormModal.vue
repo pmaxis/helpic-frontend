@@ -33,6 +33,8 @@ const props = defineProps<{
   statusId?: string
   /** That column's name, shown in the title. */
   columnName?: string
+  /** Create the task in its board's backlog, off the columns. */
+  backlog?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -192,6 +194,7 @@ function submit() {
       if (priority !== props.task.priority) task = await tasks.setPriority(task.id, priority)
     } else {
       const create: TaskInput = { ...input, status_id: props.statusId, priority }
+      if (props.backlog) create.backlog = true
       if (showPrice.value && data.price) create.price = data.price
       if (data.project_id) {
         create.project_id = data.project_id
@@ -207,7 +210,7 @@ function submit() {
 
 <template>
   <Modal
-    :title="isEdit ? $t('taskForm.edit') : columnName ? $t('taskForm.newIn', { column: columnName }) : $t('taskForm.new')"
+    :title="isEdit ? $t('taskForm.edit') : backlog ? $t('taskForm.newInBacklog') : columnName ? $t('taskForm.newIn', { column: columnName }) : $t('taskForm.new')"
     size="lg"
     @close="emit('close')"
   >

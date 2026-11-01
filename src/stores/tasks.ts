@@ -5,14 +5,18 @@ import type { Task, TaskBilling, TaskInput, TaskPriority, TaskStatus } from '@/t
 interface TasksState {
   tasks: Task[]
   isLoading: boolean
+  /** How many tasks wait in the backlog of `backlogProject` ('' = every one); null until counted. */
+  backlogCount: number | null
+  backlogProject: string
 }
 
 /** Tasks a client sets for a freelancer — both sides use the same endpoints. */
 export const useTasksStore = defineStore('tasks', {
-  state: (): TasksState => ({ tasks: [], isLoading: false }),
+  state: (): TasksState => ({ tasks: [], isLoading: false, backlogCount: null, backlogProject: '' }),
 
   actions: {
-    async fetchTasks(params: { statuses?: TaskStatus[]; with?: string; project?: string } = {}): Promise<void> {
+    /** Loads the user's tasks; `backlog` keeps only the ones waiting in a backlog, the most urgent first. */
+    async fetchTasks(params: { statuses?: TaskStatus[]; with?: string; project?: string; backlog?: boolean } = {}): Promise<void> {
       this.isLoading = true
       try {
         const { data } = await http.get<{ tasks: Task[] }>('/tasks', {
@@ -20,6 +24,7 @@ export const useTasksStore = defineStore('tasks', {
             status: params.statuses?.length ? params.statuses.join(',') : undefined,
             with: params.with || undefined,
             project: params.project || undefined,
+            backlog: params.backlog ? 1 : undefined,
           },
         })
         this.tasks = data.tasks ?? []
@@ -67,6 +72,31 @@ export const useTasksStore = defineStore('tasks', {
       const { data } = await http.put<{ task: Task }>(`/tasks/${id}/priority`, { priority })
       this.replace(data.task)
       return data.task
+    },
+
+    /** Puts the task into its board's backlog, or back on the board in its status's column. */
+    async setBacklog(id: string, inBacklog: boolean): Promise<Task> {
+      const { data } = await http.put<{ task: Task }>(`/tasks/${id}/backlog`, { in_backlog: inBacklog })
+      this.replace(data.task)
+      void this.countBacklog()
+      return data.task
+    },
+
+    /**
+     * Counts the tasks waiting in a project's backlog (every project's with
+     * ''), for the backlog button's badge; without a project it recounts the
+     * last one. A failed count leaves the badge as it was.
+     */
+    async countBacklog(project?: string): Promise<void> {
+      if (project !== undefined) this.backlogProject = project
+      const asked = this.backlogProject
+      try {
+        const { data } = await http.get<{ tasks: Task[] }>('/tasks', { params: { backlog: 1, project: asked || undefined } })
+        // a later count for another project wins
+        if (asked === this.backlogProject) this.backlogCount = (data.tasks ?? []).length
+      } catch {
+        // the badge just isn't updated
+      }
     },
 
     /** Replaces the task's labels with these, from its board. */

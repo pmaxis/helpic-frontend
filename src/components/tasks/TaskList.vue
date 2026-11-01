@@ -43,6 +43,9 @@ function onSaved(t: Task) {
 function actions(t: Task): MenuAction[] {
   const out: MenuAction[] = []
   if (t.can_edit) out.push({ label: tr('taskList.edit'), onSelect: () => (editing.value = t) })
+  if (t.can_backlog) {
+    out.push({ label: tr(t.in_backlog ? 'backlog.toBoard' : 'backlog.toBacklog'), onSelect: () => void toggleBacklog(t) })
+  }
   if (t.can_delete) out.push({ label: tr('task.delete'), danger: true, onSelect: () => (deleting.value = t) })
   return out
 }
@@ -51,6 +54,16 @@ const tasksStore = useTasksStore()
 /** The task being deleted from its row's menu, while it's asked about. */
 const deleting = ref<Task | null>(null)
 const deleteBusy = ref(false)
+
+/** Puts the task into its board's backlog or back on the board; the tasks store keeps the new version. */
+async function toggleBacklog(t: Task) {
+  try {
+    const next = await tasksStore.setBacklog(t.id, !t.in_backlog)
+    toast.success(tr(next.in_backlog ? 'backlog.movedToBacklog' : 'backlog.movedToBoard'))
+  } catch (error) {
+    toast.error(error instanceof ApiRequestError ? error.message : tr('backlog.failed'))
+  }
+}
 
 /** The tasks store drops it, and with it the row. */
 async function remove() {

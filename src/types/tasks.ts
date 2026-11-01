@@ -69,6 +69,10 @@ export interface Task {
   can_archive: boolean
   /** May turn the task's public link on or off: its creator or its freelancer. */
   can_share: boolean
+  /** Waits in its board's backlog: it keeps its status, but sits off the columns. */
+  in_backlog: boolean
+  /** May move between the backlog and the columns: while it's open and not archived. */
+  can_backlog: boolean
   created_at: string
   updated_at: string
   /** Set once the task is archived: off the boards, and nothing on it changes. */
@@ -96,6 +100,8 @@ export interface TaskInput {
   project_id?: string
   /** Create the task straight in this board column. */
   status_id?: string
+  /** Create the task in its board's backlog; without status_id, in the first to-do column's status. */
+  backlog?: boolean
   /** Create it as a subtask of this task: with its client, in its project, by default for its freelancer. */
   parent_id?: string
   title: string

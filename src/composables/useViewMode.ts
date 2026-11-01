@@ -4,13 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 /**
  * A page's view choice (list / board, cards / list…). It lives in the URL
  * (?view=…) and is remembered per browser under `key`, so the last choice
- * opens next time.
+ * opens next time — unless `remember` is off: then the page always opens on
+ * `fallback`, whatever was picked elsewhere, and only the URL can say otherwise.
  */
-export function useViewMode<T extends string>(key: string, values: readonly T[], fallback: T): Ref<T> {
+export function useViewMode<T extends string>(key: string, values: readonly T[], fallback: T, remember = true): Ref<T> {
   const route = useRoute()
   const router = useRouter()
 
   function remembered(): T {
+    if (!remember) return fallback
     try {
       const v = localStorage.getItem(key)
       return values.includes(v as T) ? (v as T) : fallback
@@ -26,7 +28,7 @@ export function useViewMode<T extends string>(key: string, values: readonly T[],
     view,
     (v) => {
       try {
-        localStorage.setItem(key, v)
+        if (remember) localStorage.setItem(key, v)
       } catch {
         // storage may be unavailable (private mode); the URL still carries it
       }

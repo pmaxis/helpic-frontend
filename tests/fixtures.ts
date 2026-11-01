@@ -42,6 +42,8 @@ export function makeTask(over: Partial<Task> = {}): Task {
     billed: false,
     can_archive: false,
     can_share: false,
+    in_backlog: false,
+    can_backlog: true,
     created_at: '2030-01-10T09:00:00Z',
     updated_at: '2030-01-10T09:00:00Z',
     archived_at: null,

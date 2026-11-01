@@ -113,6 +113,8 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       return { key: 'history.shared', values: {} }
     case 'unshared':
       return { key: 'history.unshared', values: {} }
+    case 'backlog':
+      return { key: e.data.in_backlog ? 'history.toBacklog' : 'history.toBoard', values: {} }
     default:
       return { key: 'history.other', values: {} }
   }

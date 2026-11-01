@@ -233,4 +233,21 @@ describe('KanbanBoard', () => {
     await click($$('[role="dialog"] button').find((b) => b.textContent?.trim() === t('common.save'))!)
     expect(titles(0)).toEqual(['Alpha 2', 'Beta'])
   })
+
+  it('puts a card off into the backlog from its tray button, and says when it can’t', async () => {
+    const board = seed()
+    board.columns[1].tasks[0] = makeTask({ id: 'c', title: 'Gamma', status_id: 'doing', status: 'done', can_backlog: false }) as Task
+    const server = api({ 'PUT /tasks/a/backlog': { task: makeTask({ id: 'a', in_backlog: true }) } })
+    await render(KanbanBoard, { user: me })
+    expect(card('c').querySelector('[data-to-backlog]')).toBeNull()
+    await click(button(t('backlog.toBacklogNamed', { title: 'Alpha' })))
+    expect(server.to('PUT /tasks/a/backlog')[0].body).toEqual({ in_backlog: true })
+    expect(titles(0)).toEqual(['Beta'])
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('backlog.movedToBacklog'))
+
+    server.reply('PUT /tasks/b/backlog', status(409, { error: { code: 'X', message: 'Done already' } }))
+    await click(button(t('backlog.toBacklogNamed', { title: 'Beta' })))
+    expect(titles(0)).toEqual(['Beta'])
+    expect(useToasts().toasts.at(-1)?.message).toBe('Done already')
+  })
 })

@@ -70,4 +70,22 @@ describe('tasks store', () => {
     tasks.replace(makeTask({ id: 'elsewhere' }))
     expect(tasks.tasks.map((t) => t.id)).toEqual(['a', 'b'])
   })
+
+  it('counts a project’s backlog, and counts again when a task moves in or out', async () => {
+    const store = useTasksStore()
+    const get = vi.spyOn(http, 'get').mockResolvedValue({ data: { tasks: [makeTask({ id: 'a' }), makeTask({ id: 'b' })] } })
+    await store.countBacklog('p-1')
+    expect(get).toHaveBeenCalledWith('/tasks', { params: { backlog: 1, project: 'p-1' } })
+    expect(store.backlogCount).toBe(2)
+
+    vi.spyOn(http, 'put').mockResolvedValue({ data: { task: makeTask({ id: 'a', in_backlog: false }) } })
+    get.mockResolvedValue({ data: { tasks: [makeTask({ id: 'b' })] } })
+    await store.setBacklog('a', false)
+    await vi.waitFor(() => expect(store.backlogCount).toBe(1))
+    expect(get).toHaveBeenLastCalledWith('/tasks', { params: { backlog: 1, project: 'p-1' } })
+
+    get.mockRejectedValue(new Error('down'))
+    await store.countBacklog()
+    expect(store.backlogCount).toBe(1)
+  })
 })

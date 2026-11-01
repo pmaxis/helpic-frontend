@@ -40,16 +40,19 @@ describe('KanbanCard', () => {
     expect(parent.text()).not.toContain('↳')
   })
 
-  it('has a pencil for whoever may edit, and a bin for whoever may delete', async () => {
+  it('has a pencil for whoever may edit, a tray while it may wait in the backlog, and a bin for whoever may delete', async () => {
     const view = await render(KanbanCard, { props: { task: makeTask({ title: 'Logo' }), hideProject: false, dragging: false }, user: makeUser() })
     await view.get(`[aria-label="${t('board.editTaskNamed', { title: 'Logo' })}"]`).trigger('click')
     expect(view.emitted('edit')).toHaveLength(1)
     await view.get(`[aria-label="${t('board.deleteTaskNamed', { title: 'Logo' })}"]`).trigger('click')
     expect(view.emitted('delete')).toHaveLength(1)
-    const editOnly = await render(KanbanCard, { props: { task: makeTask({ title: 'Logo', can_delete: false }), hideProject: false, dragging: false }, user: makeUser() })
+    await view.get(`[aria-label="${t('backlog.toBacklogNamed', { title: 'Logo' })}"]`).trigger('click')
+    expect(view.emitted('backlog')).toHaveLength(1)
+    expect(view.get('p[title="Logo"]').classes()).toContain('pr-[4.5rem]')
+    const editOnly = await render(KanbanCard, { props: { task: makeTask({ title: 'Logo', can_delete: false, can_backlog: false }), hideProject: false, dragging: false }, user: makeUser() })
     expect(editOnly.findAll('button')).toHaveLength(1)
     expect(editOnly.find(`[aria-label="${t('board.deleteTaskNamed', { title: 'Logo' })}"]`).exists()).toBe(false)
-    const readOnly = await render(KanbanCard, { props: { task: makeTask({ can_edit: false, can_delete: false }), hideProject: false, dragging: false }, user: makeUser() })
+    const readOnly = await render(KanbanCard, { props: { task: makeTask({ can_edit: false, can_delete: false, can_backlog: false }), hideProject: false, dragging: false }, user: makeUser() })
     expect(readOnly.find('button').exists()).toBe(false)
   })
 })

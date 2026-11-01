@@ -2,19 +2,18 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
-import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BoardIllustration from '@/components/illustrations/BoardIllustration.vue'
 import FilterIllustration from '@/components/illustrations/FilterIllustration.vue'
 import PeopleIllustration from '@/components/illustrations/PeopleIllustration.vue'
 import TaskIllustration from '@/components/illustrations/TaskIllustration.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import SelectInput from '@/components/ui/SelectInput.vue'
 import MultiSelectInput from '@/components/ui/MultiSelectInput.vue'
+import SelectInput from '@/components/ui/SelectInput.vue'
 import TaskList from '@/components/tasks/TaskList.vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import KanbanBoard from '@/components/board/KanbanBoard.vue'
-import ViewToggle from '@/components/ui/ViewToggle.vue'
+import TasksHeader, { type TasksTab } from '@/components/tasks/TasksHeader.vue'
 import { useBoardStore } from '@/stores/board'
 import { useTaskView } from '@/composables/useTaskView'
 import { useStatusFilter } from '@/composables/useStatusFilter'
@@ -53,11 +52,16 @@ const projects = useProjectsStore()
 /** The one project whose tasks and columns are on screen. */
 const projectId = ref('')
 const statuses = useStatusFilter(projectId)
-const shown = computed(() => statuses.visible(tasks.tasks))
+/** The list, like the board, leaves out what waits in the backlog (a page of its own). */
+const shown = computed(() => statuses.visible(tasks.tasks.filter((x) => !x.in_backlog)))
 /** The list has loaded and has nothing to show. */
 const listEmpty = computed(() => view.value === 'list' && !tasks.isLoading && !shown.value.length)
 
 const projectOptions = computed(() => projects.projects.map((p) => ({ value: p.id, label: p.name })))
+
+function pickView(v: TasksTab) {
+  view.value = v
+}
 
 /** Keeps the open board on a project that still exists. */
 function pickProject() {
@@ -89,6 +93,14 @@ async function load() {
 }
 
 watch([view, projectId], () => void load())
+// the backlog button's badge counts the project in view
+watch(
+  projectId,
+  (id) => {
+    if (id) void tasks.countBacklog(id)
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   try {
@@ -102,10 +114,12 @@ onMounted(async () => {
   } catch {
     // The new-task list just stays empty.
   }
-  if (route.query.with) {
-    void router.replace({ query: { ...route.query, with: undefined } })
-  }
   const before = projectId.value
+  // The backlog links back here for the project it showed.
+  if (typeof route.query.project === 'string') projectId.value = route.query.project
+  if (route.query.with || route.query.project) {
+    void router.replace({ query: { ...route.query, with: undefined, project: undefined } })
+  }
   pickProject()
   // Picking the first project reloads through the watch. Otherwise load once.
   if (projectId.value === before) void load()
@@ -123,9 +137,25 @@ function onSaved(task: Task) {
 <template>
   <!-- the board fills the page, and so does an empty list, so its empty state sits in the middle -->
   <DashboardLayout :fill="view === 'board' || listEmpty">
-    <PageHeader :title="$t('tasks.title')">
-      <template #actions>
-        <!-- the filters, then the view and the new task -->
+    <TasksHeader
+      :backlog-count="tasks.backlogCount"
+      :active="view"
+      :backlog-to="{ name: 'backlog', query: { project: projectId || undefined } }"
+      @update:active="pickView"
+      @new-task="startTask()"
+    >
+      <template v-if="projectOptions.length || view === 'list'" #filters>
+        <!-- the project, then in the list its statuses: quiet filters like the tabs beside them -->
+        <SelectInput
+          v-if="projectOptions.length"
+          v-model="projectId"
+          :options="projectOptions"
+          :aria-label="$t('tasks.projects')"
+          size="sm"
+          variant="plain"
+          class="max-w-56 min-w-0 text-neutral-500"
+          data-project-picker
+        />
         <MultiSelectInput
           v-if="view === 'list'"
           v-model="statuses.selected"
@@ -134,20 +164,11 @@ function onSaved(task: Task) {
           :options="statuses.options"
           hide-label
           size="sm"
-          class="w-48 shrink-0"
+          variant="plain"
+          class="text-neutral-500"
         />
-        <SelectInput
-          v-if="projects.projects.length"
-          v-model="projectId"
-          :options="projectOptions"
-          :aria-label="$t('tasks.projects')"
-          size="sm"
-          class="w-48"
-        />
-        <ViewToggle v-model="view" />
-        <BaseButton size="sm" :block="false" @click="startTask()">{{ $t('tasks.newTask') }}</BaseButton>
       </template>
-    </PageHeader>
+    </TasksHeader>
 
     <p v-if="loadError" class="mt-6 text-sm text-red-600">{{ loadError }}</p>
 

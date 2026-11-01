@@ -26,6 +26,8 @@ const props = defineProps<{
   size?: 'md' | 'sm'
   /** Picked values that stay picked. */
   locked?: string[]
+  /** "plain" drops the field's frame, for a tab bar: the value and a chevron, lit on hover. */
+  variant?: 'field' | 'plain'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>()
@@ -69,7 +71,10 @@ function position() {
   const rect = trigger.value?.getBoundingClientRect()
   if (!rect) return
   const below = window.innerHeight - rect.bottom
-  const base = { left: `${rect.left}px`, width: `${rect.width}px` }
+  // at least 12rem wide, and kept inside the window for a trigger at its right edge
+  const width = Math.max(rect.width, 192)
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
+  const base = { left: `${left}px`, width: `${width}px` }
   panelStyle.value =
     below < 260 && rect.top > below
       ? { ...base, bottom: `${window.innerHeight - rect.top + 4}px` }
@@ -124,19 +129,24 @@ onBeforeUnmount(stopListening)
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? errorId : undefined"
       :disabled="disabled"
-      class="group flex w-full items-center gap-2 rounded-lg border bg-white pr-2.5 pl-3 text-left text-sm shadow-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
+      class="group flex items-center gap-2 text-left text-sm transition-colors focus:outline-none disabled:cursor-not-allowed disabled:text-neutral-400"
       :class="[
         hideLabel ? '' : 'mt-1.5',
         size === 'sm' ? 'h-8' : 'py-2',
-        open
-          ? 'border-neutral-900 ring-2 ring-neutral-900/10'
-          : error
-            ? 'border-neutral-900'
-            : 'border-neutral-300 hover:border-neutral-400 focus-visible:border-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900/10',
+        variant === 'plain'
+          ? ['max-w-full rounded-md px-2 focus-visible:ring-2 focus-visible:ring-neutral-900/10', open ? 'bg-neutral-100' : 'hover:bg-neutral-100']
+          : [
+              'w-full rounded-lg border bg-white pr-2.5 pl-3 shadow-xs disabled:bg-neutral-50',
+              open
+                ? 'border-neutral-900 ring-2 ring-neutral-900/10'
+                : error
+                  ? 'border-neutral-900'
+                  : 'border-neutral-300 hover:border-neutral-400 focus-visible:border-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900/10',
+            ],
       ]"
       @click="open ? (open = false) : show()"
     >
-      <span class="min-w-0 flex-1 truncate" :class="display ? 'text-neutral-900' : 'text-neutral-500'">{{ display || placeholder }}</span>
+      <span class="min-w-0 truncate" :class="[variant === 'plain' ? '' : 'flex-1', display ? 'text-neutral-900' : 'text-neutral-500']">{{ display || placeholder }}</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-neutral-400 transition-transform" :class="open ? 'rotate-180' : ''" aria-hidden="true">
         <polyline points="6 9 12 15 18 9" />
       </svg>

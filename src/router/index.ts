@@ -84,6 +84,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/backlog',
+    name: 'backlog',
+    component: () => import('@/views/BacklogView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/tasks/:id',
     name: 'task-detail',
     component: () => import('@/views/TaskDetailView.vue'),
@@ -99,6 +105,13 @@ export const routes: RouteRecordRaw[] = [
     path: '/projects/:id/settings',
     name: 'project-settings',
     component: () => import('@/views/ProjectSettingsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    // the project's own backlog, on its own page: the project's head, its backlog button pressed
+    path: '/projects/:id/backlog',
+    name: 'project-backlog',
+    component: () => import('@/views/ProjectDetailView.vue'),
     meta: { requiresAuth: true },
   },
   {

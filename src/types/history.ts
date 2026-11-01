@@ -18,6 +18,7 @@ export type TaskEventKind =
   | 'subtask_removed'
   | 'shared'
   | 'unshared'
+  | 'backlog'
 
 /** One change in a task's history. */
 export interface TaskEvent {
@@ -45,6 +46,8 @@ export interface TaskEvent {
     /** Label names, on a "labels" event. */
     added?: string[]
     removed?: string[]
+    /** On a "backlog" event: put into the backlog (true) or back on the board (false). */
+    in_backlog?: boolean
   }
   created_at: string
 }

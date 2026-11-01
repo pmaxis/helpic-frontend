@@ -4,7 +4,7 @@ import TasksView from '@/views/TasksView.vue'
 import TaskDetailView from '@/views/TaskDetailView.vue'
 import { t } from '@/i18n'
 import { api, render, status, type Reply } from '../../helpers'
-import { $$, button, choose, click, field, type } from '../../dom'
+import { $, $$, button, choose, click, field, type } from '../../dom'
 import { makeColumn, makeLink, makeProject, makeTask, makeUser } from '../../fixtures'
 
 const COLUMNS = [makeColumn({ id: 'c-new', name: 'New', category: 'new' }), makeColumn({ id: 'c-done', name: 'Done', category: 'done' })]
@@ -25,7 +25,7 @@ function serve(extra: Record<string, Reply> = {}) {
 describe('TasksView', () => {
   it('lists the first project’s tasks, filtered by status', async () => {
     const server = serve()
-    const page = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     expect(server.to('GET /tasks')[0].params).toMatchObject({ project: 'p-1' })
     expect(page.text()).toContain('Alpha')
     expect(page.text()).toContain('Beta')
@@ -35,18 +35,47 @@ describe('TasksView', () => {
     expect(page.text()).not.toContain('Alpha')
   })
 
+  it('leaves what waits in the backlog out of the list', async () => {
+    serve({ 'GET /tasks': { tasks: [makeTask({ id: 'a', title: 'Alpha' }), makeTask({ id: 'w', title: 'Waiting', in_backlog: true })] } })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
+    expect(page.text()).toContain('Alpha')
+    expect(page.text()).not.toContain('Waiting')
+  })
+
   it('opens the bucket the dashboard links to, dropping it from the URL', async () => {
     serve()
-    const page = await render(TasksView, { path: '/tasks?status=done&with=u-client', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list&status=done&with=u-client', user: makeUser() })
     expect(page.text()).not.toContain('Alpha')
     expect(page.text()).toContain('Beta')
     await vi.waitFor(() => expect(page.router.currentRoute.value.query.status).toBeUndefined())
     expect(page.router.currentRoute.value.query.with).toBeUndefined()
   })
 
+  it('has list and board as views, and the backlog behind its own button, for the project in view', async () => {
+    serve()
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
+    expect($$('nav [data-view]').map((e) => e.textContent?.trim())).toEqual([t('ui.views.board'), t('ui.views.list')])
+    // the project and the statuses are filters at the end of the tab row, not in the title
+    expect($('[data-filters] [data-project-picker]')).not.toBeNull()
+    expect($('[data-filters]')!.textContent).toContain(t('tasks.allStatuses'))
+    expect($('h1')!.textContent?.trim()).toBe(t('tasks.title'))
+    await choose(t('tasks.projects'), 'Shop')
+    await click($('[data-backlog-button]')!)
+    await vi.waitFor(() => expect(page.router.currentRoute.value.fullPath).toBe('/backlog?project=p-2'))
+  })
+
+  it('opens the project the backlog links back with, dropping it from the URL', async () => {
+    const server = serve()
+    const page = await render(TasksView, { path: '/tasks?view=board&project=p-2', user: makeUser() })
+    await flushPromises()
+    expect(server.to('GET /board').at(-1)?.params).toMatchObject({ project: 'p-2' })
+    expect(server.to('GET /board')).toHaveLength(1)
+    await vi.waitFor(() => expect(page.router.currentRoute.value.query.project).toBeUndefined())
+  })
+
   it('switches to the board of the picked project', async () => {
     const server = serve()
-    const page = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     await click(button(t('ui.views.board')))
     await flushPromises()
     expect(server.to('GET /board')[0].params).toMatchObject({ project: 'p-1' })
@@ -58,7 +87,7 @@ describe('TasksView', () => {
 
   it('creates a task and opens it from the list, or adds it to the board', async () => {
     const server = serve({ 'POST /tasks': { task: makeTask({ id: 'new' }) } })
-    const page = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     await click(button(t('tasks.newTask')))
     await type(field(t('task.titleLabel')), 'New one')
     await click(button(t('taskForm.create')))
@@ -78,26 +107,26 @@ describe('TasksView', () => {
 
   it('says when the tasks can’t load, and when a filter matches nothing', async () => {
     serve({ 'GET /tasks': status(500) })
-    const page = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     expect(page.text()).toContain(t('tasks.loadFailed'))
 
     document.body.innerHTML = ''
     serve({ 'GET /tasks': { tasks: [] } })
-    const empty = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const empty = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     // a freelancer with clients but no tasks yet
     expect(empty.text()).toContain(t('tasks.noneYetFreelancer'))
   })
 
   it('suggests inviting a client to a freelancer without any', async () => {
     serve({ 'GET /tasks': { tasks: [] }, 'GET /clients': { clients: [] } })
-    const page = await render(TasksView, { path: '/tasks', user: makeUser() })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser() })
     expect(page.text()).toContain(t('tasks.noneYetPersonal'))
     expect(page.find('a[href="/clients"]').exists()).toBe(true)
   })
 
   it('tells a client without freelancers how to get one', async () => {
     serve({ 'GET /freelancers': { freelancers: [] }, 'GET /tasks': { tasks: [] } })
-    const page = await render(TasksView, { path: '/tasks', user: makeUser({ role: 'client' }) })
+    const page = await render(TasksView, { path: '/tasks?view=list', user: makeUser({ role: 'client' }) })
     expect(page.text()).toContain(t('tasks.noFreelancersTitle'))
     await click(button(t('ui.views.board')))
     expect(page.text()).toContain(t('tasks.noFreelancersBoard'))

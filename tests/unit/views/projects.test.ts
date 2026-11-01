@@ -110,7 +110,7 @@ describe('ProjectDetailView', () => {
 
   it('shows the project, its people and tasks, and switches to its board', async () => {
     const server = serve()
-    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(page.text()).toContain('Landing')
     expect(page.text()).toContain('Marketing site')
     expect(page.text()).toContain('Alpha')
@@ -119,9 +119,69 @@ describe('ProjectDetailView', () => {
     expect(server.to('GET /board')[0].params).toMatchObject({ project: 'p-1' })
   })
 
+  it('opens on its board, Board the first tab, whatever view the tasks page was left on', async () => {
+    localStorage.setItem('helpic:task-view', 'list')
+    const server = serve()
+    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    expect(server.to('GET /board')[0].params).toMatchObject({ project: 'p-1' })
+    // no task list: only the backlog button's count asks for tasks
+    expect(server.to('GET /tasks').map((c) => c.params)).toEqual([{ backlog: 1, project: 'p-1' }])
+    expect($$('nav [data-view]').map((e) => e.textContent?.trim())).toEqual([t('ui.views.board'), t('ui.views.list')])
+    expect($('[data-view][aria-current="page"]')!.textContent?.trim()).toBe(t('ui.views.board'))
+    // switching to the list leaves the tasks page's choice alone
+    await click(button(t('ui.views.list')))
+    expect(page.router.currentRoute.value.query.view).toBe('list')
+    expect(localStorage.getItem('helpic:task-view')).toBe('list')
+    localStorage.setItem('helpic:task-view', 'board')
+    await click(button(t('ui.views.list')))
+    expect(localStorage.getItem('helpic:task-view')).toBe('board')
+  })
+
+  it('leaves what waits in the backlog out of its list', async () => {
+    serve({ 'GET /tasks': { tasks: [makeTask({ id: 'a', title: 'Alpha' }), makeTask({ id: 'w', title: 'Waiting', in_backlog: true })] } })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
+    expect(page.text()).toContain('Alpha')
+    expect(page.text()).not.toContain('Waiting')
+  })
+
+  it('opens its own backlog from its button, not the tasks page’s', async () => {
+    serve()
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
+    expect($('[data-backlog-button]')!.getAttribute('aria-label')).toContain(t('backlog.openFor', { project: 'Landing' }))
+    await click($('[data-backlog-button]')!)
+    await vi.waitFor(() => expect(page.router.currentRoute.value.fullPath).toBe('/projects/p-1/backlog'))
+  })
+
+  it('lists the project’s backlog under its own head, and adds a task straight into it', async () => {
+    const waiting = makeTask({ id: 'w', title: 'Later', in_backlog: true, project: { id: 'p-1', name: 'Landing' } })
+    const server = serve({ 'GET /tasks': { tasks: [waiting] }, 'POST /tasks': { task: { ...waiting, id: 'new' } } })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1/backlog', user: me })
+    expect(server.to('GET /tasks')[0].params).toEqual({ project: 'p-1', backlog: 1 })
+    expect(page.text()).toContain('Later')
+    expect($('h1')!.textContent?.trim()).toBe(t('backlog.open'))
+    expect($(`a[aria-label="${t('backlog.closeProject')}"]`)!.getAttribute('href')).toBe('/projects/p-1')
+    // the backlog isn't a view: no board or list tabs here
+    expect($('[data-view]')).toBeNull()
+
+    await click(button(t('tasks.newTask')))
+    expect($('[role="dialog"]')?.textContent).toContain(t('taskForm.newInBacklog'))
+    await type(field(t('task.titleLabel')), 'Someday')
+    await click(button(t('taskForm.create')))
+    expect(server.to('POST /tasks')[0].body).toMatchObject({ title: 'Someday', backlog: true, project_id: 'p-1' })
+    expect(page.router.currentRoute.value.path).toBe('/projects/p-1/backlog')
+  })
+
+  it('says when the project’s backlog is empty, and its back button leads to the project', async () => {
+    serve({ 'GET /tasks': { tasks: [] } })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1/backlog', user: me })
+    expect(page.text()).toContain(t('backlog.emptyProject'))
+    await click($(`a[aria-label="${t('backlog.closeProject')}"]`)!)
+    await vi.waitFor(() => expect(page.router.currentRoute.value.path).toBe('/projects/p-1'))
+  })
+
   it('sets the freelancer’s own rate here, reloading the tasks', async () => {
     const server = serve({ 'PUT /projects/p-1/rate': { project: { ...project, my_hourly_rate_cents: 5000 } } })
-    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(page.text()).toContain('$40/h')
     await click(button(t('timelog.projectRate')))
     const rate = $(`input[aria-label="${t('timelog.projectRate')}"]`) as HTMLInputElement
@@ -130,12 +190,13 @@ describe('ProjectDetailView', () => {
     await flushPromises()
     expect(server.to('PUT /projects/p-1/rate')[0].body).toEqual({ rate: '50' })
     expect(page.text()).toContain('$50/h')
-    expect(server.to('GET /tasks')).toHaveLength(2)
+    // the list loaded again (the backlog button's count asked once more, besides)
+    expect(server.to('GET /tasks').filter((c) => !(c.params as { backlog?: number }).backlog)).toHaveLength(2)
   })
 
   it('shows a refused rate under its field', async () => {
     serve({ 'PUT /projects/p-1/rate': status(422, { error: { code: 'V', message: 'x', fields: { rate: 'Too high' } } }) })
-    await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     await click(button(t('timelog.projectRate')))
     const rate = $(`input[aria-label="${t('timelog.projectRate')}"]`) as HTMLInputElement
     await type(rate, '9999999')
@@ -146,7 +207,7 @@ describe('ProjectDetailView', () => {
 
   it('adds a task in the project and opens it', async () => {
     const server = serve({ 'POST /tasks': { task: makeTask({ id: 'new' }) } })
-    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     await click(button(t('tasks.newTask')))
     await type(field(t('task.titleLabel')), 'In the project')
     await click(button(t('taskForm.create')))
@@ -156,23 +217,23 @@ describe('ProjectDetailView', () => {
 
   it('says a project that isn’t there can’t be found, or that it couldn’t load', async () => {
     api({ 'GET /projects/p-1': status(404) })
-    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(page.text()).toContain(t('project.notFound'))
 
     document.body.innerHTML = ''
     api({ 'GET /projects/p-1': status(500) })
-    await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(useToasts().toasts.at(-1)?.message).toBe(t('project.loadFailed'))
   })
 
   it('says when there are no tasks, or they can’t load', async () => {
     serve({ 'GET /tasks': { tasks: [] } })
-    const page = await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    const page = await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(page.text()).toContain(t('project.noTasksTitle'))
 
     document.body.innerHTML = ''
     serve({ 'GET /tasks': status(500) })
-    await render(ProjectDetailView, { path: '/projects/p-1', user: me })
+    await render(ProjectDetailView, { path: '/projects/p-1?view=list', user: me })
     expect(useToasts().toasts.at(-1)?.message).toBe(t('project.tasksLoadFailed'))
   })
 })
