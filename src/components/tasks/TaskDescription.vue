@@ -1,7 +1,14 @@
 <script setup lang="ts">
-/** The task's description; whoever may edit the task clicks it to change it in place. */
-import { nextTick, ref } from 'vue'
+/**
+ * The task's description, as formatted text; whoever may edit the task
+ * clicks it to change it in place, in a WYSIWYG editor. It's kept as Markdown.
+ */
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+// The editor is big: it loads apart, as soon as the description may be edited.
+const loadEditor = () => import('@/components/ui/RichTextEditor.vue')
+const RichTextEditor = defineAsyncComponent(loadEditor)
+import { renderRichText } from '@/utils/richText'
 import type { Task, TaskInput } from '@/types/tasks'
 
 const props = defineProps<{
@@ -11,23 +18,27 @@ const props = defineProps<{
   save: (change: Partial<TaskInput>) => Promise<boolean>
 }>()
 
+const MAX_LENGTH = 20000
+
 const editing = ref(false)
 const draft = ref('')
-const input = ref<HTMLTextAreaElement | null>(null)
+const html = computed(() => renderRichText(props.task.description))
+const tooLong = computed(() => draft.value.length > MAX_LENGTH)
 
-async function start() {
+onMounted(() => {
+  if (props.task.can_edit) void loadEditor()
+})
+
+function start() {
   if (!props.task.can_edit || props.saving) return
   draft.value = props.task.description
   editing.value = true
-  await nextTick()
-  const el = input.value
-  el?.focus()
-  el?.setSelectionRange(el.value.length, el.value.length)
 }
 
-/** A click on the description edits it — unless the user was selecting text. */
-function onClick() {
-  if (!window.getSelection()?.toString()) void start()
+/** A click on the description edits it — unless the user was selecting text or following a link. */
+function onClick(e: MouseEvent) {
+  if ((e.target as HTMLElement).closest('a')) return
+  if (!window.getSelection()?.toString()) start()
 }
 
 /**
@@ -39,7 +50,7 @@ function keepFocus(e: MouseEvent) {
 }
 
 async function commit() {
-  if (!editing.value || props.saving) return
+  if (!editing.value || props.saving || tooLong.value) return
   const value = draft.value.trim()
   if (value === props.task.description) {
     editing.value = false
@@ -53,34 +64,36 @@ async function commit() {
   <section aria-labelledby="task-description" class="mt-5 min-w-0">
     <h2 id="task-description" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('task.description') }}</h2>
     <div v-if="editing" class="mt-3">
-      <label for="task-description-input" class="sr-only">{{ $t('task.description') }}</label>
-      <textarea
+      <RichTextEditor
         id="task-description-input"
-        ref="input"
+        autofocus
+        sticky-top="calc(-1 * var(--task-card-padding, 0px))"
         v-model="draft"
-        rows="8"
-        maxlength="20000"
+        :rows="8"
+        :label="$t('task.description')"
         :disabled="saving"
+        :invalid="tooLong"
         :placeholder="$t('task.descriptionPlaceholder')"
-        class="block w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-[15px] leading-7 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 focus:outline-none"
-        @keydown.esc.prevent="editing = false"
-        @keydown.meta.enter.prevent="commit"
-        @keydown.ctrl.enter.prevent="commit"
+        @cancel="editing = false"
+        @submit="commit"
         @blur="commit"
       />
       <div class="mt-2 flex items-center justify-end gap-2">
-        <span class="mr-auto text-xs text-neutral-400">{{ $t('task.ctrlEnterToSave') }}</span>
+        <span class="mr-auto text-xs" :class="tooLong ? 'text-red-600' : 'text-neutral-400'">
+          {{ tooLong ? $t('task.descriptionTooLong', { max: MAX_LENGTH }) : $t('task.ctrlEnterToSave') }}
+        </span>
         <BaseButton variant="ghost" size="sm" :block="false" :disabled="saving" @mousedown="keepFocus" @click="editing = false">{{ $t('common.cancel') }}</BaseButton>
-        <BaseButton size="sm" :block="false" :loading="saving" @mousedown="keepFocus" @click="commit">{{ $t('common.save') }}</BaseButton>
+        <BaseButton size="sm" :block="false" :loading="saving" :disabled="tooLong" @mousedown="keepFocus" @click="commit">{{ $t('common.save') }}</BaseButton>
       </div>
     </div>
     <div
       v-else-if="task.description"
-      class="mt-3 text-[15px] leading-7 whitespace-pre-wrap break-words text-neutral-800"
+      class="rich-text mt-3 text-[15px] leading-7 break-words text-neutral-800"
       :class="task.can_edit ? '-mx-2 cursor-text rounded-lg px-2 transition-colors hover:bg-neutral-50' : ''"
       :title="task.can_edit ? $t('task.clickToEditDescription') : undefined"
-      @click="task.can_edit && onClick()"
-    >{{ task.description }}</div>
+      @click="task.can_edit && onClick($event)"
+      v-html="html"
+    />
     <div v-else class="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-center">
       <p class="text-sm text-neutral-400">{{ $t('task.noDescription') }}</p>
       <button

@@ -360,15 +360,25 @@ describe('TaskDetails', () => {
 
 describe('TaskDescription', () => {
   const props = (over: Partial<Task> = {}, save = vi.fn().mockResolvedValue(true)) => ({ task: makeTask(over), saving: false, save })
+  const BOX = '#task-description-input'
+  type EditorBox = HTMLElement & { editor: { commands: { insertContent: (text: string) => void } } }
 
-  it('offers to add a description, and saves it with ⌘/Ctrl + Enter', async () => {
+  it('offers to add a description, and saves it as Markdown with ⌘/Ctrl + Enter', async () => {
     const p = props()
     const view = await render(TaskDescription, { props: p })
     await click(button(t('task.addDescription')))
-    await type(view.get('textarea').element as HTMLTextAreaElement, ' The hero ')
-    await press('Enter', view.get('textarea').element, { metaKey: true })
+    const box = view.get(BOX).element as EditorBox
+    box.editor.commands.insertContent('<p>The <strong>hero</strong></p>')
+    await press('Enter', box, { metaKey: true })
     await flushPromises()
-    expect(p.save).toHaveBeenCalledWith({ description: 'The hero' })
+    expect(p.save).toHaveBeenCalledWith({ description: 'The **hero**' })
+  })
+
+  it('shows the description formatted', async () => {
+    const view = await render(TaskDescription, { props: props({ description: '## Scope\n\n- **one**\n- two' }) })
+    expect(view.get('.rich-text h2').text()).toBe('Scope')
+    expect(view.findAll('.rich-text li')).toHaveLength(2)
+    expect(view.get('.rich-text strong').text()).toBe('one')
   })
 
   it('edits on a click unless text was being selected, and cancels on Escape', async () => {
@@ -376,21 +386,29 @@ describe('TaskDescription', () => {
     const view = await render(TaskDescription, { props: p })
     vi.spyOn(window, 'getSelection').mockReturnValueOnce({ toString: () => 'Ol' } as Selection)
     await click(view.get('[title]').element)
-    expect(view.find('textarea').exists()).toBe(false)
+    expect(view.find(BOX).exists()).toBe(false)
     await click(view.get('[title]').element)
-    await press('Escape', view.get('textarea').element)
-    expect(view.find('textarea').exists()).toBe(false)
+    await press('Escape', view.get(BOX).element)
+    expect(view.find(BOX).exists()).toBe(false)
     expect(p.save).not.toHaveBeenCalled()
 
     await click(view.get('[title]').element)
-    await press('Enter', view.get('textarea').element, { ctrlKey: true })
+    await press('Enter', view.get(BOX).element, { ctrlKey: true })
     expect(p.save).not.toHaveBeenCalled()
   })
 
-  it('is plain text for whoever may not edit', async () => {
+  it('follows a link in the description instead of editing it', async () => {
+    const view = await render(TaskDescription, { props: props({ description: '[site](https://example.com)' }) })
+    const link = view.get('a[href="https://example.com"]').element
+    link.addEventListener('click', (e) => e.preventDefault())
+    await click(link)
+    expect(view.find(BOX).exists()).toBe(false)
+  })
+
+  it('is read-only for whoever may not edit', async () => {
     const view = await render(TaskDescription, { props: props({ description: 'Read only', can_edit: false }) })
     await click(byTextSafe(view.element, 'Read only'))
-    expect(view.find('textarea').exists()).toBe(false)
+    expect(view.find(BOX).exists()).toBe(false)
     expect(view.text()).not.toContain(t('task.addDescription'))
   })
 })

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { z } from 'zod'
 import Modal from '@/components/ui/Modal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
-import BaseTextarea from '@/components/ui/BaseTextarea.vue'
+import RichTextField from '@/components/ui/RichTextField.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import DateInput from '@/components/ui/DateInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -249,7 +249,7 @@ function submit() {
       </template>
 
       <BaseInput v-bind="form.field('title')" :label="$t('task.titleLabel')" :placeholder="$t('taskForm.titlePlaceholder')" />
-      <BaseTextarea v-bind="form.field('description')" :label="$t('task.description')" :placeholder="$t('task.descriptionPlaceholder')" :rows="6" />
+      <RichTextField v-bind="form.field('description')" :label="$t('task.description')" :placeholder="$t('task.descriptionPlaceholder')" :rows="5" />
       <div class="grid gap-4" :class="showPrice ? 'sm:grid-cols-3' : 'sm:grid-cols-2'">
         <DateInput v-bind="form.field('due_on')" :label="$t('taskForm.dueDate')" :placeholder="$t('taskForm.noDueDate')" />
         <BaseSelect v-bind="form.field('priority')" :label="$t('taskForm.priority')" :options="priorityOptions" />

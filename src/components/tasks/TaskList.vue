@@ -13,6 +13,7 @@ import { useTasksStore } from '@/stores/tasks'
 import { ApiRequestError } from '@/services/api'
 import { toast } from '@/composables/useToasts'
 import { formatDate, isOverdue } from '@/utils/format'
+import { firstLine } from '@/utils/richText'
 import { t as tr } from '@/i18n'
 import type { Task } from '@/types/tasks'
 
@@ -92,9 +93,9 @@ function open(t: Task) {
   return t.status === 'new' || t.status === 'in_progress'
 }
 
-/** First line of the description, as a hint under the title. */
+/** First line of the description, without its formatting, as a hint under the title. */
 function summary(t: Task): string {
-  return t.description.split('\n').find((l) => l.trim())?.trim() ?? ''
+  return firstLine(t.description)
 }
 </script>
 

@@ -205,7 +205,7 @@ function onSaved(t: Task) {
 <template>
   <!-- two cards: the task (title, actions, description) and its details -->
   <div class="grid min-h-0 flex-1 gap-4" :class="task && !detailsHidden ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : ''">
-    <article :class="[card, 'p-5 sm:p-8', notFound ? 'flex flex-col' : '']">
+    <article :class="[card, 'p-(--task-card-padding) [--task-card-padding:--spacing(5)] sm:[--task-card-padding:--spacing(8)]', notFound ? 'flex flex-col' : '']">
       <slot name="nav" :task="task" />
       <EmptyState v-if="notFound" class="mt-6 flex-1 justify-center" :title="$t('task.notFound')" :description="$t('task.notFoundText')">
         <template #illustration>

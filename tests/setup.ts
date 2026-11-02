@@ -21,6 +21,10 @@ window.matchMedia ??= (query: string) =>
 Element.prototype.scrollIntoView ??= () => {}
 Element.prototype.scrollTo ??= () => {}
 
+// …nor measuring a range of text, which the rich text editor does to keep the caret in view.
+Range.prototype.getClientRects ??= () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+Range.prototype.getBoundingClientRect ??= () => new DOMRect()
+
 // …nor reading a Blob as text, which the file viewer does for a text file.
 Blob.prototype.text ??= function (this: Blob) {
   return new Promise<string>((resolve, reject) => {

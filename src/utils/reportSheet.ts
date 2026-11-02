@@ -1,6 +1,7 @@
 import { t } from '@/i18n'
 import { formatDocumentDate, formatDocumentPeriod, formatDuration } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
+import { toPlainText } from '@/utils/richText'
 import type { Party } from '@/types/people'
 import type { Report } from '@/types/reports'
 
@@ -166,7 +167,7 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
         price: it.price_cents !== null ? formatMoney(it.price_cents, r.currency) : '',
         priceInUAH: uah && it.price_in_uah_cents != null ? `(~ ${formatMoney(it.price_in_uah_cents, 'UAH')})` : '',
         time: it.seconds !== null ? formatDuration(it.seconds) : '',
-        notes: r.kind === 'detailed' ? splitBlocks(it.notes) : [],
+        notes: r.kind === 'detailed' ? splitBlocks(toPlainText(it.notes)) : [],
       }
     }),
     footerLeft: `${footerLeft} · Helpic`,
