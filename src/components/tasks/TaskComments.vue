@@ -223,6 +223,7 @@ async function remove() {
               {{ c.pin.attachment_id ? $t('fileReview.onImage') : $t('fileReview.onDeletedImage') }}
             </p>
             <!-- Markdown rendered with HTML of its own off: the text can't add markup. -->
+            <!-- eslint-disable-next-line vue/no-v-html -- markdown-it with html off -->
             <div class="comment-body mt-0.5 text-sm leading-relaxed break-words text-neutral-800" v-html="renderComment(c.body, auth.user?.id)" />
           </template>
         </div>

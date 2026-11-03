@@ -16,7 +16,8 @@ make up                 # http://localhost:5180, hot reload
 - Production build behind nginx: `make prod` → http://localhost:8091
 - Without Docker: `pnpm install && pnpm dev` → http://localhost:5173
 - Tests: `pnpm test` (`pnpm test:watch` while working); coverage: `pnpm test:coverage` → `coverage/index.html`
-- Tests, type-check and build: `make test`
+- Lint: `pnpm lint` (`pnpm lint:fix` fixes what it can); a pre-commit hook lints the staged files
+- Lint, tests, type-check and build: `make test`
 
 ## Configuration
 

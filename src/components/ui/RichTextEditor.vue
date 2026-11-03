@@ -370,8 +370,8 @@ const minHeight = computed(() => `${props.rows * 1.5 + 1}rem`)
         maxlength="500"
         :placeholder="titleFor ? $t('editor.linkTitleLoading') : $t('editor.linkTextPlaceholder')"
         :aria-busy="titleFor ? 'true' : undefined"
-        @input="onTextInput"
         class="h-7 min-w-32 flex-1 basis-40 rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+        @input="onTextInput"
         @blur="onLinkBlur"
       />
       <label :for="`${id ?? 'editor'}-link`" class="sr-only">{{ $t('editor.linkAddress') }}</label>

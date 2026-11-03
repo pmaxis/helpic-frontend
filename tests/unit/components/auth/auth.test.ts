@@ -71,7 +71,7 @@ describe('RunningTimer', () => {
     expect(useToasts().toasts.at(-1)?.message).toBe('Nope')
     await view.setProps({ compact: true })
     expect(view.text()).not.toContain('Hero')
-    await view.find('a').exists() && view.find('a').trigger('click')
+    if (view.find('a').exists()) await view.find('a').trigger('click')
     useTimerStore().reset()
   })
 })

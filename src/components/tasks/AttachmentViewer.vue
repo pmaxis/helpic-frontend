@@ -496,6 +496,7 @@ async function download(a: ViewerFile) {
               <span class="font-medium text-neutral-800">{{ pinAuthor(c) }}</span>
               <time class="ml-1 text-neutral-400" :datetime="c.created_at">{{ timeAgo(c.created_at) }}</time>
             </p>
+            <!-- eslint-disable-next-line vue/no-v-html -- markdown-it with html off -->
             <div class="comment-body text-sm leading-relaxed break-words text-neutral-800" v-html="renderComment(c.body, auth.user?.id)" />
           </div>
         </li>

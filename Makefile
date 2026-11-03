@@ -27,5 +27,5 @@ logs: ## Follow container logs
 prod: ## Build and serve the production bundle via nginx
 	$(COMPOSE) --profile prod up -d --build frontend-prod
 
-test: ## Run the tests, type-check and build
-	pnpm install --frozen-lockfile && pnpm run test && pnpm run build
+test: ## Lint, run the tests, type-check and build
+	pnpm install --frozen-lockfile && pnpm run lint && pnpm run test && pnpm run build

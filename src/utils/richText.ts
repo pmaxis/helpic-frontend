@@ -44,7 +44,7 @@ export function firstLine(source: string): string {
           : ''
     const line = text
       .split('\n')
-      .map((l) => l.replace(/ /g, ' ').trim())
+      .map((l) => l.replace(/\u00a0/g, ' ').trim())
       .find(Boolean)
     if (line) return line
   }
@@ -60,7 +60,7 @@ export function toPlainText(source: string): string {
   const lists: { ordered: boolean; n: number }[] = []
   let line = ''
   const flush = () => {
-    const l = line.replace(/ /g, ' ').trimEnd()
+    const l = line.replace(/\u00a0/g, ' ').trimEnd()
     if (l.trim()) out.push(l)
     line = ''
   }

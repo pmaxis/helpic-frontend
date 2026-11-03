@@ -53,6 +53,7 @@ export async function renderReportPdf(report: Report, options: Omit<SheetOptions
 
 /** "Work report.pdf", with characters a file name cannot hold turned into spaces. */
 export function pdfFileName(title: string): string {
+  // eslint-disable-next-line no-control-regex -- control characters cannot be in a file name
   const base = title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim()
   return `${base || 'Work report'}.pdf`
 }

@@ -104,9 +104,9 @@ async function commit() {
     <div v-if="editing" class="mt-2">
       <RichTextEditor
         id="task-description-input"
+        v-model="draft"
         autofocus
         sticky-top="calc(-1 * var(--task-card-padding, 0px))"
-        v-model="draft"
         :rows="5"
         :label="$t('task.description')"
         :disabled="saving"
@@ -125,6 +125,7 @@ async function commit() {
       </div>
     </div>
     <template v-else-if="task.description">
+      <!-- eslint-disable vue/no-v-html -- markdown-it with html off -->
       <div
         id="task-description-body"
         ref="body"
@@ -135,6 +136,7 @@ async function commit() {
         @click="task.can_edit && onClick($event)"
         v-html="html"
       />
+      <!-- eslint-enable vue/no-v-html -->
       <button
         v-if="long"
         type="button"
