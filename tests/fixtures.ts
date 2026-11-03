@@ -146,7 +146,7 @@ export function makeProject(over: Partial<Project> = {}): Project {
 }
 
 export function makeLink(over: Partial<Link> = {}): Link {
-  return { ...client, linked_at: '2030-01-01T09:00:00Z', open_tasks: 0, ...over }
+  return { ...client, linked_at: '2030-01-01T09:00:00Z', open_tasks: 0, can_end: true, ...over }
 }
 
 export function makeReportItem(over: Partial<ReportItem> = {}): ReportItem {

@@ -79,6 +79,8 @@ const PHRASED = new Set([
   'project_invited',
   'client_joined',
   'freelancer_joined',
+  'client_left',
+  'freelancer_left',
   'member_joined',
   'report_sent',
   'report_paid',
@@ -129,8 +131,8 @@ async function openNotification(n: AppNotification) {
   else if (n.report_id) await router.push({ name: 'report-detail', params: { id: n.report_id } })
   else if (n.task_id) await router.push({ name: 'task-detail', params: { id: n.task_id } })
   else if (n.project_id) await router.push({ name: 'project-detail', params: { id: n.project_id } })
-  else if (n.kind === 'client_joined') await router.push('/clients')
-  else if (n.kind === 'freelancer_joined') await router.push('/freelancers')
+  else if (n.kind === 'client_joined' || n.kind === 'client_left') await router.push('/clients')
+  else if (n.kind === 'freelancer_joined' || n.kind === 'freelancer_left') await router.push('/freelancers')
   else if (n.kind === 'member_joined') await router.push('/team')
 }
 </script>

@@ -47,11 +47,23 @@ export const usePeopleStore = defineStore('people', {
       this.invitations = this.invitations.filter((i) => i.id !== id)
     },
 
+    /** Stops working with a client; the backend refuses while open tasks or unpaid reports remain. */
+    async endClient(id: string): Promise<void> {
+      await http.delete(`/clients/${id}`)
+      this.clients = this.clients.filter((c) => c.id !== id)
+    },
+
     async fetchFreelancers(): Promise<Link[]> {
       const { data } = await http.get<{ freelancers: Link[] }>('/freelancers')
       this.freelancers = data.freelancers ?? []
       this.freelancersLoaded = true
       return this.freelancers
+    },
+
+    /** Stops working with a freelancer; a company's owner alone, and not while open tasks or unpaid reports remain. */
+    async endFreelancer(id: string): Promise<void> {
+      await http.delete(`/freelancers/${id}`)
+      this.freelancers = this.freelancers.filter((f) => f.id !== id)
     },
 
     async fetchFreelancerInvitations(): Promise<void> {

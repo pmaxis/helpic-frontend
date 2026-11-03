@@ -7,7 +7,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import PeopleIllustration from '@/components/illustrations/PeopleIllustration.vue'
 import InviteModal from '@/components/people/InviteModal.vue'
 import PendingInvitations from '@/components/people/PendingInvitations.vue'
-import PersonCard from '@/components/people/PersonCard.vue'
+import LinkedPeople from '@/components/people/LinkedPeople.vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePeopleStore } from '@/stores/people'
 import { toast } from '@/composables/useToasts'
@@ -53,11 +53,7 @@ onMounted(async () => {
     </div>
 
     <template v-else-if="loaded">
-      <ul v-if="people.freelancers.length" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <li v-for="f in people.freelancers" :key="f.id">
-          <PersonCard :person="f" />
-        </li>
-      </ul>
+      <LinkedPeople v-if="people.freelancers.length" :people="people.freelancers" side="freelancer" :end="auth.isTeamOwner ? people.endFreelancer : undefined" />
 
       <PendingInvitations
         v-if="people.freelancerInvitations.length"

@@ -9,6 +9,8 @@ export interface Party {
 export interface Link extends Party {
   linked_at: string
   open_tasks: number
+  /** Whether the viewer may stop working together now: no open task or unpaid report holds it. */
+  can_end: boolean
 }
 
 /** A pending invitation, a freelancer's for a client or a client's for a freelancer. The link goes only to the invited address. */

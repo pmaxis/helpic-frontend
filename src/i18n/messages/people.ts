@@ -75,6 +75,16 @@ const en = {
   people: {
     linked: 'Since {date}',
     openTasks: '{n} open task | {n} open tasks',
+    options: 'Options for {name}',
+    end: 'Stop working together',
+    confirmEnd: 'Stop working with {name}?',
+    confirmEndClient:
+      'You leave their projects, and a project you started passes to them. You can no longer add each other tasks or reports. What you did together stays for both of you to read, and either of you can invite the other again.',
+    confirmEndFreelancer:
+      'They leave your projects, and a project they started passes to you. You can no longer add each other tasks or reports. What you did together stays for both of you to read, and either of you can invite the other again.',
+    endConfirm: 'Stop working together',
+    ended: 'You no longer work with {name}',
+    endFailed: 'Could not stop working together',
   },
   clients: {
     title: 'Clients',
@@ -244,6 +254,16 @@ const uk: typeof en = {
   people: {
     linked: 'З {date}',
     openTasks: '{n} відкрита задача | {n} відкриті задачі | {n} відкритих задач',
+    options: 'Дії для {name}',
+    end: 'Завершити співпрацю',
+    confirmEnd: 'Завершити співпрацю з {name}?',
+    confirmEndClient:
+      'Ви вийдете з проєктів замовника, а проєкти, які ви створили, перейдуть до нього. Нові задачі чи звіти одне одному ставити не вийде. Усе, що ви зробили разом, лишиться доступним обом, і будь-хто з вас зможе запросити іншого знову.',
+    confirmEndFreelancer:
+      'Фрилансер вийде з ваших проєктів, а проєкти, які він створив, перейдуть до вас. Нові задачі чи звіти одне одному ставити не вийде. Усе, що ви зробили разом, лишиться доступним обом, і будь-хто з вас зможе запросити іншого знову.',
+    endConfirm: 'Завершити',
+    ended: 'Співпрацю з {name} завершено',
+    endFailed: 'Не вдалося завершити співпрацю',
   },
   clients: {
     title: 'Замовники',

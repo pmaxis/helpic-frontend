@@ -23,6 +23,7 @@ function initials(name: string): string {
         <p class="truncate font-semibold text-neutral-900">{{ person.name || person.email }}</p>
         <p v-if="person.name" class="truncate text-sm text-neutral-500">{{ person.email }}</p>
       </div>
+      <slot name="actions" />
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">

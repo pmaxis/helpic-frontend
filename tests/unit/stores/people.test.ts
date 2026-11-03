@@ -32,6 +32,17 @@ describe('people store', () => {
     expect(people.invitations).toEqual([])
   })
 
+  it('stops working with a client or a freelancer, dropping them from the list', async () => {
+    const people = usePeopleStore()
+    people.clients = [makeLink({ id: 'c' })]
+    people.freelancers = [makeLink({ id: 'f' }), makeLink({ id: 'g' })]
+    const del = vi.spyOn(http, 'delete').mockResolvedValue({ data: {} })
+    await people.endClient('c')
+    await people.endFreelancer('f')
+    expect(del.mock.calls.map((c) => c[0])).toEqual(['/clients/c', '/freelancers/f'])
+    expect([people.clients.length, people.freelancers.map((f) => f.id)]).toEqual([0, ['g']])
+  })
+
   it('loads a client’s freelancers', async () => {
     const people = usePeopleStore()
     vi.spyOn(http, 'get').mockResolvedValue({ data: {} })

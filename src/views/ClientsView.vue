@@ -7,7 +7,7 @@ import InviteIllustration from '@/components/illustrations/InviteIllustration.vu
 import BaseButton from '@/components/ui/BaseButton.vue'
 import InviteModal from '@/components/people/InviteModal.vue'
 import PendingInvitations from '@/components/people/PendingInvitations.vue'
-import PersonCard from '@/components/people/PersonCard.vue'
+import LinkedPeople from '@/components/people/LinkedPeople.vue'
 import { usePeopleStore } from '@/stores/people'
 import { toast } from '@/composables/useToasts'
 import { t } from '@/i18n'
@@ -46,11 +46,7 @@ onMounted(async () => {
     </div>
 
     <template v-else-if="loaded">
-      <ul v-if="people.clients.length" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <li v-for="c in people.clients" :key="c.id">
-          <PersonCard :person="c" />
-        </li>
-      </ul>
+      <LinkedPeople v-if="people.clients.length" :people="people.clients" side="client" :end="people.endClient" />
 
       <PendingInvitations v-if="people.invitations.length" :invitations="people.invitations" :revoke="people.revokeInvitation" />
     </template>

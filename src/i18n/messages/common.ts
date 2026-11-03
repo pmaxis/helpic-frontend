@@ -140,6 +140,8 @@ const en = {
     report_changes_declined: 'A report is kept as it is instead of the changes',
     client_joined: 'A client accepts your invitation',
     freelancer_joined: 'A freelancer accepts your invitation',
+    client_left: 'A client stops working with you',
+    freelancer_left: 'A freelancer stops working with you',
     member_joined: 'Someone joins your team',
   },
   notFound: {
@@ -316,6 +318,8 @@ const uk: typeof en = {
     report_changes_declined: 'Звіт лишають без змін у відповідь на правки',
     client_joined: 'Замовник прийняв запрошення',
     freelancer_joined: 'Фрилансер прийняв запрошення',
+    client_left: 'Замовник завершив співпрацю',
+    freelancer_left: 'Фрилансер завершив співпрацю',
     member_joined: 'Хтось приєднався до команди',
   },
   notFound: {

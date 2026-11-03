@@ -8,6 +8,8 @@ export type NotificationKind =
   | 'project_invited'
   | 'client_joined'
   | 'freelancer_joined'
+  | 'client_left'
+  | 'freelancer_left'
   | 'member_joined'
   | 'report_sent'
   | 'report_paid'

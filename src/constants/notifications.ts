@@ -60,6 +60,8 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
     kinds: [
       { kind: 'client_joined', for: 'freelancer' },
       { kind: 'freelancer_joined', for: 'owner' },
+      { kind: 'client_left', for: 'freelancer' },
+      { kind: 'freelancer_left', for: 'owner' },
       { kind: 'member_joined', for: 'owner' },
     ],
   },

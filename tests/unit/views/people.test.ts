@@ -10,6 +10,8 @@ import { $, $$, button, choose, click, field, type } from '../../dom'
 import { makeLink, makeUser } from '../../fixtures'
 
 const confirmIn = (label: string) => $$('[role="dialog"] button').find((b) => b.textContent?.trim() === label)!
+const optionsButton = (name: string) => $$('button').find((b) => b.getAttribute('aria-label') === t('people.options', { name }))
+const options = (name: string) => optionsButton(name)!
 
 describe('ClientsView', () => {
   const invitation = (id: string, expired = false) => ({ id, email: `${id}@x`, name: id, expired, expires_at: '2099-01-01', created_at: '2030-01-01' })
@@ -47,6 +49,35 @@ describe('ClientsView', () => {
     await click($$('button').filter((b) => b.textContent?.trim() === t('invitations.revoke'))[0])
     await click(confirmIn(t('invitations.revoke')))
     expect(useToasts().toasts.at(-1)?.message).toBe(t('invitations.revokeFailed'))
+  })
+
+  it('stops working with a client after asking, saying why the backend refuses', async () => {
+    const server = api({
+      'GET /clients': { clients: [makeLink({ id: 'a', name: 'Acme' }), makeLink({ id: 'b', name: 'Beta' })] },
+      'GET /invitations': { invitations: [] },
+      'DELETE /clients/b': status(409, { error: { code: 'CONFLICT', message: 'There are open tasks between you' } }),
+    })
+    const page = await render(ClientsView, { path: '/clients', user: makeUser() })
+    await click(options('Acme'))
+    await click(button(t('people.end')))
+    expect($('[role="dialog"]')?.textContent).toContain(t('people.confirmEndClient'))
+    await click(confirmIn(t('people.endConfirm')))
+    expect(server.to('DELETE /clients/a')).toHaveLength(1)
+    expect(useToasts().toasts.at(-1)?.message).toBe(t('people.ended', { name: 'Acme' }))
+    expect(page.text()).not.toContain('Acme')
+
+    await click(options('Beta'))
+    await click(button(t('people.end')))
+    await click(confirmIn(t('people.endConfirm')))
+    expect(useToasts().toasts.at(-1)?.message).toBe('There are open tasks between you')
+    expect(page.text()).toContain('Beta')
+  })
+
+  it('doesn’t offer to stop working with a client while something holds it', async () => {
+    api({ 'GET /clients': { clients: [makeLink({ id: 'a', name: 'Acme', can_end: false })] }, 'GET /invitations': { invitations: [] } })
+    const page = await render(ClientsView, { path: '/clients', user: makeUser() })
+    expect(page.text()).toContain('Acme')
+    expect(optionsButton('Acme')).toBeUndefined()
   })
 
   it('says when the clients can’t load', async () => {
@@ -89,6 +120,25 @@ describe('FreelancersView', () => {
     expect(page.text()).toContain(t('freelancers.noneYetMember'))
     expect($$('button').some((b) => b.textContent?.trim() === t('freelancers.invite'))).toBe(false)
     expect(server.to('GET /freelancer-invitations')).toHaveLength(0)
+  })
+
+  it('lets the owner alone stop working with a freelancer', async () => {
+    const server = api({
+      'GET /freelancers': { freelancers: [makeLink({ id: 'f', name: 'Fay Lee' })] },
+      'GET /freelancer-invitations': { invitations: [] },
+    })
+    const page = await render(FreelancersView, { path: '/freelancers', user: makeUser({ role: 'client' }) })
+    await click(options('Fay Lee'))
+    await click(button(t('people.end')))
+    expect($('[role="dialog"]')?.textContent).toContain(t('people.confirmEndFreelancer'))
+    await click(confirmIn(t('people.endConfirm')))
+    expect(server.to('DELETE /freelancers/f')).toHaveLength(1)
+    expect(page.text()).toContain(t('freelancers.noneYet'))
+
+    document.body.innerHTML = ''
+    api({ 'GET /freelancers': { freelancers: [makeLink({ id: 'f', name: 'Fay Lee' })] } })
+    await render(FreelancersView, { path: '/freelancers', user: member() })
+    expect(optionsButton('Fay Lee')).toBeUndefined()
   })
 
   it('lists a client’s freelancers, or says there are none yet', async () => {
