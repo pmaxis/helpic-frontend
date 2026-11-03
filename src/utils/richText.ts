@@ -104,3 +104,22 @@ export function toPlainText(source: string): string {
   while (out.at(-1) === '') out.pop()
   return out.join('\n')
 }
+
+/** An address as a link takes it: https:// added to a bare host, mailto: to an email. */
+export function normalizeHref(raw: string): string {
+  const url = raw.trim()
+  if (!url || /^(https?:\/\/|mailto:)/i.test(url)) return url
+  return (/^[^\s/@:]+@[^\s/@]+\.[^\s/@]+$/.test(url) ? 'mailto:' : 'https://') + url
+}
+
+/** A whole pasted or typed web address ("https://…", "www.…"), made whole; null for anything else. */
+export function webAddress(text: string): string | null {
+  const t = text.trim()
+  if (!/^(https?:\/\/|www\.)[^\s<>"]+$/i.test(t)) return null
+  const url = normalizeHref(t)
+  try {
+    return new URL(url).hostname.includes('.') ? url : null
+  } catch {
+    return null
+  }
+}

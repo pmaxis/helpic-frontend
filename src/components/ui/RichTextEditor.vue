@@ -4,14 +4,18 @@
  * code, headings, lists, a quote, a code block, a link, undo and redo), and
  * Markdown shortcuts as typed ("## ", "- ", "1. ", "**bold**"…). v-model is
  * the Markdown. ⌘/Ctrl + Enter emits "submit", Esc "cancel", leaving the
- * box "blur" — unless the focus only went to the toolbar.
+ * box "blur" — unless the focus only went to the toolbar. A link is named
+ * after the page it leads to when no one gave it a name.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
+import type { Mark } from '@tiptap/pm/model'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useI18n } from 'vue-i18n'
+import { normalizeHref, webAddress } from '@/utils/richText'
+import { fetchPageTitle } from '@/services/linkPreview'
 
 const props = withDefaults(
   defineProps<{
@@ -88,9 +92,26 @@ const editor = useEditor({
         emit('submit')
         return true
       }
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        void openLink()
+        return true
+      }
       // Esc goes on up as well: in a dialog it closes the dialog.
       if (e.key === 'Escape') emit('cancel')
       return false
+    },
+    // A bare address pasted at the caret goes in as a link, then takes the page's title.
+    // Over a selection, the selected text becomes the link (the Link extension does it).
+    handlePaste: (view, e) => {
+      const url = webAddress(e.clipboardData?.getData('text/plain') ?? '')
+      const ed = editor.value
+      if (!url || !ed || !view.state.selection.empty || ed.isActive('code') || ed.isActive('codeBlock')) return false
+      const shown = (e.clipboardData?.getData('text/plain') ?? '').trim()
+      e.preventDefault()
+      insertLink(view.state.selection.from, view.state.selection.to, shown, url)
+      void nameLinks(url, shown)
+      return true
     },
   },
   onUpdate: ({ editor }) => {
@@ -151,7 +172,7 @@ const groups = computed<Action[][]>(() => {
       { key: 'ol', label: t('editor.orderedList'), icon: 'ol', active: on('orderedList'), run: () => chain().toggleOrderedList().run() },
       { key: 'quote', label: t('editor.quote'), icon: 'quote', active: on('blockquote'), run: () => chain().toggleBlockquote().run() },
       { key: 'codeBlock', label: t('editor.codeBlock'), icon: 'codeBlock', active: on('codeBlock'), run: () => chain().toggleCodeBlock().run() },
-      { key: 'link', label: t('editor.link'), icon: 'link', active: on('link'), run: () => void openLink() },
+      { key: 'link', label: t('editor.linkShortcut'), icon: 'link', active: on('link'), run: () => void openLink() },
     ],
     [
       { key: 'undo', label: t('editor.undo'), icon: 'undo', run: () => chain().undo().run(), disabled: () => !e?.can().undo() },
@@ -161,41 +182,166 @@ const groups = computed<Action[][]>(() => {
 })
 
 // --- a link ------------------------------------------------------------------
+//
+// The link's form asks for its text, what the description shows, and its
+// address. It opens on the selection, or on the whole link the caret is in;
+// with nothing selected the link goes in at the caret. A text left as it
+// was keeps its other marks (bold…); a new one replaces it. An empty text
+// shows the address itself, and an empty address takes the link off.
 
 const linking = ref(false)
+const linkText = ref('')
 const href = ref('')
-const linkInput = ref<HTMLInputElement | null>(null)
+/** Where the link goes, and the text it had there when the form opened. */
+let target = { from: 0, to: 0, text: '' }
+/** Whether the form edits a link that was there. */
+const editingLink = ref(false)
+const textInput = ref<HTMLInputElement | null>(null)
+const hrefInput = ref<HTMLInputElement | null>(null)
+/** Whether the text is the writer's own: then the page's title doesn't replace it. */
+let ownText = false
+/** The address whose title the form waits for; '' when it waits for none. */
+const titleFor = ref('')
+let titleTimer: ReturnType<typeof setTimeout> | undefined
+
+// As an address is typed or pasted, the page's title comes as the link's text.
+watch(href, (value) => {
+  clearTimeout(titleTimer)
+  titleFor.value = ''
+  if (!linking.value || ownText) return
+  const url = webAddress(value) ?? (/^[^\s/]+\.[a-z]{2,}(\/\S*)?$/i.test(value.trim()) ? normalizeHref(value) : null)
+  if (!url) return
+  titleTimer = setTimeout(async () => {
+    titleFor.value = url
+    const title = await fetchPageTitle(url)
+    if (titleFor.value !== url || !linking.value || ownText) return
+    titleFor.value = ''
+    if (title) linkText.value = title
+  }, 350)
+})
+onBeforeUnmount(() => clearTimeout(titleTimer))
+
+/** The writer typed a text of their own; one emptied out leaves it to the title again. */
+function onTextInput() {
+  ownText = linkText.value.trim() !== ''
+}
 
 async function openLink() {
   const e = editor.value
-  if (!e) return
-  href.value = (e.getAttributes('link').href as string | undefined) ?? ''
+  if (!e || props.disabled) return
+  editingLink.value = e.isActive('link')
+  if (editingLink.value) e.chain().extendMarkRange('link').run()
+  const { from, to } = e.state.selection
+  // A selection over several paragraphs can't be one link's text: the link goes at its start.
+  const text = e.state.doc.textBetween(from, to, '\n')
+  target = text.includes('\n') ? { from, to: from, text: '' } : { from, to, text }
+  titleFor.value = ''
+  if (editingLink.value) {
+    // An existing link keeps its text, whatever its address becomes.
+    linkText.value = target.text
+    href.value = (e.getAttributes('link').href as string | undefined) ?? ''
+    ownText = true
+  } else if (webAddress(target.text)) {
+    // A selected address is the link's address, and the page names it.
+    linkText.value = ''
+    href.value = target.text.trim()
+    ownText = false
+  } else {
+    // A selected word is the writer's own text.
+    linkText.value = target.text
+    href.value = ''
+    ownText = target.text !== ''
+  }
   linking.value = true
   await nextTick()
-  linkInput.value?.focus()
-  linkInput.value?.select()
+  // With its text there, it's the address that's wanted.
+  const field = linkText.value ? hrefInput.value : textInput.value
+  field?.focus()
+  field?.select()
 }
 
 function closeLink() {
   linking.value = false
-  editor.value?.commands.focus()
+  editor.value?.chain().focus().setTextSelection({ from: target.from, to: target.to }).run()
 }
 
 function applyLink() {
   const e = editor.value
   if (!e) return
-  let url = href.value.trim()
-  if (url && !/^(https?:\/\/|mailto:)/i.test(url)) url = (url.includes('@') && !url.includes('/') ? 'mailto:' : 'https://') + url
-  const c = e.chain().focus().extendMarkRange('link')
-  if (!url) c.unsetLink().run()
-  else if (e.state.selection.empty && !e.isActive('link')) c.insertContent({ type: 'text', text: href.value.trim(), marks: [{ type: 'link', attrs: { href: url } }] }).run()
-  else c.setLink({ href: url }).run()
+  const url = normalizeHref(href.value)
+  const { from, to } = target
+  const c = e.chain().focus().setTextSelection({ from, to })
+  if (!url) {
+    if (from !== to) c.unsetLink()
+    c.run()
+    linking.value = false
+    return
+  }
+  // No text: the address shows, until the page's title comes.
+  const text = linkText.value.trim() || href.value.trim()
+  if (!linkText.value.trim()) void nameLinks(url, text)
+  // The link is inclusive (it grows as an address is typed): the caret goes after it, the mark left behind.
+  if (from !== to && text === target.text) {
+    c.setLink({ href: url }).setTextSelection(to).unsetMark('link').run()
+  } else {
+    c.run()
+    insertLink(from, to, text, url)
+  }
   linking.value = false
 }
 
+/**
+ * Puts text in place of from…to as a link to url, keeping the marks at the
+ * caret (bold…) when nothing was selected; the caret goes after it.
+ */
+function insertLink(from: number, to: number, text: string, url: string) {
+  const e = editor.value
+  if (!e) return
+  const marks = from !== to ? [] : (e.state.storedMarks ?? e.state.selection.$from.marks())
+  e.chain()
+    .focus()
+    .insertContentAt(
+      { from, to },
+      { type: 'text', text, marks: [...marks.filter((m) => m.type.name !== 'link').map((m) => m.toJSON()), { type: 'link', attrs: { href: url } }] },
+    )
+    .unsetMark('link')
+    .run()
+}
+
+/**
+ * Names the links to url still showing shown (the address as it was put
+ * in) after the page's title, once the server has read it. A link renamed
+ * or moved meanwhile is found by what it shows, not where it was; one whose
+ * text was changed is left as it is.
+ */
+async function nameLinks(url: string, shown: string) {
+  const title = await fetchPageTitle(url)
+  const e = editor.value
+  if (!title || !e || e.isDestroyed || title === shown) return
+  const found: { pos: number; size: number; marks: readonly Mark[] }[] = []
+  e.state.doc.descendants((node, pos) => {
+    if (node.isText && node.text === shown && node.marks.some((m) => m.type.name === 'link' && m.attrs.href === url)) {
+      found.push({ pos, size: node.nodeSize, marks: node.marks })
+    }
+  })
+  if (!found.length) return
+  const tr = e.state.tr
+  // From the end, so the earlier positions still hold.
+  for (const f of found.reverse()) tr.replaceWith(f.pos, f.pos + f.size, e.schema.text(title, f.marks))
+  e.view.dispatch(tr)
+}
+
 function removeLink() {
-  editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
+  const { from, to } = target
+  editor.value?.chain().focus().setTextSelection({ from, to }).unsetLink().setTextSelection(to).run()
   linking.value = false
+}
+
+/** The focus left the form and the editor both: the editing is over. */
+function onLinkBlur(e: FocusEvent) {
+  if (root.value?.contains(e.relatedTarget as Node | null)) return
+  linking.value = false
+  emit('blur')
 }
 
 const minHeight = computed(() => `${props.rows * 1.75 + 1}rem`)
@@ -207,35 +353,78 @@ const minHeight = computed(() => `${props.rows * 1.75 + 1}rem`)
     class="rich-text-box overflow-clip rounded-lg border bg-white transition-colors focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/10"
     :class="[invalid ? 'border-neutral-900' : 'border-neutral-300', disabled ? 'opacity-60' : '']"
   >
-    <div v-if="linking" :style="{ top: stickyTop }" class="sticky z-10 flex items-center gap-1.5 border-b border-neutral-200 bg-neutral-50 px-2 py-1.5">
+    <form
+      v-if="linking"
+      :style="{ top: stickyTop }"
+      class="sticky z-10 flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-neutral-50 px-2 py-1.5"
+      :aria-label="$t('editor.link')"
+      @submit.prevent="applyLink"
+      @keydown.esc.prevent.stop="closeLink"
+    >
+      <label :for="`${id ?? 'editor'}-link-text`" class="sr-only">{{ $t('editor.linkText') }}</label>
+      <input
+        :id="`${id ?? 'editor'}-link-text`"
+        ref="textInput"
+        v-model="linkText"
+        type="text"
+        maxlength="500"
+        :placeholder="titleFor ? $t('editor.linkTitleLoading') : $t('editor.linkTextPlaceholder')"
+        :aria-busy="titleFor ? 'true' : undefined"
+        @input="onTextInput"
+        class="h-7 min-w-32 flex-1 basis-40 rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+        @blur="onLinkBlur"
+      />
       <label :for="`${id ?? 'editor'}-link`" class="sr-only">{{ $t('editor.linkAddress') }}</label>
       <input
         :id="`${id ?? 'editor'}-link`"
-        ref="linkInput"
+        ref="hrefInput"
         v-model="href"
-        type="url"
+        type="text"
         inputmode="url"
+        autocomplete="url"
+        spellcheck="false"
+        maxlength="2000"
         :placeholder="$t('editor.linkPlaceholder')"
-        class="h-7 min-w-0 flex-1 rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
-        @keydown.enter.prevent="applyLink"
-        @keydown.esc.prevent.stop="closeLink"
-        @blur="(e) => { if (!root?.contains(e.relatedTarget as Node | null)) { linking = false; emit('blur') } }"
+        class="h-7 min-w-32 flex-[2] basis-56 rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+        @blur="onLinkBlur"
       />
-      <button type="button" class="h-7 rounded-md bg-neutral-900 px-2.5 text-xs font-medium text-white hover:bg-neutral-700" @click="applyLink">
-        {{ $t('editor.apply') }}
-      </button>
-      <button
-        v-if="editor?.isActive('link')"
-        type="button"
-        class="h-7 rounded-md px-2 text-xs font-medium text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
-        @click="removeLink"
-      >
-        {{ $t('editor.unlink') }}
-      </button>
-      <button type="button" class="h-7 rounded-md px-2 text-xs font-medium text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900" @click="closeLink">
-        {{ $t('common.cancel') }}
-      </button>
-    </div>
+      <div class="ml-auto flex items-center gap-1">
+        <a
+          v-if="editingLink && normalizeHref(href)"
+          :href="normalizeHref(href)"
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          :title="$t('editor.openLink')"
+          :aria-label="$t('editor.openLink')"
+          class="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+          @blur="onLinkBlur"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+            <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          </svg>
+        </a>
+        <button type="submit" class="h-7 rounded-md bg-neutral-900 px-2.5 text-xs font-medium text-white hover:bg-neutral-700" @blur="onLinkBlur">
+          {{ $t('editor.apply') }}
+        </button>
+        <button
+          v-if="editingLink"
+          type="button"
+          class="h-7 rounded-md px-2 text-xs font-medium text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+          @blur="onLinkBlur"
+          @click="removeLink"
+        >
+          {{ $t('editor.unlink') }}
+        </button>
+        <button
+          type="button"
+          class="h-7 rounded-md px-2 text-xs font-medium text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+          @blur="onLinkBlur"
+          @click="closeLink"
+        >
+          {{ $t('common.cancel') }}
+        </button>
+      </div>
+    </form>
     <div
       v-else
       role="toolbar"

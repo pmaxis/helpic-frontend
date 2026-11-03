@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { firstLine, renderRichText, toPlainText } from '@/utils/richText'
+import { firstLine, normalizeHref, renderRichText, toPlainText, webAddress } from '@/utils/richText'
 
 describe('renderRichText', () => {
   it('formats Markdown and keeps a plain line break', () => {
@@ -46,5 +46,27 @@ describe('toPlainText', () => {
 
   it('keeps code as written', () => {
     expect(toPlainText('```\nconst a = 1\n```')).toBe('const a = 1')
+  })
+})
+
+describe('normalizeHref', () => {
+  it('makes an address whole', () => {
+    expect(normalizeHref(' example.com/a ')).toBe('https://example.com/a')
+    expect(normalizeHref('http://x.io')).toBe('http://x.io')
+    expect(normalizeHref('anna@example.com')).toBe('mailto:anna@example.com')
+    expect(normalizeHref('mailto:a@b.co')).toBe('mailto:a@b.co')
+    expect(normalizeHref('javascript:alert(1)')).toBe('https://javascript:alert(1)')
+    expect(normalizeHref('  ')).toBe('')
+  })
+})
+
+describe('webAddress', () => {
+  it('takes a whole web address, and nothing else', () => {
+    expect(webAddress(' https://example.com/a?b=1 ')).toBe('https://example.com/a?b=1')
+    expect(webAddress('www.example.com')).toBe('https://www.example.com')
+    expect(webAddress('see https://example.com')).toBeNull()
+    expect(webAddress('https://localhost')).toBeNull()
+    expect(webAddress('example.com')).toBeNull()
+    expect(webAddress('ftp://example.com')).toBeNull()
   })
 })
