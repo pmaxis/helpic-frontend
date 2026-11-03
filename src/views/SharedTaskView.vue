@@ -212,7 +212,7 @@ function onPointerMove(e: PointerEvent) {
 
           <section aria-labelledby="shared-description">
             <h2 id="shared-description" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('task.description') }}</h2>
-            <div v-if="task.description" class="rich-text mt-3 text-[15px] leading-7 break-words text-neutral-800" v-html="renderRichText(task.description)" />
+            <div v-if="task.description" class="rich-text mt-2 text-sm leading-6 break-words text-neutral-800" v-html="renderRichText(task.description)" />
             <p v-else class="mt-3 text-sm text-neutral-400 italic">{{ $t('task.noDescription') }}</p>
           </section>
 

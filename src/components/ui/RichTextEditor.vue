@@ -344,7 +344,7 @@ function onLinkBlur(e: FocusEvent) {
   emit('blur')
 }
 
-const minHeight = computed(() => `${props.rows * 1.75 + 1}rem`)
+const minHeight = computed(() => `${props.rows * 1.5 + 1}rem`)
 </script>
 
 <template>
@@ -466,6 +466,6 @@ const minHeight = computed(() => `${props.rows * 1.75 + 1}rem`)
         </button>
       </template>
     </div>
-    <EditorContent :editor="editor" class="cursor-text px-3 py-2 text-[15px] leading-7 text-neutral-900" :style="{ minHeight }" @click.self="focus" />
+    <EditorContent :editor="editor" class="cursor-text px-3 py-2 text-sm leading-6 text-neutral-900" :style="{ minHeight }" @click.self="focus" />
   </div>
 </template>

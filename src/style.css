@@ -222,12 +222,12 @@ body {
  * the editor and out of it.
  */
 .rich-text > * + * {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 .rich-text h1,
 .rich-text h2 {
-  font-size: 1.125rem;
-  line-height: 1.75rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 600;
   color: var(--color-neutral-900);
 }
@@ -235,13 +235,17 @@ body {
 .rich-text h4,
 .rich-text h5,
 .rich-text h6 {
-  font-size: 1rem;
-  line-height: 1.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
   font-weight: 600;
   color: var(--color-neutral-900);
 }
 .rich-text > :is(h1, h2, h3, h4, h5, h6):not(:first-child) {
-  margin-top: 1.25rem;
+  margin-top: 1rem;
+}
+/* A heading is followed closely by what it heads. */
+.rich-text > :is(h1, h2, h3, h4, h5, h6) + * {
+  margin-top: 0.25rem;
 }
 .rich-text a {
   color: var(--color-sky-700);
@@ -264,10 +268,10 @@ body {
   padding-left: 1.5rem;
 }
 .rich-text li > * + * {
-  margin-top: 0.25rem;
+  margin-top: 0.125rem;
 }
 .rich-text li > :is(ul, ol) {
-  margin-top: 0.25rem;
+  margin-top: 0.125rem;
 }
 .rich-text blockquote {
   border-left: 2px solid var(--color-neutral-300);
@@ -295,6 +299,10 @@ body {
 }
 .rich-text hr {
   border-color: var(--color-neutral-200);
+}
+/* A long description, folded: its last lines fade out. A mask, so it fades into any background. */
+.description-folded {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 4.5rem), transparent);
 }
 .rich-text-editor {
   min-height: inherit;

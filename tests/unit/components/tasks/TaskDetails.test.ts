@@ -405,6 +405,25 @@ describe('TaskDescription', () => {
     expect(view.find(BOX).exists()).toBe(false)
   })
 
+  it('folds a long description until it is asked for in full', async () => {
+    // jsdom lays nothing out: the text says how tall it is.
+    const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.id === 'task-description-body' ? 900 : 0
+    })
+    const view = await render(TaskDescription, { props: props({ description: 'Long\n\n'.repeat(40) }) })
+    const body = view.get('#task-description-body')
+    expect(body.attributes('style')).toContain('max-height: 288px')
+    await click(button(t('task.expandDescription')))
+    expect(body.attributes('style')).toBeUndefined()
+    expect(button(t('task.collapseDescription')).getAttribute('aria-expanded')).toBe('true')
+    // The button only folds: it doesn't start editing.
+    expect(view.find(BOX).exists()).toBe(false)
+
+    height.mockReturnValue(200)
+    const short = await render(TaskDescription, { props: props({ description: 'Short' }) })
+    expect(short.text()).not.toContain(t('task.expandDescription'))
+  })
+
   it('is read-only for whoever may not edit', async () => {
     const view = await render(TaskDescription, { props: props({ description: 'Read only', can_edit: false }) })
     await click(byTextSafe(view.element, 'Read only'))
