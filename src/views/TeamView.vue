@@ -175,15 +175,15 @@ async function remove() {
     <template v-else-if="team">
       <nav class="mt-5 flex gap-6 border-b border-neutral-200" :aria-label="$t('team.sections')">
         <button
-          v-for="t in TABS"
-          :key="t.value"
+          v-for="item in TABS"
+          :key="item.value"
           type="button"
           class="-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors"
-          :class="tab === t.value ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-900'"
-          :aria-current="tab === t.value ? 'page' : undefined"
-          @click="tab = t.value"
+          :class="tab === item.value ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-900'"
+          :aria-current="tab === item.value ? 'page' : undefined"
+          @click="tab = item.value"
         >
-          {{ $t(`team.tabs.${t.value}`) }}<span v-if="t.value === 'invite' && team.invites?.length" class="ml-1.5 font-normal text-neutral-400">{{ team.invites.length }}</span><span v-if="t.value === 'members' && team.members?.length" class="ml-1.5 font-normal text-neutral-400">{{ team.members.length }}</span>
+          {{ $t(`team.tabs.${item.value}`) }}<span v-if="item.value === 'invite' && team.invites?.length" class="ml-1.5 font-normal text-neutral-400">{{ team.invites.length }}</span><span v-if="item.value === 'members' && team.members?.length" class="ml-1.5 font-normal text-neutral-400">{{ team.members.length }}</span>
         </button>
       </nav>
 
