@@ -19,6 +19,10 @@ export type TaskEventKind =
   | 'shared'
   | 'unshared'
   | 'backlog'
+  | 'estimate'
+  | 'estimate_sent'
+  | 'estimate_withdrawn'
+  | 'estimate_reviewed'
 
 /** One change in a task's history. */
 export interface TaskEvent {
@@ -36,7 +40,7 @@ export interface TaskEvent {
     name?: string
     /** The file's version, on "attachment_added" (from 2) and "file_reviewed". */
     version?: number
-    /** On "file_reviewed": "approved", "changes_requested", or '' when taken back. */
+    /** On "file_reviewed": "approved", "changes_requested", or '' when taken back; on "estimate_reviewed", either of the first two. */
     review?: string
     category?: string
     /** The paid report's title, on an "archived" event a payment made. */
@@ -48,6 +52,10 @@ export interface TaskEvent {
     removed?: string[]
     /** On a "backlog" event: put into the backlog (true) or back on the board (false). */
     in_backlog?: boolean
+    /** On "estimate_sent": what was sent — the billing, the time in seconds and the amount in cents (null without them). */
+    billing?: string
+    seconds?: number | null
+    cents?: number | null
   }
   created_at: string
 }

@@ -67,6 +67,34 @@ export const useTasksStore = defineStore('tasks', {
       return data.task
     },
 
+    /** Sets how long the freelancer expects the task to take, in seconds; null clears it. Freelancer only. */
+    async setEstimateTime(id: string, seconds: number | null): Promise<Task> {
+      const { data } = await http.put<{ task: Task }>(`/tasks/${id}/estimate-time`, { seconds })
+      this.replace(data.task)
+      return data.task
+    },
+
+    /** Sends the task's estimate, as it is now, to its client to approve. */
+    async sendEstimate(id: string): Promise<Task> {
+      const { data } = await http.post<{ task: Task }>(`/tasks/${id}/estimate`)
+      this.replace(data.task)
+      return data.task
+    },
+
+    /** Takes back an estimate the client hasn't answered. */
+    async withdrawEstimate(id: string): Promise<Task> {
+      const { data } = await http.delete<{ task: Task }>(`/tasks/${id}/estimate`)
+      this.replace(data.task)
+      return data.task
+    },
+
+    /** The client approves the estimate, or asks for changes saying what. */
+    async reviewEstimate(id: string, review: 'approved' | 'changes_requested', note = ''): Promise<Task> {
+      const { data } = await http.put<{ task: Task }>(`/tasks/${id}/estimate/review`, { review, note })
+      this.replace(data.task)
+      return data.task
+    },
+
     /** Either side may, in any status. */
     async setPriority(id: string, priority: TaskPriority): Promise<Task> {
       const { data } = await http.put<{ task: Task }>(`/tasks/${id}/priority`, { priority })

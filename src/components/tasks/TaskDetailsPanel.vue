@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * The task's details card: where it stands, when and for how much, and who
- * is on it, with when it was last changed.
+ * The task's details card: where it stands, when, its price and time, and
+ * who is on it, with when it was last changed.
  */
 import { computed } from 'vue'
 import TaskProgressFields from '@/components/tasks/TaskProgressFields.vue'
 import TaskScheduleFields from '@/components/tasks/TaskScheduleFields.vue'
+import TaskPriceFields from '@/components/tasks/TaskPriceFields.vue'
 import TaskPeople from '@/components/tasks/TaskPeople.vue'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate, isOverdue } from '@/utils/format'
@@ -67,8 +68,8 @@ function initials(name: string): string {
         <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.progress') }}</h3>
         <TaskProgressFields :task="task" @changed="emit('changed', $event)" @reload="emit('reload')" />
       </section>
-      <!-- its own two blocks: the schedule, then the price -->
-      <TaskScheduleFields :task="task" :saving="saving" :save="save" @changed="emit('changed', $event)" />
+      <TaskScheduleFields :task="task" :saving="saving" :save="save" />
+      <TaskPriceFields :task="task" @changed="emit('changed', $event)" />
       <section class="px-5 py-4" :aria-label="$t('task.groups.people')">
         <h3 class="mb-3 text-xs font-medium tracking-wide text-neutral-400 uppercase" aria-hidden="true">{{ $t('task.groups.people') }}</h3>
         <dl class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">

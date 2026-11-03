@@ -4,7 +4,7 @@ import type { BoardColumn } from '@/types/board'
 import type { Link } from '@/types/people'
 import type { Project } from '@/types/projects'
 import type { Report, ReportItem } from '@/types/reports'
-import type { Task } from '@/types/tasks'
+import type { Task, TaskEstimate } from '@/types/tasks'
 import type { TimeEntry } from '@/types/time'
 
 const freelancer = { id: 'u-freelancer', name: 'Olena Freelancer', email: 'olena@example.test' }
@@ -52,6 +52,29 @@ export function makeTask(over: Partial<Task> = {}): Task {
     parent: null,
     subtasks: { total: 0, done: 0 },
     can_add_subtask: true,
+    estimate_seconds: null,
+    can_estimate: false,
+    estimate: null,
+    can_send_estimate: false,
+    can_withdraw_estimate: false,
+    can_review_estimate: false,
+    ...over,
+  }
+}
+
+/** An estimate sent and waiting for the client. */
+export function makeEstimate(over: Partial<TaskEstimate> = {}): TaskEstimate {
+  return {
+    billing: 'fixed',
+    seconds: 8 * 3600,
+    cents: 50000,
+    currency: 'USD',
+    sent_at: '2030-01-11T09:00:00Z',
+    status: 'pending',
+    note: '',
+    reviewed_at: null,
+    reviewer: null,
+    outdated: false,
     ...over,
   }
 }

@@ -117,6 +117,45 @@ export function formatDuration(seconds: number): string {
   return t('timelog.m', { m })
 }
 
+/**
+ * Reads a time as the time log takes it: "1:30", "1.5" or "1,5" hours, "1h 30m",
+ * "1 год 30 хв", "45m". Seconds, by the whole minute; null when it can't.
+ */
+export function parseDuration(input: string): number | null {
+  const s = input.trim().toLowerCase()
+  if (!s) return null
+  const clock = /^(\d+)\s*:\s*(\d{1,2})$/.exec(s)
+  if (clock) {
+    const [h, m] = [Number(clock[1]), Number(clock[2])]
+    return m > 59 ? null : h * 3600 + m * 60
+  }
+  if (/^\d+([.,]\d+)?$/.test(s)) {
+    const hours = Number(s.replace(',', '.'))
+    return hours > 1000 ? null : Math.round(hours * 60) * 60
+  }
+  const units: Record<string, number> = {
+    h: 3600, hr: 3600, hrs: 3600, hour: 3600, hours: 3600, г: 3600, год: 3600,
+    m: 60, min: 60, mins: 60, minute: 60, minutes: 60, хв: 60,
+  }
+  let total = 0
+  const re = /(\d+)\s*([^\d\s]+)\s*/y
+  let at = 0
+  while (at < s.length) {
+    re.lastIndex = at
+    const part = re.exec(s)
+    if (!part || !(part[2] in units)) return null
+    total += Number(part[1]) * units[part[2]]
+    at = re.lastIndex
+  }
+  return total
+}
+
+/** "1:30" for a time, as a duration field takes it. */
+export function durationInput(seconds: number): string {
+  const minutes = Math.round(seconds / 60)
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`
+}
+
 /** A running timer's clock: "0:05:09", "1:30:00". */
 export function formatClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds))

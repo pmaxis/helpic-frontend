@@ -92,6 +92,9 @@ const PHRASED = new Set([
   'attachment_added',
   'file_approved',
   'file_changes_requested',
+  'estimate_sent',
+  'estimate_approved',
+  'estimate_changes_requested',
 ])
 
 /** The message saying what happened, and what fills it: {who} goes in bold. */

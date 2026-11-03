@@ -87,6 +87,39 @@ export interface Task {
   subtasks: { total: number; done: number }
   /** The task can be split: it's on the boards and isn't a subtask itself. */
   can_add_subtask: boolean
+  /** The time the freelancer expects it to take; null while it isn't estimated. */
+  estimate_seconds: number | null
+  /** May set the estimated time: the task's freelancer. */
+  can_estimate: boolean
+  /** What the freelancer sent the client to approve; null while they haven't, and for whoever doesn't see the price. */
+  estimate: TaskEstimate | null
+  /** May send the estimate to the client now: there is something to send, and it isn't already sent as it is. */
+  can_send_estimate: boolean
+  /** May take back the estimate: while the client hasn't answered it. */
+  can_withdraw_estimate: boolean
+  /** May approve the estimate or ask for changes: the task's client, while it's what the task still says. */
+  can_review_estimate: boolean
+}
+
+/** How the client answered an estimate; "pending" until they do. */
+export type EstimateStatus = 'pending' | 'approved' | 'changes_requested'
+
+/** A task's estimate as it was sent to its client. */
+export interface TaskEstimate {
+  billing: TaskBilling
+  /** The estimated time; null at a fixed price sent without one. */
+  seconds: number | null
+  /** The fixed price, or the time at the rate; null by the hour without a rate. */
+  cents: number | null
+  currency: string
+  sent_at: string
+  status: EstimateStatus
+  /** What the client wrote asking for changes. */
+  note: string
+  reviewed_at: string | null
+  reviewer: { id: string; name: string; email: string } | null
+  /** The task's billing, time or price changed since: it's sent again for the client to answer. */
+  outdated: boolean
 }
 
 export interface TaskInput {

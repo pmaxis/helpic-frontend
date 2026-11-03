@@ -6,6 +6,7 @@ import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
 import SubtaskCount from '@/components/tasks/SubtaskCount.vue'
+import EstimateChip from '@/components/tasks/EstimateChip.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
 import ActionMenu, { type MenuAction } from '@/components/ui/ActionMenu.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -132,6 +133,7 @@ function summary(t: Task): string {
                 <span v-if="t.labels.length > 3" class="text-[10px] leading-5 text-neutral-400">+{{ t.labels.length - 3 }}</span>
               </span>
               <SubtaskCount v-if="t.subtasks.total" :count="t.subtasks" />
+              <EstimateChip :estimate="t.estimate" />
             </div>
             <p v-if="t.parent" class="mt-0.5 truncate text-xs text-neutral-500" :title="$t('subtasks.of', { title: t.parent.title })">↳ {{ t.parent.title }}</p>
             <p v-else-if="summary(t)" class="mt-0.5 truncate text-xs text-neutral-500">{{ summary(t) }}</p>

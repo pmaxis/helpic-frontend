@@ -48,12 +48,19 @@ describe('TaskHistory', () => {
       event('archived'),
       event('subtask_added', { title: 'Header' }),
       event('subtask_removed', { title: 'Footer' }),
+      event('estimate', { from: null, to: 28800 }),
+      event('estimate', { from: 28800, to: null }),
+      event('estimate', { from: 28800, to: 5400 }),
+      event('estimate_sent', { billing: 'fixed', seconds: 9000, cents: 30000, currency: 'USD' }),
+      event('estimate_withdrawn'),
+      event('estimate_reviewed', { review: 'approved' }),
+      event('estimate_reviewed', { review: 'changes_requested' }),
       event('something new' as TaskEvent['kind']),
     ]
     api({ 'GET /tasks/t-1/history': { events } })
     const history = await render(TaskHistory, { props: { taskId: 't-1' }, user: me })
     const text = history.text()
-    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '3 Dec 2029', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”', '“Header”', '“Footer”']) {
+    for (const value of ['“Old”', '“New”', '20 Jan 2030', '25 Jan 2030', '3 Dec 2029', '“Landing”', '“Shop”', '€10.00', '$20.00', 'Urgent', 'Bug, UI', 'Idea', '“brief.pdf”', '“January”', '“Header”', '“Footer”', '8h', '2h 30m · $300.00']) {
       expect(text).toContain(value)
     }
     expect(history.findAll('li')).toHaveLength(events.length)

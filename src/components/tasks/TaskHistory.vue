@@ -3,7 +3,7 @@
 import { ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { fetchHistory } from '@/services/history'
-import { formatDate, timeAgo } from '@/utils/format'
+import { formatDate, formatDuration, timeAgo } from '@/utils/format'
 import { formatMoney } from '@/utils/money'
 import { columnName, priorityLabel } from '@/constants/tasks'
 import { t } from '@/i18n'
@@ -115,6 +115,20 @@ function describe(e: TaskEvent): { key: string; values: Record<string, string>; 
       return { key: 'history.unshared', values: {} }
     case 'backlog':
       return { key: e.data.in_backlog ? 'history.toBacklog' : 'history.toBoard', values: {} }
+    case 'estimate': {
+      const time = (v: unknown) => formatDuration(Number(v))
+      if (from == null) return pair('history.estimateSet', '', time(to))
+      if (to == null) return pair('history.estimateRemoved', time(from), '')
+      return pair('history.estimateChanged', time(from), time(to))
+    }
+    case 'estimate_sent': {
+      const parts = [e.data.seconds ? formatDuration(e.data.seconds) : '', e.data.cents != null ? money(e.data.cents) : ''].filter(Boolean)
+      return { key: 'history.estimateSent', values: { value: parts.join(' · ') } }
+    }
+    case 'estimate_withdrawn':
+      return { key: 'history.estimateWithdrawn', values: {} }
+    case 'estimate_reviewed':
+      return { key: e.data.review === 'approved' ? 'history.estimateApproved' : 'history.estimateChangesRequested', values: {} }
     default:
       return { key: 'history.other', values: {} }
   }

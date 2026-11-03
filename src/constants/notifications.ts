@@ -19,6 +19,9 @@ export const NOTIFICATION_GROUPS: { group: NotificationGroupKey; kinds: Notifica
       { kind: 'task_updated' },
       { kind: 'task_deleted' },
       { kind: 'participant_added', for: 'client' },
+      { kind: 'estimate_sent', for: 'owner' },
+      { kind: 'estimate_approved', for: 'freelancer' },
+      { kind: 'estimate_changes_requested', for: 'freelancer' },
     ],
   },
   {

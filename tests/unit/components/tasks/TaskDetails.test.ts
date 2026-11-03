@@ -210,7 +210,8 @@ describe('TaskDetails', () => {
 
     await click(button(t('timelog.hourly')))
     expect(server.to('PUT /tasks/t-1/price')[1].body).toEqual({ billing: 'hourly', price: null })
-    expect(page.text()).toContain('1h 30m × $40/h')
+    expect(page.text()).toContain('$40/h')
+    expect(page.text()).toContain('1h 30m · $60.00')
   })
 
   it('leaves an unchanged price alone, and keeps the field open when it is refused', async () => {

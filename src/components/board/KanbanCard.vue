@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * A task on the board: its parent when it's a subtask, its title, project and
- * labels, priority, how many subtasks are done, due date and people. The whole card opens the task and drags it (the board listens for
+ * labels, priority, how many subtasks are done, an estimate waiting on someone, due date and people. The whole card opens the task and drags it (the board listens for
  * the drag); a pencil button edits it, a tray button puts it off into the
  * backlog and a bin deletes it, for whoever may.
  */
@@ -11,6 +11,7 @@ import PriorityIcon from '@/components/tasks/PriorityIcon.vue'
 import LabelChip from '@/components/tasks/LabelChip.vue'
 import AvatarStack from '@/components/tasks/AvatarStack.vue'
 import SubtaskCount from '@/components/tasks/SubtaskCount.vue'
+import EstimateChip from '@/components/tasks/EstimateChip.vue'
 import { formatDate, isOverdue } from '@/utils/format'
 import type { Task } from '@/types/tasks'
 
@@ -82,6 +83,7 @@ function open(t: Task) {
         <span class="flex items-center gap-2">
           <PriorityIcon :priority="task.priority" show-none />
           <SubtaskCount v-if="task.subtasks.total" :count="task.subtasks" />
+          <EstimateChip :estimate="task.estimate" />
         </span>
         <span class="flex min-w-0 items-center gap-2">
           <span v-if="task.due_on" class="truncate" :class="open(task) && isOverdue(task.due_on) ? 'font-medium text-red-600' : ''">

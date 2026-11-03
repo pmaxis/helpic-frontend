@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { deviceName, formatClock, formatDate, formatDuration, isOverdue, parseDevice, timeAgo } from '@/utils/format'
+import { deviceName, durationInput, formatClock, formatDate, formatDuration, isOverdue, parseDevice, parseDuration, timeAgo } from '@/utils/format'
 import { setLocale } from '@/i18n'
 
 const MAC_CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36'
@@ -75,6 +75,23 @@ describe('formatDuration', () => {
     expect(formatDuration(7200)).toBe('2h')
     expect(formatDuration(2700)).toBe('45m')
     expect(formatDuration(89)).toBe('1m')
+  })
+})
+
+describe('parseDuration', () => {
+  it('reads a time as the time log does, to the whole minute', () => {
+    for (const [input, seconds] of [['8', 28800], ['1.5', 5400], ['1,25', 4500], ['1:30', 5400], ['1h 30m', 5400], ['1 год 30 хв', 5400], ['45m', 2700], ['2H', 7200]] as const) {
+      expect(parseDuration(input)).toBe(seconds)
+    }
+  })
+
+  it('refuses what is not a time', () => {
+    for (const input of ['', 'soon', '1:75', '5000', '1x', 'h']) expect(parseDuration(input)).toBeNull()
+  })
+
+  it('writes a time back as the field takes it', () => {
+    expect(durationInput(5400)).toBe('1:30')
+    expect(durationInput(28800)).toBe('8:00')
   })
 })
 
