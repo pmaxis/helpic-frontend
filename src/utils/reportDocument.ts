@@ -119,15 +119,36 @@ function taskCell(it: SheetItem): TableCell {
   return { stack }
 }
 
+function th(text: string, alignment: 'left' | 'right' = 'left'): TableCell {
+  return { text: text.toUpperCase(), font: 'InterSemiBold', fontSize: 8, color: INK_3, characterSpacing: tracking(0.04, 8), alignment }
+}
+
+/** An amount, with the hryvnias under it when they're shown. */
+function amountCell(price: string, priceInUAH: string): TableCell {
+  const amount: TableCell = { text: price, font: 'InterMedium', color: INK, alignment: 'right', noWrap: true }
+  const inUAH: TableCell = { text: priceInUAH, fontSize: 8, color: INK_3, alignment: 'right', noWrap: true, margin: [0, 1, 0, 0] }
+  return priceInUAH ? { stack: [amount, inUAH] } : amount
+}
+
+/** The price column's share, the same in both tables; hryvnias under the prices take a little more room. */
+function priceWidth(s: ReportSheet): number {
+  return ([...s.items, ...s.expenses].some((it) => it.priceInUAH) ? 100 : 84) - CELL_PAD
+}
+
+/** Rows ruled apart, with room inside the given columns. */
+function rowsLayout(padLeft: Set<number>, padRight: Set<number>): CustomTableLayout {
+  return {
+    hLineWidth: (i, node) => (i === 0 ? 0 : i === 1 ? 0.75 : i <= node.table.body.length ? 0.5 : 0),
+    hLineColor: (i) => (i === 1 ? RULE : ROW_RULE),
+    vLineWidth: () => 0,
+    paddingLeft: (i) => (padLeft.has(i) ? CELL_PAD : 0),
+    paddingRight: (i) => (padRight.has(i) ? CELL_PAD : 0),
+    paddingTop: (i) => (i === 0 ? 0 : 5),
+    paddingBottom: (i) => (i === 0 ? 4 : 5),
+  }
+}
+
 function tasksTable(s: ReportSheet): ContentTable {
-  const th = (text: string, alignment: 'left' | 'right' = 'left'): TableCell => ({
-    text: text.toUpperCase(),
-    font: 'InterSemiBold',
-    fontSize: 8,
-    color: INK_3,
-    characterSpacing: tracking(0.04, 8),
-    alignment,
-  })
   const header: TableCell[] = [th('#'), th(s.labels.task)]
   const widths: (number | string)[] = [22, '*']
   if (s.showProject) {
@@ -142,8 +163,7 @@ function tasksTable(s: ReportSheet): ContentTable {
   }
   if (s.showPrice) {
     header.push(th(s.labels.price, 'right'))
-    // Hryvnias under the prices take a little more room.
-    widths.push((s.items.some((it) => it.priceInUAH) ? 100 : 84) - CELL_PAD)
+    widths.push(priceWidth(s))
   }
 
   const rows = s.items.map((it, i) => {
@@ -151,11 +171,7 @@ function tasksTable(s: ReportSheet): ContentTable {
     if (s.showProject) row.push({ text: it.projectName || '—', color: INK_2 })
     row.push({ text: it.completed, color: INK_2, alignment: 'right', noWrap: true })
     if (s.showTime) row.push({ text: it.time || '—', color: it.time ? INK_2 : INK_3, alignment: 'right', noWrap: true })
-    if (s.showPrice) {
-      const price: TableCell = { text: it.price, font: 'InterMedium', color: INK, alignment: 'right', noWrap: true }
-      const inUAH: TableCell = { text: it.priceInUAH, fontSize: 8, color: INK_3, alignment: 'right', noWrap: true, margin: [0, 1, 0, 0] }
-      row.push(!it.price ? { text: '—', color: INK_3, alignment: 'right' } : it.priceInUAH ? { stack: [price, inUAH] } : price)
-    }
+    if (s.showPrice) row.push(it.price ? amountCell(it.price, it.priceInUAH) : { text: '—', color: INK_3, alignment: 'right' })
     return row
   })
 
@@ -163,15 +179,7 @@ function tasksTable(s: ReportSheet): ContentTable {
   const padRight = new Set(s.showProject ? [1, 2] : [1])
   const priceColumn = s.showPrice ? widths.length - 1 : -1
   const timeColumn = s.showTime ? widths.length - (s.showPrice ? 2 : 1) : -1
-  const layout: CustomTableLayout = {
-    hLineWidth: (i, node) => (i === 0 ? 0 : i === 1 ? 0.75 : i <= node.table.body.length ? 0.5 : 0),
-    hLineColor: (i) => (i === 1 ? RULE : ROW_RULE),
-    vLineWidth: () => 0,
-    paddingLeft: (i) => (i === priceColumn || i === timeColumn ? CELL_PAD : 0),
-    paddingRight: (i) => (padRight.has(i) ? CELL_PAD : 0),
-    paddingTop: (i) => (i === 0 ? 0 : 5),
-    paddingBottom: (i) => (i === 0 ? 4 : 5),
-  }
+  const layout = rowsLayout(new Set([priceColumn, timeColumn]), padRight)
   const taskWidth = CONTENT_WIDTH - widths.reduce<number>((sum, w) => sum + (typeof w === 'number' ? w : 0), 0) - CELL_PAD * (s.showTime ? 3 : 2)
   return { table: { headerRows: 1, dontBreakRows: rowsFitPage(s.items, taskWidth), widths, body: [header, ...rows] }, layout }
 }
@@ -226,11 +234,32 @@ function total(s: ReportSheet): Content {
   }
 }
 
-function tasks(s: ReportSheet): Content[] {
-  if (s.items.length === 0) {
-    return [heading(s.labels.tasks), { text: s.labels.noTasks, fontSize: 9.5, color: INK_3, margin: [0, 4, 0, 0] }]
+function expensesTable(s: ReportSheet): ContentTable {
+  const rows = s.expenses.map((it, i): TableCell[] => [
+    { text: `${i + 1}.`, color: INK_3 },
+    { text: it.title, font: 'InterMedium', color: INK },
+    { text: it.spent, color: INK_2, alignment: 'right', noWrap: true },
+    amountCell(it.price, it.priceInUAH),
+  ])
+  return {
+    table: {
+      headerRows: 1,
+      dontBreakRows: true,
+      widths: [22, '*', 72, priceWidth(s)],
+      body: [[th('#'), th(s.labels.expense), th(s.labels.spent, 'right'), th(s.labels.amount, 'right')], ...rows],
+    },
+    layout: rowsLayout(new Set([3]), new Set([1])),
   }
-  return [heading(s.labels.tasks), tasksTable(s), ...(s.showPrice ? [total(s)] : [])]
+}
+
+/** The tasks, then what the work cost, and the total of both under them. */
+function work(s: ReportSheet): Content[] {
+  const content: Content[] = []
+  if (s.items.length) content.push(heading(s.labels.tasks), tasksTable(s))
+  else if (!s.expenses.length) content.push(heading(s.labels.tasks), { text: s.labels.noTasks, fontSize: 9.5, color: INK_3, margin: [0, 4, 0, 0] })
+  if (s.expenses.length) content.push(heading(s.labels.expenses), expensesTable(s))
+  if (s.total && (s.showPrice || s.expenses.length)) content.push(total(s))
+  return content
 }
 
 /** The freelancer's business details, a line each as written, kept on one page. */
@@ -266,7 +295,7 @@ export function reportDocument(s: ReportSheet): TDocumentDefinitions {
       { text: s.title, bold: true, fontSize: 20, color: INK, alignment: 'center', characterSpacing: tracking(-0.02, 20), lineHeight: lead(1.2) },
       facts(s),
       ...summary(s),
-      ...tasks(s),
+      ...work(s),
       ...details(s),
     ],
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** What a report is: for whom, over when, which projects, how many tasks and the total. */
+/** What a report is: for whom, over when, which projects, how many tasks, its expenses and the total. */
 import { computed } from 'vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import { formatDate } from '@/utils/format'
@@ -37,7 +37,11 @@ const period = computed(() => {
       <dd class="text-neutral-800">{{ report.kind === 'detailed' ? $t('report.detailed') : $t('report.basic') }}</dd>
     </template>
     <dt class="text-neutral-500">{{ $t('report.tasks') }}</dt>
-    <dd class="text-neutral-800">{{ report.items?.length ?? report.item_count }}</dd>
+    <dd class="text-neutral-800">{{ report.items?.filter((it) => !it.expense).length ?? report.item_count }}</dd>
+    <template v-if="report.expenses_cents">
+      <dt class="text-neutral-500">{{ $t('report.expenses') }}</dt>
+      <dd class="text-neutral-800">{{ formatMoney(report.expenses_cents, report.currency) }}</dd>
+    </template>
     <template v-if="report.total_cents !== null">
       <dt class="text-neutral-500">{{ $t('report.total') }}</dt>
       <dd class="font-semibold text-neutral-900">{{ formatMoney(report.total_cents, report.currency) }}</dd>

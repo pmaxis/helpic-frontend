@@ -22,6 +22,7 @@ import ReportKindPicker from '@/components/reports/ReportKindPicker.vue'
 import ReportHistory from '@/components/reports/ReportHistory.vue'
 import ReportFacts from '@/components/reports/ReportFacts.vue'
 import ReportTaskList from '@/components/reports/ReportTaskList.vue'
+import ReportExpenseList from '@/components/reports/ReportExpenseList.vue'
 import ReportDiscussion from '@/components/reports/ReportDiscussion.vue'
 import ReportReview from '@/components/reports/ReportReview.vue'
 import ReportChangesAnswer from '@/components/reports/ReportChangesAnswer.vue'
@@ -387,6 +388,7 @@ const card = 'min-h-0 overflow-y-auto rounded-xl border border-neutral-200 bg-wh
           </form>
 
           <ReportTaskList :report="report" @changed="changed" />
+          <ReportExpenseList :report="report" @changed="changed" />
         </template>
 
         <ReportHistory :report-id="report.id" :version="version" />

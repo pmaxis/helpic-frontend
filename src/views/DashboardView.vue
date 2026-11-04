@@ -31,6 +31,7 @@ import { toast } from '@/composables/useToasts'
 import { useI18n } from 'vue-i18n'
 import { columnName, statusLabel } from '@/constants/tasks'
 import { intlLocale } from '@/i18n'
+import type { Report } from '@/types/reports'
 import type { Task, TaskPriority } from '@/types/tasks'
 
 const auth = useAuthStore()
@@ -125,6 +126,11 @@ function where(t: Task): string {
 /** The currency the lead figure counts in: the user's own. */
 const leadCurrency = computed(() => auth.user?.currency || 'USD')
 
+/** What a paid report counts for: a freelancer earned it less the expenses paid back; a client paid all of it. */
+function paidFigure(r: Report): number {
+  return (r.total_cents ?? 0) - (auth.isClient ? 0 : r.expenses_cents)
+}
+
 /** The last six months, oldest first, with what was paid in each in that currency. */
 const months = computed<Month[]>(() => {
   const now = new Date()
@@ -133,7 +139,7 @@ const months = computed<Month[]>(() => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const cents = reports.reports
       .filter((r) => r.status === 'paid' && r.currency === leadCurrency.value && r.paid_at?.startsWith(key))
-      .reduce((sum, r) => sum + (r.total_cents ?? 0), 0)
+      .reduce((sum, r) => sum + paidFigure(r), 0)
     return {
       key,
       label: d.toLocaleDateString(intlLocale(), { month: 'short' }),
@@ -163,7 +169,7 @@ const peopleCards = computed<Person[]>(() => {
         const paid = reports.reports.filter(
           (r) => r.status === 'paid' && r.currency === leadCurrency.value && (auth.isClient ? r.freelancer.id : r.client?.id) === p.id,
         )
-        person.series = months.value.map((m) => paid.filter((r) => r.paid_at?.startsWith(m.key)).reduce((sum, r) => sum + (r.total_cents ?? 0), 0))
+        person.series = months.value.map((m) => paid.filter((r) => r.paid_at?.startsWith(m.key)).reduce((sum, r) => sum + paidFigure(r), 0))
         person.value = person.series.reduce((a, b) => a + b, 0)
       }
       return person

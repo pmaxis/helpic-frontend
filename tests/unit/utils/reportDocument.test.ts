@@ -32,6 +32,20 @@ describe('reportDocument', () => {
     expect(text(documentOf())).not.toContain('Summary')
   })
 
+  it('prints expenses under the tasks, with the total after both', () => {
+    const doc = text(documentOf({ total_cents: 7000, expenses_cents: 2000, items: [makeReportItem({ price_cents: 5000 }), makeReportItem({ id: 'i-2', task_id: null, expense: true, title: 'Hosting', price_cents: 2000 })] }))
+    expect(doc.indexOf('COMPLETED TASKS')).toBeLessThan(doc.indexOf('EXPENSES'))
+    expect(doc.indexOf('Hosting')).toBeLessThan(doc.indexOf('TOTAL'))
+    expect(doc).toContain('$70.00')
+  })
+
+  it('leaves the tasks out of a report of expenses alone', () => {
+    const doc = text(documentOf({ total_cents: 2000, expenses_cents: 2000, items: [makeReportItem({ task_id: null, expense: true, title: 'Hosting', price_cents: 2000 })] }))
+    expect(doc).not.toContain('No tasks were completed')
+    expect(doc).toContain('Hosting')
+    expect(doc).toContain('TOTAL')
+  })
+
   it('says no tasks were done when there are none, with no table or total', () => {
     const doc = documentOf({ total_cents: 0 })
     expect(text(doc)).toContain('No tasks were completed in this period.')

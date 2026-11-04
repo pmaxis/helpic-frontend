@@ -4,7 +4,7 @@
  * report's tasks carry notes, folded until asked for and saved when the
  * field loses focus with a change.
  */
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useReportsStore } from '@/stores/reports'
 import { ApiRequestError } from '@/services/api'
 import { formatDate, formatDuration } from '@/utils/format'
@@ -20,6 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const reports = useReportsStore()
+
+const tasks = computed(() => (props.report.items ?? []).filter((it) => !it.expense))
 
 /** Tasks whose notes field is open; all start folded. */
 const openNotes = ref(new Set<string>())
@@ -64,14 +66,14 @@ async function removeItem(itemId: string) {
 <template>
   <section class="px-5 py-4" aria-labelledby="report-tasks">
     <h3 id="report-tasks" class="text-xs font-semibold tracking-wide text-neutral-500 uppercase">{{ $t('report.tasksInReport') }}</h3>
-    <p v-if="report.items?.length" class="mt-1 text-xs text-neutral-400">
+    <p v-if="tasks.length" class="mt-1 text-xs text-neutral-400">
       {{ report.client ? $t('report.pricesUntilSent') : $t('report.pricesFromTasks') }}
     </p>
-    <p v-if="!report.items?.length" class="mt-2 text-sm text-neutral-400">
+    <p v-if="!tasks.length" class="mt-2 text-sm text-neutral-400">
       {{ report.client ? $t('report.noTasksForClient') : $t('report.noTasks') }}
     </p>
     <ul v-else class="mt-2 divide-y divide-neutral-100">
-      <li v-for="it in report.items" :key="it.id" class="py-2">
+      <li v-for="it in tasks" :key="it.id" class="py-2">
         <div class="group flex items-start gap-2">
           <div class="min-w-0 flex-1">
             <p v-if="it.parent_title" class="truncate text-xs text-neutral-400">{{ it.parent_title }} ›</p>

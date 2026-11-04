@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { http } from '@/services/api'
-import type { Report, ReportComment, ReportEvent, ReportInput, ReportKind, ReportReview } from '@/types/reports'
+import type { ExpenseInput, Report, ReportComment, ReportEvent, ReportInput, ReportKind, ReportReview } from '@/types/reports'
 
 interface ReportsState {
   reports: Report[]
@@ -41,6 +41,18 @@ export const useReportsStore = defineStore('reports', {
       return data.report
     },
 
+    /** Adds what the work cost to a draft. */
+    async addExpense(id: string, input: ExpenseInput): Promise<Report> {
+      const { data } = await http.post<{ report: Report }>(`/reports/${id}/expenses`, input)
+      return data.report
+    },
+
+    async updateExpense(id: string, itemId: string, input: ExpenseInput): Promise<Report> {
+      const { data } = await http.put<{ report: Report }>(`/reports/${id}/expenses/${itemId}`, input)
+      return data.report
+    },
+
+    /** Drops a task or an expense from a draft. */
     async removeItem(id: string, itemId: string): Promise<Report> {
       const { data } = await http.delete<{ report: Report }>(`/reports/${id}/items/${itemId}`)
       return data.report

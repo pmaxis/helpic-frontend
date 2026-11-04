@@ -21,6 +21,15 @@ export interface SheetItem {
   notes: TextBlock[]
 }
 
+/** An expense's line: what the work cost, beside the tasks. */
+export interface SheetExpense {
+  title: string
+  spent: string
+  price: string
+  /** The amount in hryvnias, "(~ ₴4,502.56)", when they're shown; '' otherwise. */
+  priceInUAH: string
+}
+
 /** What a report's PDF says, worded in the interface's language. */
 export interface ReportSheet {
   /** The freelancer's logo at the head of the letterhead, as a data URL; '' for none. */
@@ -39,14 +48,16 @@ export interface ReportSheet {
   summary: TextBlock[]
   /** A project column when the tasks span projects. */
   showProject: boolean
-  /** A price column and the total when any task has a price. */
+  /** A price column when any task has a price. */
   showPrice: boolean
   /** A time column when any task is billed by the hour. */
   showTime: boolean
+  /** '' when nothing in the report has a price. */
   total: string
   /** The total in hryvnias, "(~ ₴4,502.56)", under the total when they're shown; '' otherwise. */
   totalInUAH: string
   items: SheetItem[]
+  expenses: SheetExpense[]
   /** On every page: when it was prepared, sent and paid; and who made it. */
   footerLeft: string
   footerRight: string
@@ -61,6 +72,10 @@ export interface ReportSheet {
     time: string
     total: string
     noTasks: string
+    expenses: string
+    expense: string
+    spent: string
+    amount: string
     details: string
   }
 }
@@ -133,7 +148,8 @@ export interface SheetOptions {
 export const INK = '#171717'
 
 export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions = {}): ReportSheet {
-  const items = r.items ?? []
+  const items = (r.items ?? []).filter((it) => !it.expense)
+  const expenses = (r.items ?? []).filter((it) => it.expense)
   const uah = inUAH ? r.in_uah : null
   const projects = r.projects.map((p) => p.name).join(', ')
 
@@ -151,10 +167,11 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
       .map((line) => line.trim())
       .filter(Boolean),
     title: r.title,
-    facts: [formatDocumentPeriod(r.from, r.to), projects, t('reportPdf.completedCount', items.length)].filter(Boolean),
+    // A report of expenses alone needn't say no task was done.
+    facts: [formatDocumentPeriod(r.from, r.to), projects, items.length || !expenses.length ? t('reportPdf.completedCount', items.length) : ''].filter(Boolean),
     summary: splitBlocks(r.summary),
     showProject: r.projects.length !== 1 && items.some((it) => it.project_name),
-    showPrice: r.total_cents !== null,
+    showPrice: items.some((it) => it.price_cents !== null),
     showTime: items.some((it) => it.seconds !== null),
     total: r.total_cents !== null ? formatMoney(r.total_cents, r.currency) : '',
     totalInUAH: uah ? `(~ ${formatMoney(uah.total_cents, 'UAH')})` : '',
@@ -170,6 +187,12 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
         notes: r.kind === 'detailed' ? splitBlocks(toPlainText(it.notes)) : [],
       }
     }),
+    expenses: expenses.map((it) => ({
+      title: it.title,
+      spent: formatDocumentDate(it.completed_on),
+      price: formatMoney(it.price_cents ?? 0, r.currency),
+      priceInUAH: uah && it.price_in_uah_cents != null ? `(~ ${formatMoney(it.price_in_uah_cents, 'UAH')})` : '',
+    })),
     footerLeft: `${footerLeft} · Helpic`,
     footerRight: signature(r.freelancer),
     labels: {
@@ -183,6 +206,10 @@ export function buildSheet(r: Report, { inUAH = false, logo = '' }: SheetOptions
       time: t('reportPdf.time'),
       total: t('reportPdf.total'),
       noTasks: t('reportPdf.noTasks'),
+      expenses: t('reportPdf.expenses'),
+      expense: t('reportPdf.expense'),
+      spent: t('reportPdf.spent'),
+      amount: t('reportPdf.amount'),
       details: t('reportPdf.details'),
     },
   }

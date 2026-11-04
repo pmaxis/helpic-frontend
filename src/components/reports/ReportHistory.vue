@@ -50,6 +50,12 @@ function describe(e: ReportEvent): { key: string; value: string } {
       return { key: 'reportHistory.itemNotes', value: `“${d.task}”` }
     case 'item_removed':
       return { key: 'reportHistory.itemRemoved', value: `“${d.task}”` }
+    case 'expense_added':
+      return { key: 'reportHistory.expenseAdded', value: `“${d.expense}”` }
+    case 'expense_changed':
+      return { key: 'reportHistory.expenseChanged', value: `“${d.expense}”` }
+    case 'expense_removed':
+      return { key: 'reportHistory.expenseRemoved', value: `“${d.expense}”` }
     case 'sent':
       return { key: 'reportHistory.sent', value: '' }
     case 'question':

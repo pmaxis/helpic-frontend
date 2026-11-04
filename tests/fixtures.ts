@@ -163,6 +163,7 @@ export function makeReportItem(over: Partial<ReportItem> = {}): ReportItem {
     notes: '',
     question_open: false,
     comment_count: 0,
+    expense: false,
     ...over,
   }
 }
@@ -197,6 +198,7 @@ export function makeReport(over: Partial<Report> = {}): Report {
     can_review: false,
     can_answer: false,
     total_cents: null,
+    expenses_cents: 0,
     can_edit: true,
     can_delete: true,
     can_mark_paid: false,

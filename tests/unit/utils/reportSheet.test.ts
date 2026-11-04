@@ -52,6 +52,22 @@ describe('buildSheet', () => {
     expect(full.items[0]).toMatchObject({ price: '$120.00', time: '1h 30m', completed: '20 Jan 2030' })
   })
 
+  it('sets expenses apart from the tasks, counting only the tasks', () => {
+    const expense = makeReportItem({ id: 'i-2', task_id: null, expense: true, title: 'Hosting', completed_on: '2030-01-05', price_cents: 2050, price_in_uah_cents: 85000 })
+    const report = makeReport({ total_cents: 2050, expenses_cents: 2050, in_uah: { rate: '41.5', rate_on: '2030-02-01', total_cents: 85000 }, items: [makeReportItem(), expense] })
+    const sheet = buildSheet(report, { inUAH: true })
+    expect(sheet.items.map((it) => it.title)).toEqual(['Write the landing page'])
+    expect(sheet.expenses).toEqual([{ title: 'Hosting', spent: '5 Jan 2030', price: '$20.50', priceInUAH: '(~ ₴850.00)' }])
+    expect(sheet.facts.at(-1)).toBe('1 task completed')
+    // the tasks have no price, so no empty price column, yet the total stands
+    expect([sheet.showPrice, sheet.total]).toEqual([false, '$20.50'])
+  })
+
+  it('doesn’t say no task was done on a report of expenses alone', () => {
+    const sheet = buildSheet(makeReport({ total_cents: 100, items: [makeReportItem({ task_id: null, expense: true, price_cents: 100 })] }))
+    expect(sheet.facts.join()).not.toContain('task')
+  })
+
   it('adds hryvnias only when asked and the report has a rate', () => {
     const report = makeReport({
       total_cents: 10000,

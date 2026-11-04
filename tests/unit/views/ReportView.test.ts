@@ -42,6 +42,48 @@ function open(report?: Report, extra?: Record<string, Reply>) {
 
 const confirmIn = (label: string) => $$('[role="dialog"] button').find((b) => b.textContent?.trim() === label)!
 
+describe('ReportView expenses', () => {
+  const hosting = makeReportItem({ id: 'e-1', task_id: null, expense: true, title: 'Hosting', completed_on: '2030-01-05', price_cents: 2050 })
+
+  it('adds an expense, checking it first, and shows it apart from the tasks', async () => {
+    const report = makeReport({ items: [makeReportItem()] })
+    const added = { ...report, items: [...report.items!, hosting], expenses_cents: 2050, total_cents: 2050 }
+    const { server, page } = open(report, { 'POST /reports/r-1/expenses': { report: added } })
+    const view = await page
+    expect(view.text()).toContain(t('report.noExpenses'))
+
+    await click(button(t('report.addExpense')))
+    await click('[aria-labelledby="report-expenses"] button[type="submit"]')
+    expect(server.to('POST /reports/r-1/expenses')).toHaveLength(0)
+    expect(view.text()).toContain(t('report.expenseAmountRequired'))
+
+    await type(field(t('report.expenseTitle')), 'Hosting')
+    await type(field(t('report.expenseAmount', { currency: 'USD' })), '20.50')
+    await click('[aria-labelledby="report-expenses"] button[type="submit"]')
+    expect(server.to('POST /reports/r-1/expenses')[0].body).toEqual({ title: 'Hosting', spent_on: '2030-01-31', amount: '20.50' })
+    expect(view.find('[aria-labelledby="report-expenses"]').text()).toContain('$20.50')
+    expect(view.find('[aria-labelledby="report-tasks"]').text()).not.toContain('Hosting')
+    expect(view.text()).toContain(t('report.expenses'))
+  })
+
+  it('edits and removes an expense', async () => {
+    const report = makeReport({ items: [hosting], expenses_cents: 2050, total_cents: 2050 })
+    const { server, page } = open(report, {
+      'PUT /reports/r-1/expenses/e-1': { report },
+      'DELETE /reports/r-1/items/e-1': { report: { ...report, items: [], expenses_cents: 0, total_cents: null } },
+    })
+    const view = await page
+    await click(view.find(`[aria-label="${t('report.editExpense', { title: 'Hosting' })}"]`).element as HTMLElement)
+    expect((field(t('report.expenseAmount', { currency: 'USD' })) as HTMLInputElement).value).toBe('20.50')
+    await click('[aria-labelledby="report-expenses"] button[type="submit"]')
+    expect(server.to('PUT /reports/r-1/expenses/e-1')[0].body).toEqual({ title: 'Hosting', spent_on: '2030-01-05', amount: '20.50' })
+
+    await click(view.find(`[aria-label="${t('report.removeExpense', { title: 'Hosting' })}"]`).element as HTMLElement)
+    expect(server.to('DELETE /reports/r-1/items/e-1')).toHaveLength(1)
+    expect(view.text()).toContain(t('report.noExpenses'))
+  })
+})
+
 describe('ReportView', () => {
   it('prints the preview and states what the report is', async () => {
     const { page } = open(makeReport({ items: [makeReportItem()], total_cents: 5000, projects: [{ id: 'p', name: 'Landing' }] }))

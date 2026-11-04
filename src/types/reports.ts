@@ -5,7 +5,7 @@ export type ReportKind = 'basic' | 'detailed'
 
 export interface ReportItem {
   id: string
-  /** Null once the task itself was deleted; the report keeps its snapshot. */
+  /** Null once the task itself was deleted, and on an expense; the report keeps its snapshot. */
   task_id: string | null
   title: string
   /** The title of the task a subtask belongs to, as it was then; '' for a top-level task. */
@@ -26,6 +26,8 @@ export interface ReportItem {
   question_open: boolean
   /** What was said about the line. */
   comment_count: number
+  /** A line for what the work cost: no task behind it, completed_on is the day it was spent. */
+  expense: boolean
 }
 
 /** How a freelancer's reports look: live on a draft, as it was sent on a sent report. */
@@ -65,6 +67,7 @@ export interface Report {
   review_note: string
   /** Why the freelancer kept it as it was, until the client reviews it again; '' otherwise. */
   review_answer: string
+  /** Tasks only: expenses are lines of another kind. */
   item_count: number
   /** Lines with a question waiting, and the whole discussion. */
   open_questions: number
@@ -74,8 +77,10 @@ export interface Report {
   currency: string
   /** The logo is at /reports/{id}/logo. */
   branding: Branding
-  /** Sum of the items' prices on a single report; null when none has a price. */
+  /** Sum of the items' prices, expenses included; null when none has a price. */
   total_cents: number | null
+  /** The expenses' part of the total: what the client pays back, not what was earned. */
+  expenses_cents: number
   /**
    * The total in hryvnias at the NBU's official rate, on a single report in
    * another currency: as of the day it was paid, or today while it isn't.
@@ -112,9 +117,18 @@ export interface ReportInput {
   kind?: ReportKind
 }
 
+/** An expense as it's written in a draft. */
+export interface ExpenseInput {
+  title: string
+  /** YYYY-MM-DD */
+  spent_on: string
+  /** Like "1200.50", in the report's currency. */
+  amount: string
+}
+
 export type ReportReview = 'approved' | 'changes_requested'
 
-export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'sent' | 'paid' | 'question' | 'resolved' | 'recalled' | 'approved' | 'changes_requested' | 'changes_declined'
+export type ReportEventKind = 'created' | 'title' | 'summary' | 'kind' | 'item_notes' | 'item_removed' | 'expense_added' | 'expense_changed' | 'expense_removed' | 'sent' | 'paid' | 'question' | 'resolved' | 'recalled' | 'approved' | 'changes_requested' | 'changes_declined'
 
 /** One message in a report's discussion. */
 export interface ReportComment {
@@ -133,7 +147,7 @@ export interface ReportEvent {
   id: string
   actor: { id: string; name: string; email: string }
   kind: ReportEventKind
-  /** from/to for a title or kind, task for an item, tasks (a count) for a payment. */
-  data: { from?: string; to?: string; task?: string; tasks?: number }
+  /** from/to for a title or kind, task for an item, expense for an expense, tasks (a count) for a payment. */
+  data: { from?: string; to?: string; task?: string; expense?: string; tasks?: number }
   created_at: string
 }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardView from '@/views/DashboardView.vue'
+import EarningsCard from '@/components/dashboard/EarningsCard.vue'
 import { t } from '@/i18n'
 import { useToasts } from '@/composables/useToasts'
 import type { Report } from '@/types/reports'
@@ -70,6 +71,14 @@ describe('DashboardView, for a freelancer', () => {
     expect(page.text()).toContain('$550')
   })
 
+  it('leaves expenses paid back out of what the freelancer earned', async () => {
+    serve({ 'GET /reports': { reports: [{ ...paid('r1', '03', 30000), expenses_cents: 10000 }] } })
+    const page = await render(DashboardView, { path: '/dashboard', user: makeUser() })
+    const lead = page.findComponent(EarningsCard).text()
+    expect(lead).toContain('$200')
+    expect(lead).not.toContain('$300')
+  })
+
   it('lists today’s tasks, most urgent first, and switches to the overview', async () => {
     serve()
     const page = await render(DashboardView, { path: '/dashboard', user: makeUser() })
@@ -123,6 +132,12 @@ describe('DashboardView, for a freelancer', () => {
 })
 
 describe('DashboardView, for the client’s side', () => {
+  it('counts expenses in what the owner paid', async () => {
+    serve({ 'GET /reports': { reports: [{ ...paid('r1', '03', 30000), expenses_cents: 10000 }] } })
+    const page = await render(DashboardView, { path: '/dashboard', user: makeUser({ id: 'u-client', role: 'client', name: 'Acme' }) })
+    expect(page.findComponent(EarningsCard).text()).toContain('$300')
+  })
+
   it('shows the owner what they paid, by freelancer', async () => {
     serve()
     const page = await render(DashboardView, { path: '/dashboard', user: makeUser({ id: 'u-client', role: 'client', name: 'Acme' }) })

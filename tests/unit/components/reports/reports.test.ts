@@ -27,6 +27,9 @@ describe('ReportHistory', () => {
       event('kind', { to: 'basic' }),
       event('item_notes', { task: 'Hero' }),
       event('item_removed', { task: 'Footer' }),
+      event('expense_added', { expense: 'Hosting' }),
+      event('expense_changed', { expense: 'Licence' }),
+      event('expense_removed', { expense: 'Domain' }),
       event('sent'),
       event('paid', { tasks: 3 }),
       event('paid'),
@@ -34,7 +37,7 @@ describe('ReportHistory', () => {
     ]
     const server = api({ 'GET /reports/r-1/history': { events } })
     const history = await render(ReportHistory, { props: { reportId: 'r-1', version: 0 }, user: me })
-    for (const s of ['“February”', t('report.detailed'), t('report.basic'), '“Hero”', '“Footer”', t('reportHistory.tasks', { n: 3 }, 3), 'Acme', t('common.you_capital')]) {
+    for (const s of ['“February”', t('report.detailed'), t('report.basic'), '“Hero”', '“Footer”', '“Hosting”', '“Licence”', '“Domain”', t('reportHistory.tasks', { n: 3 }, 3), 'Acme', t('common.you_capital')]) {
       expect(history.text()).toContain(s)
     }
     await history.setProps({ version: 1 })
