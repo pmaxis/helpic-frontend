@@ -8,10 +8,13 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import DateInput from '@/components/ui/DateInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormError from '@/components/auth/FormError.vue'
+import DictateButton from '@/components/tasks/DictateButton.vue'
+import DictationPanel from '@/components/tasks/DictationPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
 import { priceInput } from '@/utils/money'
+import { dictationSupported } from '@/composables/useDictation'
 import { useForm } from '@/composables/useForm'
 import { choice, LIMITS, optionalText, price, requiredText } from '@/utils/validation'
 import { priorityOptions as priorityChoices } from '@/constants/tasks'
@@ -181,6 +184,30 @@ watch(
   { immediate: true },
 )
 
+/**
+ * A dictated phrase: the first one, said while the title is empty, is the
+ * title, and the rest is the description. A phrase too long for the title
+ * breaks at a word, and goes on in the description.
+ */
+function addDictated(phrase: string) {
+  let rest = phrase
+  if (!form.values.title.trim()) {
+    const end = phrase.length > LIMITS.taskTitle ? phrase.lastIndexOf(' ', LIMITS.taskTitle) : phrase.length
+    const cut = end > 0 ? end : LIMITS.taskTitle
+    form.values.title = phrase.slice(0, cut)
+    rest = phrase.slice(cut).trim()
+  }
+  if (rest) form.values.description = form.values.description ? `${form.values.description}\n\n${rest}` : rest
+}
+
+const canDictate = dictationSupported()
+const dictating = ref(false)
+
+function takeDictation(phrases: string[]) {
+  dictating.value = false
+  phrases.forEach(addDictated)
+}
+
 function submit() {
   void form.submit(async (data) => {
     const priority = data.priority as TaskPriority
@@ -214,6 +241,10 @@ function submit() {
     size="lg"
     @close="emit('close')"
   >
+    <template v-if="canDictate" #actions>
+      <DictateButton @click="dictating = true" />
+    </template>
+
     <form id="task-form" class="space-y-4" novalidate @submit.prevent="submit">
       <FormError :message="form.formError" />
 
@@ -261,6 +292,7 @@ function submit() {
         />
       </div>
     </form>
+    <DictationPanel v-if="dictating" :titled="!!form.values.title.trim()" @done="takeDictation" @cancel="dictating = false" />
 
     <template #footer>
       <BaseButton variant="ghost" size="sm" :block="false" :disabled="form.submitting" @click="emit('close')">{{ $t('common.cancel') }}</BaseButton>

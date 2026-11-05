@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import TaskFormModal from '@/components/tasks/TaskFormModal.vue'
 import { t } from '@/i18n'
 import { useProjectsStore } from '@/stores/projects'
@@ -169,5 +170,125 @@ describe('TaskFormModal: editing', () => {
     const form = await render(TaskFormModal, { props: { task: makeTask() }, user: freelancer })
     await click(button(t('common.cancel')))
     expect(form.emitted('close')).toHaveLength(1)
+  })
+})
+
+describe('TaskFormModal: dictating', () => {
+  class FakeSpeech {
+    static last: FakeSpeech
+    lang = ''
+    onresult: ((event: unknown) => void) | null = null
+    onerror: ((event: { error: string }) => void) | null = null
+    onend: (() => void) | null = null
+    abort = vi.fn()
+    start() {
+      FakeSpeech.last = this
+    }
+    stop() {
+      this.onend?.()
+    }
+    /** The browser hearing a phrase to its end, or still hearing it. */
+    hear(transcript: string, isFinal = true) {
+      this.onresult?.({ resultIndex: 0, results: [{ isFinal, 0: { transcript } }] })
+      return nextTick()
+    }
+  }
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  const dictate = () => button(t('dictation.start'))
+  const title = () => field(t('task.titleLabel')) as HTMLInputElement
+
+  const finish = () => click(button(t('dictation.done')))
+
+  it('offers nothing in a browser without speech recognition', async () => {
+    serve()
+    await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    expect(() => dictate()).toThrow()
+  })
+
+  it('gathers what is said apart from the form, then fills it at once', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    const server = serve()
+    await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await click(dictate())
+    expect(FakeSpeech.last.lang).toBe('en-GB')
+
+    await FakeSpeech.last.hear('fix the hea', false)
+    expect(document.body.textContent).toContain('fix the hea')
+
+    await FakeSpeech.last.hear(' Fix the header ')
+    await FakeSpeech.last.hear('it overlaps the logo')
+    await FakeSpeech.last.hear('on phones')
+    expect(title().value).toBe('')
+
+    await finish()
+    expect(title().value).toBe('Fix the header')
+    expect(document.body.textContent).not.toContain(t('dictation.title'))
+
+    await click(save())
+    expect(server.to('POST /tasks')[0].body).toMatchObject({ title: 'Fix the header', description: 'it overlaps the logo\n\non phones' })
+  })
+
+  it('keeps a title already there, and takes everything as description', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    const server = serve()
+    await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await type(title(), 'Hero')
+    await click(dictate())
+    await FakeSpeech.last.hear('make it taller')
+    await finish()
+    await click(save())
+    expect(server.to('POST /tasks')[0].body).toMatchObject({ title: 'Hero', description: 'make it taller' })
+  })
+
+  it('carries a phrase too long for a title on into the description, at a word', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    const server = serve()
+    await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await click(dictate())
+    await FakeSpeech.last.hear(`${'word '.repeat(40)}last`)
+    await finish()
+    expect(title().value).toBe('word '.repeat(40).trim())
+    await click(save())
+    expect(server.to('POST /tasks')[0].body).toMatchObject({ description: 'last' })
+  })
+
+  it('leaves the form as it was on cancel, by button or Escape', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    serve()
+    const form = await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await click(dictate())
+    await FakeSpeech.last.hear('never mind')
+    await click(button(t('common.cancel')))
+    expect(title().value).toBe('')
+    expect(FakeSpeech.last.abort).toHaveBeenCalled()
+
+    await click(dictate())
+    button(t('dictation.done')).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(document.body.textContent).not.toContain(t('dictation.title'))
+    expect(form.emitted('close')).toBeUndefined()
+  })
+
+  it('says so when the microphone is refused', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    serve()
+    await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await click(dictate())
+    FakeSpeech.last.onerror?.({ error: 'not-allowed' })
+    FakeSpeech.last.onend?.()
+    await nextTick()
+    expect(document.body.textContent).toContain(t('dictation.denied'))
+    expect(button(t('dictation.resume'))).toBeTruthy()
+  })
+
+  it('stops listening when the form closes', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeSpeech)
+    serve()
+    const form = await render(TaskFormModal, { props: { people: [acme] }, user: freelancer })
+    await click(dictate())
+    form.unmount()
+    expect(FakeSpeech.last.abort).toHaveBeenCalled()
   })
 })
